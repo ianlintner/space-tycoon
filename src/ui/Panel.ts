@@ -32,10 +32,10 @@ export class Panel extends Phaser.GameObjects.Container {
         undefined,
         config.width,
         config.height,
-        4,
-        4,
-        4,
-        4,
+        10,
+        10,
+        10,
+        10,
       )
       .setOrigin(0, 0);
     this.add(this.bg);

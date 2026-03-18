@@ -46,10 +46,10 @@ export class Modal extends Phaser.GameObjects.Container {
         undefined,
         modalWidth,
         modalHeight,
-        4,
-        4,
-        4,
-        4,
+        10,
+        10,
+        10,
+        10,
       )
       .setOrigin(0, 0);
     this.panel.add(panelBg);
@@ -113,10 +113,10 @@ export class Modal extends Phaser.GameObjects.Container {
         undefined,
         buttonWidth,
         buttonHeight,
-        4,
-        4,
-        4,
-        4,
+        10,
+        10,
+        10,
+        10,
       )
       .setOrigin(0, 0)
       .setInteractive({ useHandCursor: true });
@@ -151,10 +151,10 @@ export class Modal extends Phaser.GameObjects.Container {
           undefined,
           buttonWidth,
           buttonHeight,
-          4,
-          4,
-          4,
-          4,
+          10,
+          10,
+          10,
+          10,
         )
         .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });

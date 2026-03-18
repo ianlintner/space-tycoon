@@ -45,6 +45,23 @@ export interface ThemeConfig {
     minWidth: number;
     borderWidth: number;
   };
+  glow: {
+    width: number;
+    alpha: number;
+    activeAlpha: number;
+    pulseMin: number;
+    pulseMax: number;
+  };
+  glass: {
+    bgAlpha: number;
+    gradientSteps: number;
+    topTint: number;
+    bottomTint: number;
+    innerBorderAlpha: number;
+  };
+  chamfer: {
+    size: number;
+  };
 }
 
 export const DEFAULT_THEME: ThemeConfig = {
@@ -80,6 +97,23 @@ export const DEFAULT_THEME: ThemeConfig = {
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
   panel: { borderWidth: 2, cornerRadius: 4, titleHeight: 36 },
   button: { height: 40, minWidth: 120, borderWidth: 2 },
+  glow: {
+    width: 6,
+    alpha: 0.25,
+    activeAlpha: 0.5,
+    pulseMin: 0.15,
+    pulseMax: 0.4,
+  },
+  glass: {
+    bgAlpha: 0.75,
+    gradientSteps: 8,
+    topTint: 0x080818,
+    bottomTint: 0x181838,
+    innerBorderAlpha: 0.3,
+  },
+  chamfer: {
+    size: 8,
+  },
 };
 
 let currentTheme: ThemeConfig = DEFAULT_THEME;
@@ -94,4 +128,25 @@ export function setTheme(theme: ThemeConfig): void {
 
 export function colorToString(color: number): string {
   return "#" + color.toString(16).padStart(6, "0");
+}
+
+export function colorWithAlpha(
+  color: number,
+  alpha: number,
+): { color: number; alpha: number } {
+  return { color, alpha };
+}
+
+/** Interpolate between two hex colors. t=0 returns c1, t=1 returns c2. */
+export function lerpColor(c1: number, c2: number, t: number): number {
+  const r1 = (c1 >> 16) & 0xff;
+  const g1 = (c1 >> 8) & 0xff;
+  const b1 = c1 & 0xff;
+  const r2 = (c2 >> 16) & 0xff;
+  const g2 = (c2 >> 8) & 0xff;
+  const b2 = c2 & 0xff;
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  return (r << 16) | (g << 8) | b;
 }

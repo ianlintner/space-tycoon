@@ -27,7 +27,7 @@ export class Button extends Phaser.GameObjects.Container {
 
     const textureKey = this.isDisabled ? "btn-disabled" : "btn-normal";
     this.bg = scene.add
-      .nineslice(0, 0, textureKey, undefined, width, height, 4, 4, 4, 4)
+      .nineslice(0, 0, textureKey, undefined, width, height, 10, 10, 10, 10)
       .setOrigin(0, 0);
 
     const textColor = this.isDisabled
