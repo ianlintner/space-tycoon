@@ -48,26 +48,14 @@ export class ProgressBar extends Phaser.GameObjects.Container {
 
     // Background
     this.bg = scene.add
-      .rectangle(
-        bw,
-        bw,
-        config.width - bw * 2,
-        config.height - bw * 2,
-        bgColor,
-      )
+      .rectangle(bw, bw, config.width - bw * 2, config.height - bw * 2, bgColor)
       .setOrigin(0, 0);
     this.add(this.bg);
 
     // Fill
     const fillWidth = this.calculateFillWidth();
     this.fill = scene.add
-      .rectangle(
-        bw,
-        bw,
-        fillWidth,
-        config.height - bw * 2,
-        this.fillColor,
-      )
+      .rectangle(bw, bw, fillWidth, config.height - bw * 2, this.fillColor)
       .setOrigin(0, 0);
     this.add(this.fill);
 

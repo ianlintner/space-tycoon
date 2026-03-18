@@ -32,7 +32,13 @@ export class GameHUDScene extends Phaser.Scene {
 
     // Top bar background
     this.add
-      .rectangle(640, topBarHeight / 2, 1280, topBarHeight, theme.colors.headerBg)
+      .rectangle(
+        640,
+        topBarHeight / 2,
+        1280,
+        topBarHeight,
+        theme.colors.headerBg,
+      )
       .setOrigin(0.5);
 
     // Left: Company name

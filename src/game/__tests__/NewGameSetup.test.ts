@@ -46,9 +46,7 @@ describe("NewGameSetup", () => {
 
     expect(fleet.length).toBe(2);
 
-    const cargoShuttle = fleet.find(
-      (s) => s.class === ShipClass.CargoShuttle,
-    );
+    const cargoShuttle = fleet.find((s) => s.class === ShipClass.CargoShuttle);
     const passengerShuttle = fleet.find(
       (s) => s.class === ShipClass.PassengerShuttle,
     );

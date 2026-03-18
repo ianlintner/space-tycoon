@@ -216,9 +216,7 @@ export function applyEventEffects(
       case "modifyPrice": {
         // If no cargoType, this modifies fuel price
         if (!effect.cargoType) {
-          const newFuelPrice =
-            nextState.market.fuelPrice *
-            (1 + effect.value);
+          const newFuelPrice = nextState.market.fuelPrice * (1 + effect.value);
           nextState = {
             ...nextState,
             market: {
@@ -266,8 +264,7 @@ export function applyEventEffects(
 
           if (effect.cargoType) {
             const entry = { ...planetMarket[effect.cargoType] };
-            entry.eventModifier =
-              (entry.eventModifier || 0) + effect.value;
+            entry.eventModifier = (entry.eventModifier || 0) + effect.value;
             planetMarket[effect.cargoType] = entry;
           } else {
             // Apply to all cargo types
@@ -275,8 +272,7 @@ export function applyEventEffects(
               keyof typeof planetMarket
             >) {
               const entry = { ...planetMarket[key] };
-              entry.eventModifier =
-                (entry.eventModifier || 0) + effect.value;
+              entry.eventModifier = (entry.eventModifier || 0) + effect.value;
               planetMarket[key] = entry;
             }
           }

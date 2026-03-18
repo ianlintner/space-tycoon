@@ -111,7 +111,14 @@ export class SimPlaybackScene extends Phaser.Scene {
     const tickerY = 70;
 
     this.add
-      .rectangle(tickerX - 10, tickerY - 10, 220, 110, theme.colors.panelBg, 0.85)
+      .rectangle(
+        tickerX - 10,
+        tickerY - 10,
+        220,
+        110,
+        theme.colors.panelBg,
+        0.85,
+      )
       .setOrigin(0, 0);
 
     new Label(this, {

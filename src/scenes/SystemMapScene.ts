@@ -71,7 +71,8 @@ export class SystemMapScene extends Phaser.Scene {
     const planetPositions = new Map<string, { x: number; y: number }>();
 
     planets.forEach((planet, index) => {
-      const angle = (index / Math.max(planets.length, 1)) * Math.PI * 2 - Math.PI / 2;
+      const angle =
+        (index / Math.max(planets.length, 1)) * Math.PI * 2 - Math.PI / 2;
       const px = cx + Math.cos(angle) * orbitRadius;
       const py = cy + Math.sin(angle) * orbitRadius;
       planetPositions.set(planet.id, { x: px, y: py });

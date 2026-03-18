@@ -70,9 +70,7 @@ export function overhaulShip(
 
   const cost = ship.purchaseCost * OVERHAUL_COST_RATIO;
   const updatedFleet = fleet.map((s) =>
-    s.id === shipId
-      ? { ...s, condition: OVERHAUL_RESTORE_CONDITION }
-      : s,
+    s.id === shipId ? { ...s, condition: OVERHAUL_RESTORE_CONDITION } : s,
   );
 
   return { updatedFleet, cost };

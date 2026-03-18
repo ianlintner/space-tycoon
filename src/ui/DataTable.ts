@@ -154,8 +154,7 @@ export class DataTable extends Phaser.GameObjects.Container {
 
     sortedRows.forEach((row, i) => {
       const y = i * this.rowHeight;
-      const bgColor =
-        i % 2 === 0 ? theme.colors.rowEven : theme.colors.rowOdd;
+      const bgColor = i % 2 === 0 ? theme.colors.rowEven : theme.colors.rowOdd;
       const rowBg = this.scene.add
         .rectangle(0, y, this.tableConfig.width, this.rowHeight, bgColor)
         .setOrigin(0, 0)

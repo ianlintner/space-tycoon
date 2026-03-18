@@ -102,9 +102,7 @@ export class FinanceScene extends Phaser.Scene {
     const headerText = this.add.text(
       x,
       y,
-      lastTurn
-        ? `Last Turn (#${lastTurn.turn}) P&L`
-        : "No turns completed yet",
+      lastTurn ? `Last Turn (#${lastTurn.turn}) P&L` : "No turns completed yet",
       {
         fontSize: `${theme.fonts.heading.size}px`,
         fontFamily: theme.fonts.heading.family,

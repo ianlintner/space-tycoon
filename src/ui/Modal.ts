@@ -56,7 +56,13 @@ export class Modal extends Phaser.GameObjects.Container {
 
     // Title bar
     const titleBg = scene.add
-      .rectangle(0, 0, modalWidth, theme.panel.titleHeight, theme.colors.headerBg)
+      .rectangle(
+        0,
+        0,
+        modalWidth,
+        theme.panel.titleHeight,
+        theme.colors.headerBg,
+      )
       .setOrigin(0, 0);
     this.panel.add(titleBg);
 

@@ -25,10 +25,7 @@ function calculateHealthScore(
   // Profit component (0–40 points): recent turn profit
   // A "good" profit is considered to be roughly 10% of starting cash per turn
   const profitTarget = STARTING_CASH * 0.1;
-  const profitRatio = Math.max(
-    -1,
-    Math.min(lastTurnProfit / profitTarget, 2),
-  );
+  const profitRatio = Math.max(-1, Math.min(lastTurnProfit / profitTarget, 2));
   // Map from [-1, 2] to [0, 40]
   const profitScore = ((profitRatio + 1) / 3) * 40;
 

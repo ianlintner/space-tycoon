@@ -1,5 +1,8 @@
 import type { CargoMarketEntry, CargoType } from "../../data/types.ts";
-import { BASE_CARGO_PRICES, SATURATION_PRICE_IMPACT } from "../../data/constants.ts";
+import {
+  BASE_CARGO_PRICES,
+  SATURATION_PRICE_IMPACT,
+} from "../../data/constants.ts";
 
 /**
  * Calculate the current price for a cargo type at a given market entry.
@@ -34,7 +37,11 @@ export function calculatePrice(
   const eventModifier = entry.eventModifier;
 
   const price =
-    basePrice * demandMultiplier * saturationFactor * trendModifier * eventModifier;
+    basePrice *
+    demandMultiplier *
+    saturationFactor *
+    trendModifier *
+    eventModifier;
 
   // Round to 2 decimal places
   return Math.round(price * 100) / 100;

@@ -105,7 +105,9 @@ describe("SaveManager", () => {
     it("preserves nested galaxy data", () => {
       const state = createTestState({
         galaxy: {
-          sectors: [{ id: "s1", name: "Alpha", x: 100, y: 200, color: 0xff0000 }],
+          sectors: [
+            { id: "s1", name: "Alpha", x: 100, y: 200, color: 0xff0000 },
+          ],
           systems: [
             {
               id: "sys1",
@@ -271,7 +273,10 @@ describe("SaveManager", () => {
   // -------------------------------------------------------------------------
   describe("loadGameIntoStore", () => {
     it("restores saved state into gameStore and returns true", () => {
-      const state = createTestState({ cash: 333333, companyName: "Stored Corp" });
+      const state = createTestState({
+        cash: 333333,
+        companyName: "Stored Corp",
+      });
       saveGame(state);
 
       const result = loadGameIntoStore();

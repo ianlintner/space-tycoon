@@ -81,7 +81,9 @@ function makeRoute(overrides: Partial<ActiveRoute> = {}): ActiveRoute {
   };
 }
 
-function makeMarketEntry(overrides: Partial<CargoMarketEntry> = {}): CargoMarketEntry {
+function makeMarketEntry(
+  overrides: Partial<CargoMarketEntry> = {},
+): CargoMarketEntry {
   return {
     baseSupply: 30,
     baseDemand: 80,
@@ -147,8 +149,18 @@ describe("RouteManager", () => {
 
     it("different system distance is much longer than same system", () => {
       const planet1 = makePlanet({ id: "p1", systemId: "sys-1", x: 1, y: 1 });
-      const planet2Same = makePlanet({ id: "p2", systemId: "sys-1", x: 4, y: 5 });
-      const planet2Diff = makePlanet({ id: "p3", systemId: "sys-2", x: 1, y: 1 });
+      const planet2Same = makePlanet({
+        id: "p2",
+        systemId: "sys-1",
+        x: 4,
+        y: 5,
+      });
+      const planet2Diff = makePlanet({
+        id: "p3",
+        systemId: "sys-2",
+        x: 1,
+        y: 1,
+      });
       const systems = [
         makeSystem({ id: "sys-1", x: 0, y: 0 }),
         makeSystem({ id: "sys-2", x: 100, y: 100 }),
@@ -275,7 +287,9 @@ describe("RouteManager", () => {
 
       expect(result.routes).toHaveLength(1);
       expect(result.routes[0].id).toBe("route-2");
-      expect(result.fleet.find((s) => s.id === "ship-2")!.assignedRouteId).toBe("route-2");
+      expect(result.fleet.find((s) => s.id === "ship-2")!.assignedRouteId).toBe(
+        "route-2",
+      );
     });
   });
 
@@ -328,8 +342,16 @@ describe("RouteManager", () => {
       const efficientShip = makeShip({ fuelEfficiency: 0.5, speed: 4 });
       const inefficientShip = makeShip({ fuelEfficiency: 2.0, speed: 4 });
 
-      const efficientCost = estimateRouteFuelCost(route, efficientShip, BASE_FUEL_PRICE);
-      const inefficientCost = estimateRouteFuelCost(route, inefficientShip, BASE_FUEL_PRICE);
+      const efficientCost = estimateRouteFuelCost(
+        route,
+        efficientShip,
+        BASE_FUEL_PRICE,
+      );
+      const inefficientCost = estimateRouteFuelCost(
+        route,
+        inefficientShip,
+        BASE_FUEL_PRICE,
+      );
 
       expect(inefficientCost).toBeGreaterThan(efficientCost);
     });

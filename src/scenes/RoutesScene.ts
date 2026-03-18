@@ -55,7 +55,12 @@ export class RoutesScene extends Phaser.Scene {
       height: 420,
       columns: [
         { key: "origin", label: "Origin", width: 150, sortable: true },
-        { key: "destination", label: "Destination", width: 150, sortable: true },
+        {
+          key: "destination",
+          label: "Destination",
+          width: 150,
+          sortable: true,
+        },
         {
           key: "distance",
           label: "Distance",
@@ -77,10 +82,15 @@ export class RoutesScene extends Phaser.Scene {
           label: "Est. Revenue",
           width: 140,
           align: "right",
-          format: (v) => (v as string | number) === "\u2014" ? "\u2014" : formatCash(v as number),
+          format: (v) =>
+            (v as string | number) === "\u2014"
+              ? "\u2014"
+              : formatCash(v as number),
           colorFn: (v) => {
             const theme2 = getTheme();
-            return typeof v === "number" ? theme2.colors.profit : theme2.colors.textDim;
+            return typeof v === "number"
+              ? theme2.colors.profit
+              : theme2.colors.textDim;
           },
         },
         {
@@ -88,10 +98,15 @@ export class RoutesScene extends Phaser.Scene {
           label: "Est. Fuel",
           width: 130,
           align: "right",
-          format: (v) => (v as string | number) === "\u2014" ? "\u2014" : formatCash(v as number),
+          format: (v) =>
+            (v as string | number) === "\u2014"
+              ? "\u2014"
+              : formatCash(v as number),
           colorFn: (v) => {
             const theme2 = getTheme();
-            return typeof v === "number" ? theme2.colors.loss : theme2.colors.textDim;
+            return typeof v === "number"
+              ? theme2.colors.loss
+              : theme2.colors.textDim;
           },
         },
         {
@@ -99,7 +114,10 @@ export class RoutesScene extends Phaser.Scene {
           label: "Est. Profit",
           width: 140,
           align: "right",
-          format: (v) => (v as string | number) === "\u2014" ? "\u2014" : formatCash(v as number),
+          format: (v) =>
+            (v as string | number) === "\u2014"
+              ? "\u2014"
+              : formatCash(v as number),
           colorFn: (v) => {
             const theme2 = getTheme();
             if (typeof v !== "number") return theme2.colors.textDim;
@@ -184,8 +202,7 @@ export class RoutesScene extends Phaser.Scene {
         id: route.id,
         origin: planetMap.get(route.originPlanetId) ?? route.originPlanetId,
         destination:
-          planetMap.get(route.destinationPlanetId) ??
-          route.destinationPlanetId,
+          planetMap.get(route.destinationPlanetId) ?? route.destinationPlanetId,
         distance: route.distance,
         ships: route.assignedShipIds.length,
         cargoType: route.cargoType ?? "None",
@@ -315,10 +332,7 @@ export class RoutesScene extends Phaser.Scene {
     }
   }
 
-  private pickCargoType(
-    originPlanetId: string,
-    destPlanetId: string,
-  ): void {
+  private pickCargoType(originPlanetId: string, destPlanetId: string): void {
     const theme = getTheme();
     const cargoTypes = Object.values(CargoType) as CargoTypeValue[];
 
@@ -517,16 +531,11 @@ export class RoutesScene extends Phaser.Scene {
 
     for (const ship of availableShips) {
       const itemContainer = this.add.container(0, 0);
-      const nameText = this.add.text(
-        10,
-        4,
-        `${ship.name} (${ship.class})`,
-        {
-          fontSize: `${theme.fonts.body.size}px`,
-          fontFamily: theme.fonts.body.family,
-          color: colorToString(theme.colors.text),
-        },
-      );
+      const nameText = this.add.text(10, 4, `${ship.name} (${ship.class})`, {
+        fontSize: `${theme.fonts.body.size}px`,
+        fontFamily: theme.fonts.body.family,
+        color: colorToString(theme.colors.text),
+      });
       const statsText = this.add.text(
         10,
         22,

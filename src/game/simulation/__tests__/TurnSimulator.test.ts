@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { simulateTurn } from "../TurnSimulator.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
-import { CargoType, ShipClass, PlanetType, EventCategory } from "../../../data/types.ts";
+import {
+  CargoType,
+  ShipClass,
+  PlanetType,
+  EventCategory,
+} from "../../../data/types.ts";
 import type {
   GameState,
   Ship,
@@ -25,7 +30,9 @@ import { calculateTripsPerTurn } from "../../routes/RouteManager.ts";
 // Test helpers
 // ---------------------------------------------------------------------------
 
-function makeCargoEntry(overrides: Partial<CargoMarketEntry> = {}): CargoMarketEntry {
+function makeCargoEntry(
+  overrides: Partial<CargoMarketEntry> = {},
+): CargoMarketEntry {
   return {
     baseSupply: 100,
     baseDemand: 100,
@@ -38,7 +45,9 @@ function makeCargoEntry(overrides: Partial<CargoMarketEntry> = {}): CargoMarketE
   };
 }
 
-function makePlanetMarket(overrides: Partial<Record<string, Partial<CargoMarketEntry>>> = {}): PlanetMarket {
+function makePlanetMarket(
+  overrides: Partial<Record<string, Partial<CargoMarketEntry>>> = {},
+): PlanetMarket {
   const base: Record<string, CargoMarketEntry> = {};
   for (const ct of Object.values(CargoType)) {
     base[ct] = makeCargoEntry(overrides[ct] ?? {});
@@ -94,15 +103,45 @@ function makeSector(): Sector {
 
 function makeSystems(): StarSystem[] {
   return [
-    { id: "sys-1", name: "Alpha", sectorId: "sec-1", x: 100, y: 100, starColor: 0xffcc00 },
-    { id: "sys-2", name: "Beta", sectorId: "sec-1", x: 300, y: 200, starColor: 0xff6600 },
+    {
+      id: "sys-1",
+      name: "Alpha",
+      sectorId: "sec-1",
+      x: 100,
+      y: 100,
+      starColor: 0xffcc00,
+    },
+    {
+      id: "sys-2",
+      name: "Beta",
+      sectorId: "sec-1",
+      x: 300,
+      y: 200,
+      starColor: 0xff6600,
+    },
   ];
 }
 
 function makePlanets(): Planet[] {
   return [
-    { id: "planet-a", name: "Planet A", systemId: "sys-1", type: PlanetType.Terran, x: 110, y: 110, population: 1000000 },
-    { id: "planet-b", name: "Planet B", systemId: "sys-2", type: PlanetType.Agricultural, x: 310, y: 210, population: 200000 },
+    {
+      id: "planet-a",
+      name: "Planet A",
+      systemId: "sys-1",
+      type: PlanetType.Terran,
+      x: 110,
+      y: 110,
+      population: 1000000,
+    },
+    {
+      id: "planet-b",
+      name: "Planet B",
+      systemId: "sys-2",
+      type: PlanetType.Agricultural,
+      x: 310,
+      y: 210,
+      population: 200000,
+    },
   ];
 }
 
@@ -204,7 +243,9 @@ describe("TurnSimulator", () => {
       const turnResult = result.history[result.history.length - 1];
       const trips = calculateTripsPerTurn(50, 4); // 4
       const expectedCargoDelivered = 80 * trips; // capacity * trips
-      expect(turnResult.cargoDelivered[CargoType.Food]).toBe(expectedCargoDelivered);
+      expect(turnResult.cargoDelivered[CargoType.Food]).toBe(
+        expectedCargoDelivered,
+      );
     });
 
     it("triggers bankruptcy after 2 consecutive debt turns with insufficient assets", () => {
@@ -421,8 +462,16 @@ describe("TurnSimulator", () => {
     });
 
     it("processes multiple loans", () => {
-      const loan1 = makeLoan({ id: "loan-1", remainingBalance: 50000, interestRate: 0.05 });
-      const loan2 = makeLoan({ id: "loan-2", remainingBalance: 100000, interestRate: 0.08 });
+      const loan1 = makeLoan({
+        id: "loan-1",
+        remainingBalance: 50000,
+        interestRate: 0.05,
+      });
+      const loan2 = makeLoan({
+        id: "loan-2",
+        remainingBalance: 100000,
+        interestRate: 0.08,
+      });
       const state = makeGameState({ loans: [loan1, loan2] });
       const rng = new SeededRNG(42);
 
@@ -451,7 +500,9 @@ describe("TurnSimulator", () => {
       const result = simulateTurn(state, rng);
 
       // The existing event should have its duration reduced by 1
-      const tickedEvent = result.activeEvents.find((e) => e.id === "existing-event");
+      const tickedEvent = result.activeEvents.find(
+        (e) => e.id === "existing-event",
+      );
       expect(tickedEvent?.duration).toBe(2);
     });
   });

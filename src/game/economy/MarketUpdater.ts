@@ -24,10 +24,7 @@ const ALL_CARGO_TYPES: CargoTypeT[] = Object.values(CargoType);
  * 3. Recalculate currentPrice for every entry
  * 4. Fluctuate fuel price with +-5% random walk, clamped to [50%, 150%] of BASE_FUEL_PRICE
  */
-export function updateMarket(
-  market: MarketState,
-  rng: SeededRNG,
-): MarketState {
+export function updateMarket(market: MarketState, rng: SeededRNG): MarketState {
   const newPlanetMarkets: Record<string, PlanetMarket> = {};
 
   for (const planetId of Object.keys(market.planetMarkets)) {
@@ -95,7 +92,7 @@ function updateTrend(
   rng: SeededRNG,
 ): { trend: Trend; momentum: number } {
   // 20% base chance of any shift
-  if (!rng.chance(0.20)) {
+  if (!rng.chance(0.2)) {
     return { trend: currentTrend, momentum };
   }
 
@@ -123,11 +120,16 @@ function updateTrend(
     case "stable": {
       // Base: 10% rising, 10% falling
       // Momentum shifts toward whatever direction momentum points
-      const risingChance = momentum > 0 ? 0.10 + momentumBonus : 0.10 - momentumBonus;
+      const risingChance =
+        momentum > 0 ? 0.1 + momentumBonus : 0.1 - momentumBonus;
       const roll = rng.next();
       if (roll < Math.max(risingChance, 0.02)) {
         newTrend = "rising";
-      } else if (roll < Math.max(risingChance, 0.02) + Math.max(0.10 - (momentum > 0 ? momentumBonus : -momentumBonus), 0.02)) {
+      } else if (
+        roll <
+        Math.max(risingChance, 0.02) +
+          Math.max(0.1 - (momentum > 0 ? momentumBonus : -momentumBonus), 0.02)
+      ) {
         newTrend = "falling";
       }
       break;

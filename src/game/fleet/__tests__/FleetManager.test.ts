@@ -9,7 +9,11 @@ import {
 } from "../FleetManager.ts";
 import { ShipClass } from "../../../data/types.ts";
 import type { Ship } from "../../../data/types.ts";
-import { SHIP_TEMPLATES, OVERHAUL_RESTORE_CONDITION, OVERHAUL_COST_RATIO } from "../../../data/constants.ts";
+import {
+  SHIP_TEMPLATES,
+  OVERHAUL_RESTORE_CONDITION,
+  OVERHAUL_COST_RATIO,
+} from "../../../data/constants.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
 
 function makeShip(overrides: Partial<Ship> = {}): Ship {
@@ -96,9 +100,7 @@ describe("FleetManager", () => {
 
       const result = overhaulShip(ship.id, fleet);
 
-      const overhauledShip = result.updatedFleet.find(
-        (s) => s.id === ship.id,
-      );
+      const overhauledShip = result.updatedFleet.find((s) => s.id === ship.id);
       expect(overhauledShip!.condition).toBe(OVERHAUL_RESTORE_CONDITION);
     });
 

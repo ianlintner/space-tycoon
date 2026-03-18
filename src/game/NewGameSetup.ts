@@ -2,7 +2,12 @@ import { SeededRNG } from "../utils/SeededRNG.ts";
 import { generateGalaxy } from "../generation/GalaxyGenerator.ts";
 import { initializeMarkets } from "../generation/MarketInitializer.ts";
 import { ShipClass } from "../data/types.ts";
-import type { GameState, Ship, StarSystem, StorytellerState } from "../data/types.ts";
+import type {
+  GameState,
+  Ship,
+  StarSystem,
+  StorytellerState,
+} from "../data/types.ts";
 import { SHIP_TEMPLATES, STARTING_CASH, MAX_TURNS } from "../data/constants.ts";
 
 export interface NewGameResult {
@@ -10,10 +15,7 @@ export interface NewGameResult {
   startingSystemOptions: StarSystem[];
 }
 
-function createShipFromTemplate(
-  shipClass: ShipClass,
-  id: string,
-): Ship {
+function createShipFromTemplate(shipClass: ShipClass, id: string): Ship {
   const template = SHIP_TEMPLATES[shipClass];
   return {
     id,
@@ -93,10 +95,7 @@ export function createNewGame(
   };
 
   // Select starting system options
-  const startingSystemOptions = selectStartingSystems(
-    galaxyData.systems,
-    rng,
-  );
+  const startingSystemOptions = selectStartingSystems(galaxyData.systems, rng);
 
   const state: GameState = {
     seed,

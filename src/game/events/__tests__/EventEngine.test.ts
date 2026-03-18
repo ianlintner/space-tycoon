@@ -16,7 +16,11 @@ import type {
   StarSystem,
   ActiveRoute,
 } from "../../../data/types.ts";
-import { STARTING_CASH, MAX_TURNS, BASE_FUEL_PRICE } from "../../../data/constants.ts";
+import {
+  STARTING_CASH,
+  MAX_TURNS,
+  BASE_FUEL_PRICE,
+} from "../../../data/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -102,15 +106,18 @@ function makeMinimalGameState(): GameState {
   const planetMarkets: GameState["market"]["planetMarkets"] = {};
   for (const planet of galaxy.planets) {
     const cargoTypes = Object.values(CargoType);
-    const market: Record<string, {
-      baseSupply: number;
-      baseDemand: number;
-      currentPrice: number;
-      saturation: number;
-      trend: "stable";
-      trendMomentum: number;
-      eventModifier: number;
-    }> = {};
+    const market: Record<
+      string,
+      {
+        baseSupply: number;
+        baseDemand: number;
+        currentPrice: number;
+        saturation: number;
+        trend: "stable";
+        trendMomentum: number;
+        eventModifier: number;
+      }
+    > = {};
     for (const ct of cargoTypes) {
       market[ct] = {
         baseSupply: 100,
@@ -122,7 +129,8 @@ function makeMinimalGameState(): GameState {
         eventModifier: 0,
       };
     }
-    planetMarkets[planet.id] = market as GameState["market"]["planetMarkets"][string];
+    planetMarkets[planet.id] =
+      market as GameState["market"]["planetMarkets"][string];
   }
 
   return {
@@ -357,7 +365,8 @@ describe("EventEngine", () => {
 
       const newState = applyEventEffects(event, state);
       expect(
-        newState.market.planetMarkets["planet-a1"][CargoType.Food].eventModifier,
+        newState.market.planetMarkets["planet-a1"][CargoType.Food]
+          .eventModifier,
       ).toBeCloseTo(0.8);
     });
 

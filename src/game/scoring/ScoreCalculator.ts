@@ -1,8 +1,5 @@
 import { CargoType } from "../../data/types.ts";
-import type {
-  GameState,
-  CargoType as CargoTypeT,
-} from "../../data/types.ts";
+import type { GameState, CargoType as CargoTypeT } from "../../data/types.ts";
 import { calculateShipValue } from "../fleet/FleetManager.ts";
 
 // ---------------------------------------------------------------------------
@@ -86,11 +83,7 @@ export function getHighScores(): HighScore[] {
 /**
  * Save a new high score to localStorage. Keeps only the top 10 scores.
  */
-export function saveHighScore(
-  name: string,
-  score: number,
-  seed: number,
-): void {
+export function saveHighScore(name: string, score: number, seed: number): void {
   const existing = getHighScores();
 
   const entry: HighScore = {

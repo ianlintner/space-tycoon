@@ -4,7 +4,9 @@ import { CargoType } from "../../../data/types.ts";
 import type { CargoMarketEntry } from "../../../data/types.ts";
 import { BASE_CARGO_PRICES } from "../../../data/constants.ts";
 
-function makeEntry(overrides: Partial<CargoMarketEntry> = {}): CargoMarketEntry {
+function makeEntry(
+  overrides: Partial<CargoMarketEntry> = {},
+): CargoMarketEntry {
   return {
     baseSupply: 50,
     baseDemand: 50,

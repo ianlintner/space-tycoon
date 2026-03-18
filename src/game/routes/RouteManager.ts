@@ -115,9 +115,7 @@ export function unassignShip(
         r.id === currentRouteId
           ? {
               ...r,
-              assignedShipIds: r.assignedShipIds.filter(
-                (id) => id !== shipId,
-              ),
+              assignedShipIds: r.assignedShipIds.filter((id) => id !== shipId),
             }
           : r,
       )

@@ -12,7 +12,9 @@ import { SeededRNG } from "../../../utils/SeededRNG.ts";
 
 const ALL_CARGO_TYPES: CargoTypeT[] = Object.values(CargoType);
 
-function makeEntry(overrides: Partial<CargoMarketEntry> = {}): CargoMarketEntry {
+function makeEntry(
+  overrides: Partial<CargoMarketEntry> = {},
+): CargoMarketEntry {
   return {
     baseSupply: 50,
     baseDemand: 50,
@@ -35,9 +37,7 @@ function makePlanetMarket(
   return market as PlanetMarket;
 }
 
-function makeMarketState(
-  overrides: Partial<MarketState> = {},
-): MarketState {
+function makeMarketState(overrides: Partial<MarketState> = {}): MarketState {
   return {
     fuelPrice: BASE_FUEL_PRICE,
     fuelTrend: "stable",
@@ -152,9 +152,9 @@ describe("MarketUpdater", () => {
       updateMarket(market, rng);
 
       expect(market.fuelPrice).toBe(originalFuelPrice);
-      expect(
-        market.planetMarkets["planet-1"][CargoType.Food].saturation,
-      ).toBe(originalSaturation);
+      expect(market.planetMarkets["planet-1"][CargoType.Food].saturation).toBe(
+        originalSaturation,
+      );
     });
   });
 });

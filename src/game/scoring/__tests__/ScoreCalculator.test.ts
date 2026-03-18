@@ -130,11 +130,34 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
     galaxy: {
       sectors: [{ id: "sec-1", name: "Sector 1", x: 0, y: 0, color: 0xffffff }],
       systems: [
-        { id: "sys-1", name: "Alpha", sectorId: "sec-1", x: 100, y: 100, starColor: 0xffcc00 },
+        {
+          id: "sys-1",
+          name: "Alpha",
+          sectorId: "sec-1",
+          x: 100,
+          y: 100,
+          starColor: 0xffcc00,
+        },
       ],
       planets: [
-        { id: "planet-a", name: "Planet A", systemId: "sys-1", type: PlanetType.Terran, x: 110, y: 110, population: 1000000 },
-        { id: "planet-b", name: "Planet B", systemId: "sys-1", type: PlanetType.Agricultural, x: 150, y: 150, population: 200000 },
+        {
+          id: "planet-a",
+          name: "Planet A",
+          systemId: "sys-1",
+          type: PlanetType.Terran,
+          x: 110,
+          y: 110,
+          population: 1000000,
+        },
+        {
+          id: "planet-b",
+          name: "Planet B",
+          systemId: "sys-1",
+          type: PlanetType.Agricultural,
+          x: 150,
+          y: 150,
+          population: 200000,
+        },
       ],
     },
     fleet: [makeShip()],
@@ -167,10 +190,18 @@ function createMockLocalStorage(): Storage {
   const store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { for (const key of Object.keys(store)) delete store[key]; },
-    get length() { return Object.keys(store).length; },
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      for (const key of Object.keys(store)) delete store[key];
+    },
+    get length() {
+      return Object.keys(store).length;
+    },
     key: (index: number) => Object.keys(store)[index] ?? null,
   };
 }
@@ -194,8 +225,18 @@ describe("ScoreCalculator", () => {
     });
 
     it("includes ship values in net worth", () => {
-      const ship1 = makeShip({ id: "ship-1", purchaseCost: 40000, condition: 100, age: 0 });
-      const ship2 = makeShip({ id: "ship-2", purchaseCost: 100000, condition: 80, age: 2 });
+      const ship1 = makeShip({
+        id: "ship-1",
+        purchaseCost: 40000,
+        condition: 100,
+        age: 0,
+      });
+      const ship2 = makeShip({
+        id: "ship-2",
+        purchaseCost: 100000,
+        condition: 80,
+        age: 2,
+      });
 
       // ship1 value: 40000 * 1.0 * 1.0 = 40000
       // ship2 value: 100000 * 0.8 * 0.9 = 72000
@@ -272,7 +313,9 @@ describe("ScoreCalculator", () => {
       const route2 = makeRoute({ id: "route-2" });
       const route3 = makeRoute({ id: "route-3" });
 
-      const stateWith3Routes = makeGameState({ activeRoutes: [route1, route2, route3] });
+      const stateWith3Routes = makeGameState({
+        activeRoutes: [route1, route2, route3],
+      });
       const stateWith1Route = makeGameState({ activeRoutes: [route1] });
 
       const score3 = calculateScore(stateWith3Routes);
@@ -388,7 +431,10 @@ describe("ScoreCalculator", () => {
     });
 
     it("handles non-array localStorage data gracefully", () => {
-      localStorage.setItem("sft_high_scores", JSON.stringify({ not: "an array" }));
+      localStorage.setItem(
+        "sft_high_scores",
+        JSON.stringify({ not: "an array" }),
+      );
       const scores = getHighScores();
       expect(scores).toEqual([]);
     });

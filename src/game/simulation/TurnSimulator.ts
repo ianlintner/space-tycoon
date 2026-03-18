@@ -48,7 +48,14 @@ function simulateShipOnRoute(
   rng: SeededRNG,
 ): ShipRouteResult {
   if (!route.cargoType) {
-    return { revenue: 0, fuelCost: 0, cargoMoved: 0, passengersMoved: 0, trips: 0, breakdowns: 0 };
+    return {
+      revenue: 0,
+      fuelCost: 0,
+      cargoMoved: 0,
+      passengersMoved: 0,
+      trips: 0,
+      breakdowns: 0,
+    };
   }
 
   const trips = calculateTripsPerTurn(route.distance, ship.speed);
@@ -75,7 +82,14 @@ function simulateShipOnRoute(
   // Normal operation
   const destMarket = state.market.planetMarkets[route.destinationPlanetId];
   if (!destMarket) {
-    return { revenue: 0, fuelCost: 0, cargoMoved: 0, passengersMoved: 0, trips, breakdowns: 0 };
+    return {
+      revenue: 0,
+      fuelCost: 0,
+      cargoMoved: 0,
+      passengersMoved: 0,
+      trips,
+      breakdowns: 0,
+    };
   }
 
   const destEntry = destMarket[route.cargoType];
@@ -120,7 +134,10 @@ function updateSaturation(
       if (!entry) continue;
 
       const saturationIncrease = amount / (entry.baseDemand * 10);
-      const newSaturation = Math.min(1, Math.max(0, entry.saturation + saturationIncrease));
+      const newSaturation = Math.min(
+        1,
+        Math.max(0, entry.saturation + saturationIncrease),
+      );
 
       planetMarket[cargoType] = {
         ...entry,
@@ -143,7 +160,10 @@ function updateSaturation(
 /**
  * Process loan interest payments. Returns updated loans and total interest paid.
  */
-function processLoans(loans: Loan[]): { updatedLoans: Loan[]; totalInterest: number } {
+function processLoans(loans: Loan[]): {
+  updatedLoans: Loan[];
+  totalInterest: number;
+} {
   let totalInterest = 0;
 
   const updatedLoans = loans.map((loan) => {
@@ -188,10 +208,7 @@ function checkBankruptcy(
  * Simulate one turn of the game. Pure function — returns a new GameState
  * without mutating the input.
  */
-export function simulateTurn(
-  state: GameState,
-  rng: SeededRNG,
-): GameState {
+export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   let nextState = { ...state };
 
   // ----- Step 1 & 2: Route simulation (revenue, fuel, breakdowns) -----
@@ -349,7 +366,13 @@ export function simulateTurn(
   nextState = { ...nextState, turn: nextTurn };
 
   // Check bankruptcy
-  if (checkBankruptcy(nextState.cash, nextState.fleet, nextState.storyteller.turnsInDebt)) {
+  if (
+    checkBankruptcy(
+      nextState.cash,
+      nextState.fleet,
+      nextState.storyteller.turnsInDebt,
+    )
+  ) {
     nextState = {
       ...nextState,
       gameOver: true,

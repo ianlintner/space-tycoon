@@ -46,12 +46,7 @@ describe("Storyteller", () => {
 
     it("low cash produces a low health score", () => {
       const fleet = [makeShip()];
-      const result = updateStorytellerState(
-        INITIAL_STATE,
-        100,
-        fleet,
-        -5000,
-      );
+      const result = updateStorytellerState(INITIAL_STATE, 100, fleet, -5000);
       expect(result.playerHealthScore).toBeLessThanOrEqual(30);
     });
 
@@ -93,12 +88,7 @@ describe("Storyteller", () => {
         ...INITIAL_STATE,
         turnsInDebt: 2,
       };
-      const result = updateStorytellerState(
-        state,
-        -5000,
-        [makeShip()],
-        -1000,
-      );
+      const result = updateStorytellerState(state, -5000, [makeShip()], -1000);
       expect(result.turnsInDebt).toBe(3);
     });
 
@@ -107,12 +97,7 @@ describe("Storyteller", () => {
         ...INITIAL_STATE,
         turnsInDebt: 4,
       };
-      const result = updateStorytellerState(
-        state,
-        50000,
-        [makeShip()],
-        1000,
-      );
+      const result = updateStorytellerState(state, 50000, [makeShip()], 1000);
       expect(result.turnsInDebt).toBe(0);
     });
 
@@ -131,12 +116,7 @@ describe("Storyteller", () => {
     });
 
     it("headwind bias is negative when health < 40", () => {
-      const result = updateStorytellerState(
-        INITIAL_STATE,
-        100,
-        [],
-        -5000,
-      );
+      const result = updateStorytellerState(INITIAL_STATE, 100, [], -5000);
       expect(result.playerHealthScore).toBeLessThan(40);
       expect(result.headwindBias).toBeLessThan(0);
     });
