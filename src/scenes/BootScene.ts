@@ -1,6 +1,6 @@
 import Phaser from "phaser";
-import type { ThemeConfig } from "../ui/Theme";
-import { getTheme } from "../ui/Theme";
+import type { ThemeConfig } from "../ui/Theme.ts";
+import { getTheme } from "../ui/Theme.ts";
 
 export class BootScene extends Phaser.Scene {
   constructor() {

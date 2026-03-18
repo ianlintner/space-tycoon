@@ -6,6 +6,7 @@ import { Panel } from "../ui/Panel.ts";
 import { Button } from "../ui/Button.ts";
 import { DataTable } from "../ui/DataTable.ts";
 import { ScrollableList } from "../ui/ScrollableList.ts";
+import { autoSave } from "../game/SaveManager.ts";
 import type { TurnResult } from "../data/types.ts";
 
 const HUD_TOP = 60;
@@ -32,6 +33,9 @@ export class TurnReportScene extends Phaser.Scene {
       this.scene.start("GalaxyMapScene");
       return;
     }
+
+    // Auto-save after each completed turn so the player can resume later
+    autoSave(state);
 
     this.cameras.main.setBackgroundColor(theme.colors.background);
 

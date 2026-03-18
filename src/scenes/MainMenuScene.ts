@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { Label } from "../ui/Label.ts";
 import { Button } from "../ui/Button.ts";
 import { getTheme } from "../ui/Theme.ts";
-import { gameStore } from "../data/GameStore.ts";
+import { hasSaveGame, loadGameIntoStore } from "../game/SaveManager.ts";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -52,18 +52,16 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Continue button (disabled when no save exists)
-    const hasSave = localStorage.getItem("sft_save") !== null;
+    const canContinue = hasSaveGame();
     new Button(this, {
       x: centerX - btnWidth / 2,
       y: 435,
       width: btnWidth,
       height: btnHeight,
       label: "Continue",
-      disabled: !hasSave,
+      disabled: !canContinue,
       onClick: () => {
-        const saveData = localStorage.getItem("sft_save");
-        if (saveData) {
-          gameStore.deserialize(saveData);
+        if (loadGameIntoStore()) {
           this.scene.start("GameHUDScene");
         }
       },
