@@ -11,6 +11,15 @@ export {
   getTheme,
   setTheme,
   colorToString,
+  lerpColor,
   DEFAULT_THEME,
   type ThemeConfig,
 } from "./Theme";
+export { createStarfield, type StarfieldConfig } from "./Starfield";
+export { drawPortrait, type PortraitType } from "./PortraitGenerator";
+export {
+  PortraitPanel,
+  type PortraitPanelConfig,
+  type PortraitStat,
+} from "./PortraitPanel";
+export * from "./Layout";
