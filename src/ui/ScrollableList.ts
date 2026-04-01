@@ -147,13 +147,7 @@ export class ScrollableList extends Phaser.GameObjects.Container {
       this.hideHoverIndicator(this.currentHoverContainer!);
     }
     this.hoverIndicator = this.scene.add
-      .rectangle(
-        0,
-        0,
-        2,
-        this.listConfig.itemHeight,
-        theme.colors.accent,
-      )
+      .rectangle(0, 0, 2, this.listConfig.itemHeight, theme.colors.accent)
       .setOrigin(0, 0)
       .setAlpha(0.7);
     container.add(this.hoverIndicator);
@@ -172,8 +166,7 @@ export class ScrollableList extends Phaser.GameObjects.Container {
 
   private updateScrollbar(): void {
     const theme = getTheme();
-    const totalContentHeight =
-      this.items.length * this.listConfig.itemHeight;
+    const totalContentHeight = this.items.length * this.listConfig.itemHeight;
     const listHeight = this.listConfig.height;
     const listWidth = this.listConfig.width;
 
@@ -192,13 +185,7 @@ export class ScrollableList extends Phaser.GameObjects.Container {
 
     // Track
     this.scrollTrack = this.scene.add
-      .rectangle(
-        listWidth - 4,
-        0,
-        4,
-        listHeight,
-        theme.colors.scrollbarTrack,
-      )
+      .rectangle(listWidth - 4, 0, 4, listHeight, theme.colors.scrollbarTrack)
       .setOrigin(0, 0)
       .setAlpha(0.3);
     this.add(this.scrollTrack);
@@ -209,13 +196,7 @@ export class ScrollableList extends Phaser.GameObjects.Container {
       (listHeight / totalContentHeight) * listHeight,
     );
     this.scrollThumb = this.scene.add
-      .rectangle(
-        listWidth - 4,
-        0,
-        4,
-        thumbHeight,
-        theme.colors.accent,
-      )
+      .rectangle(listWidth - 4, 0, 4, thumbHeight, theme.colors.accent)
       .setOrigin(0, 0)
       .setAlpha(0.5);
     this.add(this.scrollThumb);
@@ -227,8 +208,7 @@ export class ScrollableList extends Phaser.GameObjects.Container {
     if (!this.scrollThumb || this.maxScroll <= 0) return;
 
     const listHeight = this.listConfig.height;
-    const totalContentHeight =
-      this.items.length * this.listConfig.itemHeight;
+    const totalContentHeight = this.items.length * this.listConfig.itemHeight;
     const thumbHeight = Math.max(
       20,
       (listHeight / totalContentHeight) * listHeight,
