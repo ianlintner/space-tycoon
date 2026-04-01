@@ -3,7 +3,11 @@ import { Panel } from "./Panel.ts";
 import { Label } from "./Label.ts";
 import { getTheme } from "./Theme.ts";
 import { drawPortrait } from "./PortraitGenerator.ts";
-import type { PortraitType, PortraitData } from "./PortraitGenerator.ts";
+import type {
+  PortraitType,
+  PortraitData,
+  AlienRole,
+} from "./PortraitGenerator.ts";
 import { SIDEBAR_WIDTH, CONTENT_HEIGHT } from "./Layout.ts";
 import type { Planet, Ship, StarSystem, GameEvent } from "../data/types.ts";
 import { SHIP_TEMPLATES } from "../data/constants.ts";
@@ -174,6 +178,16 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
     );
   }
 
+  /** Convenience: show an alien portrait for future contact/advisor UI. */
+  showAlien(
+    name: string,
+    role: AlienRole,
+    stats: Array<{ label: string; value: string }> = [],
+    seed = hashString(`${role}:${name}`),
+  ): void {
+    this.updatePortrait("alien", seed, name, stats, { alienRole: role });
+  }
+
   /** Clear all portrait visuals. */
   clear(): void {
     this.portraitGraphics.clear();
@@ -181,9 +195,7 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
     this.clearStatRows();
   }
 
-  private createStatRows(
-    stats: Array<{ label: string; value: string }>,
-  ): void {
+  private createStatRows(stats: Array<{ label: string; value: string }>): void {
     const theme = getTheme();
     const startY =
       theme.spacing.sm +

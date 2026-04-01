@@ -3,6 +3,8 @@ import { gameStore } from "../data/GameStore.ts";
 import { getTheme, colorToString } from "../ui/Theme.ts";
 import { Label } from "../ui/Label.ts";
 import { createStarfield } from "../ui/Starfield.ts";
+import { addPulseTween } from "../ui/AmbientFX.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
 
@@ -33,10 +35,16 @@ export class GalaxyMapScene extends Phaser.Scene {
 
     // Draw sectors as semi-transparent ellipses with gradient edge effect
     for (const sector of sectors) {
-      // Outer gradient ellipse (larger, more transparent)
-      this.add
+      // Outer nebula ellipse — gently breathes for a cosmic atmosphere
+      const outerEllipse = this.add
         .ellipse(sector.x, sector.y + HUD_TOP, 230, 185, sector.color, 0.06)
         .setOrigin(0.5, 0.5);
+      addPulseTween(this, outerEllipse, {
+        minAlpha: 0.03,
+        maxAlpha: 0.1,
+        duration: 4000 + Math.random() * 2000,
+        delay: Math.random() * 3000,
+      });
 
       // Inner sector ellipse
       this.add
@@ -64,7 +72,7 @@ export class GalaxyMapScene extends Phaser.Scene {
       systemMap.set(sys.id, { x: sys.x, y: sys.y });
     }
 
-    // Draw active route lines between systems with breathing animation
+    // Draw active route lines between systems with breathing animation + flow pips
     const routeGraphics = this.add.graphics();
     routeGraphics.lineStyle(1, theme.colors.accent, 0.4);
     for (const route of routes) {
@@ -79,13 +87,35 @@ export class GalaxyMapScene extends Phaser.Scene {
       routeGraphics.moveTo(originSys.x, originSys.y + HUD_TOP);
       routeGraphics.lineTo(destSys.x, destSys.y + HUD_TOP);
       routeGraphics.strokePath();
+
+      // Glow pip — tiny dot that glides along the route continuously
+      const pip = this.add.circle(
+        originSys.x,
+        originSys.y + HUD_TOP,
+        2,
+        theme.colors.accent,
+        0.7,
+      );
+      this.tweens.add({
+        targets: pip,
+        x: destSys.x,
+        y: destSys.y + HUD_TOP,
+        duration: theme.ambient.routeFlowDuration,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+        delay: Math.random() * theme.ambient.routeFlowDuration,
+      });
     }
 
-    // Breathing animation on route lines
+    // Enhanced route breathing using theme ambient values
     this.tweens.add({
       targets: routeGraphics,
-      alpha: { from: 0.3, to: 0.5 },
-      duration: 3000,
+      alpha: {
+        from: theme.ambient.routePulseAlphaMin,
+        to: theme.ambient.routePulseAlphaMax,
+      },
+      duration: theme.ambient.routePulseDuration,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
@@ -97,10 +127,16 @@ export class GalaxyMapScene extends Phaser.Scene {
       const sysY = system.y + HUD_TOP;
       const mainRadius = 6;
 
-      // Glow halo behind the star dot
-      this.add
+      // Glow halo behind the star dot — pulses with a faint heartbeat
+      const halo = this.add
         .circle(sysX, sysY, mainRadius * 2.5, system.starColor)
         .setAlpha(0.18);
+      addPulseTween(this, halo, {
+        minAlpha: 0.08,
+        maxAlpha: 0.3,
+        duration: 2500 + Math.random() * 2000,
+        delay: Math.random() * 2000,
+      });
 
       // Star dot
       const star = this.add.circle(sysX, sysY, mainRadius, system.starColor);
@@ -117,6 +153,7 @@ export class GalaxyMapScene extends Phaser.Scene {
 
       // Click to drill into system — route through HUD
       star.on("pointerup", () => {
+        getAudioDirector().sfx("map_star_select");
         const hud = this.scene.get("GameHUDScene") as GameHUDScene;
         hud.switchContentScene("SystemMapScene", { systemId: system.id });
       });

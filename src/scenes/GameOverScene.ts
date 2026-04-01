@@ -20,6 +20,7 @@ import {
   CONTENT_HEIGHT,
   FULL_CONTENT_LEFT,
 } from "../ui/Layout.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 function formatCash(amount: number): string {
   const sign = amount < 0 ? "-" : "";
@@ -35,6 +36,7 @@ export class GameOverScene extends Phaser.Scene {
   create(): void {
     const theme = getTheme();
     const state = gameStore.getState();
+    getAudioDirector().setMusicState("gameover");
 
     // Stop the HUD scene since the game is over
     this.scene.stop("GameHUDScene");

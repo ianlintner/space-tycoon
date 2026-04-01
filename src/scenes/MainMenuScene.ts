@@ -1,11 +1,13 @@
 import Phaser from "phaser";
 import { createStarfield } from "../ui/Starfield.ts";
+import { addFloatTween, addPulseTween } from "../ui/AmbientFX.ts";
 import { Panel } from "../ui/Panel.ts";
 import { Label } from "../ui/Label.ts";
 import { Button } from "../ui/Button.ts";
 import { getTheme } from "../ui/Theme.ts";
 import { GAME_WIDTH, GAME_HEIGHT } from "../ui/Layout.ts";
 import { hasSaveGame, loadGameIntoStore } from "../game/SaveManager.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -15,6 +17,8 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     const theme = getTheme();
     this.cameras.main.setBackgroundColor(theme.colors.background);
+    const audio = getAudioDirector();
+    audio.setMusicState("menu");
 
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
@@ -22,8 +26,13 @@ export class MainMenuScene extends Phaser.Scene {
     // 1. Starfield background
     createStarfield(this);
 
-    // 2. Radial gradient — subtle lighter circle for depth
-    this.add.circle(cx, cy, 400, 0x111140, 0.15);
+    // 2. Radial gradient — subtle lighter circle for depth, gently pulses
+    const depthCircle = this.add.circle(cx, cy, 400, 0x111140, 0.15);
+    addPulseTween(this, depthCircle, {
+      minAlpha: 0.08,
+      maxAlpha: 0.22,
+      duration: 5000,
+    });
 
     // 3. Title
     const title = new Label(this, {
@@ -36,6 +45,8 @@ export class MainMenuScene extends Phaser.Scene {
     });
     title.setOrigin(0.5);
     title.setFontSize(42);
+    // Gentle levitation so the title breathes while the player sits on the menu
+    addFloatTween(this, title, { dx: 0, dy: -4, duration: 4000, delay: 800 });
 
     // 4. Subtitle
     const subtitle = new Label(this, {

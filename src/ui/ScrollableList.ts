@@ -41,7 +41,10 @@ export class ScrollableList extends Phaser.GameObjects.Container {
     const hitArea = scene.add
       .rectangle(0, 0, config.width, config.height, 0x000000, 0)
       .setOrigin(0, 0)
-      .setInteractive();
+      .setInteractive(
+        new Phaser.Geom.Rectangle(0, 0, config.width, config.height),
+        Phaser.Geom.Rectangle.Contains,
+      );
     this.add(hitArea);
 
     hitArea.on(
@@ -80,20 +83,33 @@ export class ScrollableList extends Phaser.GameObjects.Container {
         this.listConfig.itemHeight,
         index % 2 === 0 ? theme.colors.rowEven : theme.colors.rowOdd,
       )
-      .setOrigin(0, 0)
-      .setInteractive({ useHandCursor: true });
+      .setOrigin(0, 0);
 
-    hitBg.on("pointerover", () => {
+    container.setSize(this.listConfig.width, this.listConfig.itemHeight);
+    container.setInteractive(
+      new Phaser.Geom.Rectangle(
+        0,
+        0,
+        this.listConfig.width,
+        this.listConfig.itemHeight,
+      ),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    if (container.input) {
+      container.input.cursor = "pointer";
+    }
+
+    container.on("pointerover", () => {
       hitBg.setFillStyle(theme.colors.rowHover);
       this.showHoverIndicator(container);
     });
-    hitBg.on("pointerout", () => {
+    container.on("pointerout", () => {
       hitBg.setFillStyle(
         index % 2 === 0 ? theme.colors.rowEven : theme.colors.rowOdd,
       );
       this.hideHoverIndicator(container);
     });
-    hitBg.on("pointerup", () => {
+    container.on("pointerup", () => {
       this.selectedIndex = index;
       this.listConfig.onSelect?.(index);
     });

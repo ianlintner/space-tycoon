@@ -20,6 +20,7 @@ import {
 } from "../ui/Layout.ts";
 import type { TurnResult } from "../data/types.ts";
 import type { GameHUDScene } from "./GameHUDScene.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 function formatCash(amount: number): string {
   const sign = amount < 0 ? "-" : "";
@@ -35,6 +36,8 @@ export class TurnReportScene extends Phaser.Scene {
   create(): void {
     const theme = getTheme();
     const state = gameStore.getState();
+    getAudioDirector().setMusicState("report");
+
     const history = state.history;
     const lastTurn: TurnResult | undefined = history[history.length - 1];
 

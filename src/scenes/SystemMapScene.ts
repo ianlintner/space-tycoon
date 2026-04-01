@@ -6,6 +6,9 @@ import { Label } from "../ui/Label.ts";
 import { Button } from "../ui/Button.ts";
 import { PortraitPanel } from "../ui/PortraitPanel.ts";
 import { createStarfield } from "../ui/Starfield.ts";
+import { addPulseTween, addRotateTween } from "../ui/AmbientFX.ts";
+import { DEPTH_AMBIENT_MID } from "../ui/DepthLayers.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 import {
   CONTENT_TOP,
   CONTENT_HEIGHT,
@@ -90,21 +93,36 @@ export class SystemMapScene extends Phaser.Scene {
     // Central star with multi-layer glow
     const starRadius = 30;
 
-    // Outermost glow layer
-    this.add
+    // Outermost glow layer — slow deep pulse
+    const outerGlow = this.add
       .circle(cx, cy, starRadius * 3, system.starColor)
       .setAlpha(0.08);
+    addPulseTween(this, outerGlow, {
+      minAlpha: 0.04,
+      maxAlpha: 0.14,
+      duration: 3500,
+    });
 
-    // Middle glow layer
-    this.add
+    // Middle glow layer — faster pulse offset in time for starburst depth
+    const middleGlow = this.add
       .circle(cx, cy, starRadius * 2, system.starColor)
       .setAlpha(0.2);
+    addPulseTween(this, middleGlow, {
+      minAlpha: 0.12,
+      maxAlpha: 0.32,
+      duration: 2000,
+      delay: 500,
+    });
 
     // Central star
     this.add.circle(cx, cy, starRadius, system.starColor);
 
     // Build planet positions in a circular layout
-    const orbitRadius = Math.min(180, MAIN_CONTENT_WIDTH / 2 - 60, CONTENT_HEIGHT / 2 - 80);
+    const orbitRadius = Math.min(
+      180,
+      MAIN_CONTENT_WIDTH / 2 - 60,
+      CONTENT_HEIGHT / 2 - 80,
+    );
     const planetPositions = new Map<string, { x: number; y: number }>();
 
     planets.forEach((planet, index) => {
@@ -129,10 +147,47 @@ export class SystemMapScene extends Phaser.Scene {
       routeGraphics.strokePath();
     }
 
+    // Route line breathing animation
+    this.tweens.add({
+      targets: routeGraphics,
+      alpha: {
+        from: theme.ambient.routePulseAlphaMin,
+        to: theme.ambient.routePulseAlphaMax,
+      },
+      duration: theme.ambient.routePulseDuration,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
     // Draw orbit ring (decorative)
     const orbitGraphics = this.add.graphics();
     orbitGraphics.lineStyle(1, theme.colors.panelBorder, 0.3);
     orbitGraphics.strokeCircle(cx, cy, orbitRadius);
+
+    // Slowly-rotating tick marks around the orbit — give the system a living feel
+    const orbitalContainer = this.add
+      .container(cx, cy)
+      .setDepth(DEPTH_AMBIENT_MID);
+    const orbDecoGraphics = this.add.graphics();
+    orbDecoGraphics.lineStyle(1, theme.colors.panelBorder, 0.4);
+    const tickLen = 7;
+    const tickCount = 8;
+    for (let t = 0; t < tickCount; t++) {
+      const angle = (t / tickCount) * Math.PI * 2;
+      const inner = orbitRadius - tickLen * 0.5;
+      const outer = orbitRadius + tickLen * 0.5;
+      orbDecoGraphics.beginPath();
+      orbDecoGraphics.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      orbDecoGraphics.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+      orbDecoGraphics.strokePath();
+    }
+    orbitalContainer.add(orbDecoGraphics);
+    addRotateTween(
+      this,
+      orbitalContainer,
+      theme.ambient.orbitalRotationDuration,
+    );
 
     // Draw planets
     for (let i = 0; i < planets.length; i++) {
@@ -143,12 +198,23 @@ export class SystemMapScene extends Phaser.Scene {
       const planetColor = PLANET_TYPE_COLORS[planet.type] ?? 0xcccccc;
       const planetRadius = 16;
 
-      // Planet glow halo
-      this.add
+      // Planet glow halo — gentle ambient pulse
+      const planetHalo = this.add
         .circle(pos.x, pos.y, planetRadius * 1.8, planetColor)
         .setAlpha(0.15);
+      addPulseTween(this, planetHalo, {
+        minAlpha: 0.07,
+        maxAlpha: 0.25,
+        duration: 2000 + Math.random() * 2000,
+        delay: Math.random() * 2000,
+      });
 
-      const planetCircle = this.add.circle(pos.x, pos.y, planetRadius, planetColor);
+      const planetCircle = this.add.circle(
+        pos.x,
+        pos.y,
+        planetRadius,
+        planetColor,
+      );
       planetCircle.setInteractive({ useHandCursor: true });
 
       // Planet name
@@ -172,6 +238,7 @@ export class SystemMapScene extends Phaser.Scene {
       // Click to see planet detail — launch as overlay
       const planetIndex = i;
       planetCircle.on("pointerup", () => {
+        getAudioDirector().sfx("map_star_select");
         // Update the PortraitPanel to show the planet
         if (this.portraitPanel) {
           this.portraitPanel.showPlanet(planet, planetIndex);

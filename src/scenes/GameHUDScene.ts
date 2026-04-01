@@ -9,6 +9,7 @@ import {
   HUD_BOTTOM_BAR_HEIGHT,
 } from "../ui/Layout.ts";
 import { gameStore } from "../data/GameStore.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 function formatCash(amount: number): string {
   return "\u00A7" + amount.toLocaleString();
@@ -35,7 +36,11 @@ export class GameHUDScene extends Phaser.Scene {
   create(): void {
     const theme = getTheme();
     const state = gameStore.getState();
+    const audio = getAudioDirector();
+
     this.previousCash = state.cash;
+    audio.setMusicState("planning");
+    audio.setPlanningSubstate("galaxy");
 
     // ── Top Bar ──────────────────────────────────────────────
     this.add
@@ -188,6 +193,7 @@ export class GameHUDScene extends Phaser.Scene {
   private updateHUD(): void {
     const theme = getTheme();
     const state = gameStore.getState();
+    const audio = getAudioDirector();
 
     this.companyLabel.setText(state.companyName);
 
@@ -203,6 +209,7 @@ export class GameHUDScene extends Phaser.Scene {
     );
 
     if (newCash !== this.previousCash) {
+      audio.sfx(newCash > this.previousCash ? "ui_confirm" : "ui_error");
       const flashTint =
         newCash > this.previousCash ? theme.colors.profit : theme.colors.loss;
       this.cashLabel.setTint(flashTint);
@@ -228,6 +235,8 @@ export class GameHUDScene extends Phaser.Scene {
    * Access from any scene: (this.scene.get("GameHUDScene") as GameHUDScene).switchContentScene(name)
    */
   switchContentScene(sceneName: string, data?: object): void {
+    const audio = getAudioDirector();
+
     // Stop overlay scenes that might be stacked on top
     const overlayScenes = ["PlanetDetailScene"];
     for (const key of overlayScenes) {
@@ -238,8 +247,38 @@ export class GameHUDScene extends Phaser.Scene {
 
     if (sceneName === this.activeContentScene) return;
 
+    if (sceneName === "SimPlaybackScene") {
+      audio.setMusicState("sim");
+      audio.sfx("ui_end_turn");
+    } else if (sceneName === "TurnReportScene") {
+      audio.setMusicState("report");
+      audio.sfx("ui_confirm");
+    } else {
+      audio.setMusicState("planning");
+      switch (sceneName) {
+        case "GalaxyMapScene":
+          audio.setPlanningSubstate("galaxy");
+          break;
+        case "FleetScene":
+          audio.setPlanningSubstate("fleet");
+          break;
+        case "RoutesScene":
+          audio.setPlanningSubstate("routes");
+          break;
+        case "MarketScene":
+          audio.setPlanningSubstate("market");
+          break;
+        case "FinanceScene":
+          audio.setPlanningSubstate("finance");
+          break;
+      }
+    }
+
     // Stop current content scene (check it's actually running)
-    if (this.scene.isActive(this.activeContentScene) || this.scene.isPaused(this.activeContentScene)) {
+    if (
+      this.scene.isActive(this.activeContentScene) ||
+      this.scene.isPaused(this.activeContentScene)
+    ) {
       this.scene.stop(this.activeContentScene);
     }
 

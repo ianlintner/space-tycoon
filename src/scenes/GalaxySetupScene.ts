@@ -9,6 +9,7 @@ import { GAME_WIDTH, MAX_CONTENT_WIDTH } from "../ui/Layout.ts";
 import { gameStore } from "../data/GameStore.ts";
 import { createNewGame } from "../game/NewGameSetup.ts";
 import type { GameState, StarSystem } from "../data/types.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 const PRESET_NAMES = [
   "Stellar Shipping Co.",
@@ -37,6 +38,7 @@ export class GalaxySetupScene extends Phaser.Scene {
   create(): void {
     const theme = getTheme();
     this.cameras.main.setBackgroundColor(theme.colors.background);
+    getAudioDirector().setMusicState("setup");
 
     this.seed = Math.floor(Math.random() * 1000000);
     this.nameIndex = 0;

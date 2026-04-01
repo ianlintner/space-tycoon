@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { getTheme, colorToString } from "./Theme.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 export interface ColumnDef {
   key: string;
@@ -34,6 +35,7 @@ export class DataTable extends Phaser.GameObjects.Container {
   private sortAsc = true;
   private selectedRowIndex = -1;
   private selectedRowIndicator: Phaser.GameObjects.Rectangle | null = null;
+  private wheelHitArea: Phaser.GameObjects.Rectangle;
 
   constructor(scene: Phaser.Scene, config: DataTableConfig) {
     super(scene, config.x, config.y);
@@ -45,6 +47,26 @@ export class DataTable extends Phaser.GameObjects.Container {
 
     this.bodyContainer = scene.add.container(0, this.headerHeight);
     this.add(this.bodyContainer);
+
+    this.wheelHitArea = scene.add
+      .rectangle(0, 0, config.width, config.height, 0x000000, 0)
+      .setOrigin(0, 0)
+      .setInteractive(
+        new Phaser.Geom.Rectangle(0, 0, config.width, config.height),
+        Phaser.Geom.Rectangle.Contains,
+      );
+    this.wheelHitArea.on(
+      "wheel",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _dx: number,
+        _dy: number,
+        dz: number,
+      ) => {
+        this.handleWheel(dz);
+      },
+    );
+    this.add(this.wheelHitArea);
 
     // Mask for body scrolling
     const maskShape = scene.make.graphics({});
@@ -58,26 +80,18 @@ export class DataTable extends Phaser.GameObjects.Container {
     const mask = maskShape.createGeometryMask();
     this.bodyContainer.setMask(mask);
 
-    // Scroll input
-    const scrollHit = scene.add
-      .rectangle(0, 0, config.width, config.height, 0x000000, 0)
-      .setOrigin(0, 0)
-      .setInteractive();
-    this.add(scrollHit);
-    scrollHit.on(
-      "wheel",
-      (_p: Phaser.Input.Pointer, _dx: number, _dy: number, dz: number) => {
-        this.scrollY = Phaser.Math.Clamp(
-          this.scrollY + dz * 0.5,
-          0,
-          this.maxScroll,
-        );
-        this.bodyContainer.y = this.headerHeight - this.scrollY;
-      },
-    );
-
     this.renderHeader();
     scene.add.existing(this);
+  }
+
+  /** Scroll handler shared by header, rows, and empty-space background */
+  private handleWheel(dz: number): void {
+    this.scrollY = Phaser.Math.Clamp(
+      this.scrollY + dz * 0.5,
+      0,
+      this.maxScroll,
+    );
+    this.bodyContainer.y = this.headerHeight - this.scrollY;
   }
 
   private renderHeader(): void {
@@ -120,8 +134,15 @@ export class DataTable extends Phaser.GameObjects.Container {
         const hitArea = this.scene.add
           .rectangle(x, 0, col.width, this.headerHeight, 0x000000, 0)
           .setOrigin(0, 0)
-          .setInteractive({ useHandCursor: true });
+          .setInteractive(
+            new Phaser.Geom.Rectangle(0, 0, col.width, this.headerHeight),
+            Phaser.Geom.Rectangle.Contains,
+          );
+        if (hitArea.input) {
+          hitArea.input.cursor = "pointer";
+        }
         hitArea.on("pointerup", () => {
+          getAudioDirector().sfx("ui_tab_switch");
           if (this.sortKey === col.key) {
             this.sortAsc = !this.sortAsc;
           } else {
@@ -177,11 +198,23 @@ export class DataTable extends Phaser.GameObjects.Container {
         .rectangle(0, y, this.tableConfig.width, this.rowHeight, bgColor)
         .setOrigin(0, 0)
         .setAlpha(0.85)
-        .setInteractive({ useHandCursor: true });
+        .setInteractive(
+          new Phaser.Geom.Rectangle(
+            0,
+            0,
+            this.tableConfig.width,
+            this.rowHeight,
+          ),
+          Phaser.Geom.Rectangle.Contains,
+        );
+      if (rowBg.input) {
+        rowBg.input.cursor = "pointer";
+      }
 
       rowBg.on("pointerover", () => rowBg.setFillStyle(theme.colors.rowHover));
       rowBg.on("pointerout", () => rowBg.setFillStyle(bgColor));
       rowBg.on("pointerup", () => {
+        getAudioDirector().sfx("ui_row_select");
         this.selectRow(i, y);
         this.tableConfig.onRowSelect?.(i, row);
       });

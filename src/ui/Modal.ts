@@ -132,7 +132,13 @@ export class Modal extends Phaser.GameObjects.Container {
         10,
       )
       .setOrigin(0, 0)
-      .setInteractive({ useHandCursor: true });
+      .setInteractive(
+        new Phaser.Geom.Rectangle(0, 0, buttonWidth, buttonHeight),
+        Phaser.Geom.Rectangle.Contains,
+      );
+    if (okBg.input) {
+      okBg.input.cursor = "pointer";
+    }
     const okLabel = scene.add
       .text(okX + buttonWidth / 2, buttonY + buttonHeight / 2, okText, {
         fontSize: `${theme.fonts.body.size}px`,
@@ -170,7 +176,13 @@ export class Modal extends Phaser.GameObjects.Container {
           10,
         )
         .setOrigin(0, 0)
-        .setInteractive({ useHandCursor: true });
+        .setInteractive(
+          new Phaser.Geom.Rectangle(0, 0, buttonWidth, buttonHeight),
+          Phaser.Geom.Rectangle.Contains,
+        );
+      if (cancelBg.input) {
+        cancelBg.input.cursor = "pointer";
+      }
       const cancelLabel = scene.add
         .text(
           cancelX + buttonWidth / 2,

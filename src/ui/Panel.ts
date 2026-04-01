@@ -18,6 +18,7 @@ export class Panel extends Phaser.GameObjects.Container {
   protected contentY: number;
   protected panelWidth: number;
   protected panelHeight: number;
+  private idleGlowTween: Phaser.Tweens.Tween | null = null;
 
   constructor(scene: Phaser.Scene, config: PanelConfig) {
     super(scene, config.x, config.y);
@@ -127,6 +128,11 @@ export class Panel extends Phaser.GameObjects.Container {
       );
     }
 
+    // Begin idle glow breathing for panels with a visible glow layer
+    if (showGlow) {
+      this.startIdleGlow();
+    }
+
     scene.add.existing(this);
   }
 
@@ -144,15 +150,44 @@ export class Panel extends Phaser.GameObjects.Container {
     };
   }
 
+  /** Begin a continuous ambient glow pulse. Auto-called when showGlow is true. */
+  private startIdleGlow(): void {
+    if (!this.glowLayer) return;
+    if (this.idleGlowTween) {
+      this.idleGlowTween.stop();
+      this.idleGlowTween = null;
+    }
+    const theme = getTheme();
+    this.idleGlowTween = this.scene.tweens.add({
+      targets: this.glowLayer,
+      alpha: { from: theme.glow.pulseMin, to: theme.glow.pulseMax },
+      duration: theme.ambient.panelIdlePulseDuration,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
   setActive(active: boolean): this {
     super.setActive(active);
     if (!this.glowLayer) return this;
+    // Halt idle pulse to avoid conflicting with the focus transition
+    if (this.idleGlowTween) {
+      this.idleGlowTween.stop();
+      this.idleGlowTween = null;
+    }
     const theme = getTheme();
     this.scene.tweens.add({
       targets: this.glowLayer,
       alpha: active ? theme.glow.activeAlpha : theme.glow.alpha,
       duration: 300,
       ease: "Power2",
+      onComplete: () => {
+        // Resume ambient breathing after returning to idle state
+        if (!active) {
+          this.scene.time.delayedCall(200, () => this.startIdleGlow());
+        }
+      },
     });
     return this;
   }

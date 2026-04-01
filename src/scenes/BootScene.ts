@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import type { ThemeConfig } from "../ui/Theme.ts";
 import { getTheme, lerpColor } from "../ui/Theme.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -9,6 +10,8 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     const theme = getTheme();
+
+    getAudioDirector().attachScene(this);
 
     this.generatePanelBg(theme);
     this.generatePanelGlow(theme);

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { getTheme, colorToString } from "./Theme.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 export interface ButtonConfig {
   x: number;
@@ -15,14 +16,19 @@ export class Button extends Phaser.GameObjects.Container {
   private bg: Phaser.GameObjects.NineSlice;
   private label: Phaser.GameObjects.Text;
   private accentLine: Phaser.GameObjects.Rectangle;
+  private widthPx: number;
+  private heightPx: number;
   private isDisabled: boolean;
   private onClickFn: () => void;
+  private idleShimmerTween: Phaser.Tweens.Tween | null = null;
 
   constructor(scene: Phaser.Scene, config: ButtonConfig) {
     super(scene, config.x, config.y);
     const theme = getTheme();
     const width = config.width ?? theme.button.minWidth;
     const height = config.height ?? theme.button.height;
+    this.widthPx = width;
+    this.heightPx = height;
     this.isDisabled = config.disabled ?? false;
     this.onClickFn = config.onClick;
 
@@ -57,9 +63,44 @@ export class Button extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
+  private startIdleShimmer(): void {
+    if (this.idleShimmerTween) {
+      this.idleShimmerTween.stop();
+      this.idleShimmerTween = null;
+    }
+    const theme = getTheme();
+    this.idleShimmerTween = this.scene.tweens.add({
+      targets: this.accentLine,
+      alpha: { from: 0.3, to: 0.5 },
+      duration: theme.ambient.buttonIdleShimmerDuration,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
   private setupInteractive(): void {
-    this.bg.setInteractive({ useHandCursor: true });
-    this.bg.on("pointerover", () => {
+    this.off("pointerover");
+    this.off("pointerout");
+    this.off("pointerdown");
+    this.off("pointerup");
+
+    this.startIdleShimmer();
+    this.setSize(this.widthPx, this.heightPx);
+    this.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, this.widthPx, this.heightPx),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    if (this.input) {
+      this.input.cursor = "pointer";
+    }
+    this.on("pointerover", () => {
+      getAudioDirector().sfx("ui_hover");
+      // Pause idle shimmer so the hover brightening is clean
+      if (this.idleShimmerTween) {
+        this.idleShimmerTween.stop();
+        this.idleShimmerTween = null;
+      }
       this.setTexture("btn-hover");
       this.scene.tweens.add({
         targets: this.accentLine,
@@ -68,18 +109,20 @@ export class Button extends Phaser.GameObjects.Container {
         ease: "Power2",
       });
     });
-    this.bg.on("pointerout", () => {
+    this.on("pointerout", () => {
       this.setTexture("btn-normal");
       this.scene.tweens.add({
         targets: this.accentLine,
         alpha: 0.4,
         duration: 150,
         ease: "Power2",
+        onComplete: () => this.startIdleShimmer(),
       });
     });
-    this.bg.on("pointerdown", () => this.setTexture("btn-pressed"));
-    this.bg.on("pointerup", () => {
+    this.on("pointerdown", () => this.setTexture("btn-pressed"));
+    this.on("pointerup", () => {
       this.setTexture("btn-hover");
+      getAudioDirector().sfx("ui_click_primary");
       this.onClickFn();
     });
   }
@@ -92,8 +135,12 @@ export class Button extends Phaser.GameObjects.Container {
     this.isDisabled = disabled;
     const theme = getTheme();
     if (disabled) {
+      if (this.idleShimmerTween) {
+        this.idleShimmerTween.stop();
+        this.idleShimmerTween = null;
+      }
       this.bg.setTexture("btn-disabled");
-      this.bg.removeInteractive();
+      this.removeInteractive();
       this.label.setColor(colorToString(theme.colors.textDim));
       this.accentLine.setAlpha(0.15);
     } else {

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { getTheme, colorToString } from "./Theme.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 export interface TabConfig {
   label: string;
@@ -49,7 +50,13 @@ export class TabGroup extends Phaser.GameObjects.Container {
         )
         .setOrigin(0, 0)
         .setAlpha(isActive ? 1.0 : 0.6)
-        .setInteractive({ useHandCursor: true });
+        .setInteractive(
+          new Phaser.Geom.Rectangle(0, 0, tabWidth, this.tabHeight),
+          Phaser.Geom.Rectangle.Contains,
+        );
+      if (bg.input) {
+        bg.input.cursor = "pointer";
+      }
 
       const labelText = scene.add
         .text(tabWidth / 2, this.tabHeight / 2, tab.label, {
@@ -93,12 +100,11 @@ export class TabGroup extends Phaser.GameObjects.Container {
       });
       bg.on("pointerout", () => {
         const active = index === this.activeIndex;
-        bg.setFillStyle(
-          active ? theme.colors.panelBg : theme.colors.headerBg,
-        );
+        bg.setFillStyle(active ? theme.colors.panelBg : theme.colors.headerBg);
         bg.setAlpha(active ? 1.0 : 0.6);
       });
       bg.on("pointerup", () => {
+        getAudioDirector().sfx("ui_tab_switch");
         this.setActiveTab(index);
       });
 

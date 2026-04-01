@@ -52,6 +52,8 @@ export class PlanetDetailScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.scene.bringToTop();
+
     const theme = getTheme();
     const state = gameStore.getState();
     const planet = state.galaxy.planets.find((p) => p.id === this.planetId);
@@ -113,7 +115,12 @@ export class PlanetDetailScene extends Phaser.Scene {
       width: tableWidth,
       height: 320,
       columns: [
-        { key: "cargoType", label: "Cargo Type", width: Math.floor(130 * colScale), sortable: true },
+        {
+          key: "cargoType",
+          label: "Cargo Type",
+          width: Math.floor(130 * colScale),
+          sortable: true,
+        },
         {
           key: "supply",
           label: "Supply",
@@ -199,6 +206,8 @@ export class PlanetDetailScene extends Phaser.Scene {
   }
 
   private showDestinationPicker(originPlanet: Planet): void {
+    this.scene.bringToTop();
+
     const theme = getTheme();
     const state = gameStore.getState();
     const otherPlanets = state.galaxy.planets.filter(

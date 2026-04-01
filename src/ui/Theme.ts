@@ -62,6 +62,28 @@ export interface ThemeConfig {
   chamfer: {
     size: number;
   };
+  ambient: {
+    /** Fastest twinkle cycle half-duration (ms). */
+    starTwinkleDurationMin: number;
+    /** Slowest twinkle cycle half-duration (ms). */
+    starTwinkleDurationMax: number;
+    /** Slow tint-color shift half-cycle per star (ms). */
+    starShimmerDuration: number;
+    /** Route-line breathing half-cycle (ms). */
+    routePulseDuration: number;
+    /** Route-line minimum alpha. */
+    routePulseAlphaMin: number;
+    /** Route-line maximum alpha. */
+    routePulseAlphaMax: number;
+    /** Route flow-pip travel time origin→dest (ms). */
+    routeFlowDuration: number;
+    /** Panel idle glow half-cycle (ms). */
+    panelIdlePulseDuration: number;
+    /** Button idle accent shimmer half-cycle (ms). */
+    buttonIdleShimmerDuration: number;
+    /** Orbital decoration full-rotation duration (ms). */
+    orbitalRotationDuration: number;
+  };
 }
 
 export const DEFAULT_THEME: ThemeConfig = {
@@ -113,6 +135,18 @@ export const DEFAULT_THEME: ThemeConfig = {
   },
   chamfer: {
     size: 8,
+  },
+  ambient: {
+    starTwinkleDurationMin: 2000,
+    starTwinkleDurationMax: 6000,
+    starShimmerDuration: 12000,
+    routePulseDuration: 3000,
+    routePulseAlphaMin: 0.25,
+    routePulseAlphaMax: 0.55,
+    routeFlowDuration: 3500,
+    panelIdlePulseDuration: 4000,
+    buttonIdleShimmerDuration: 3000,
+    orbitalRotationDuration: 90000,
   },
 };
 

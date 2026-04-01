@@ -17,6 +17,24 @@ export {
 } from "./Theme";
 export { createStarfield, type StarfieldConfig } from "./Starfield";
 export {
+  addPulseTween,
+  addTwinkleTween,
+  addFloatTween,
+  addRotateTween,
+  registerAmbientCleanup,
+  type PulseConfig,
+  type TwinkleConfig,
+  type FloatConfig,
+} from "./AmbientFX";
+export {
+  DEPTH_STARFIELD,
+  DEPTH_AMBIENT_MID,
+  DEPTH_CONTENT,
+  DEPTH_UI,
+  DEPTH_MODAL,
+  DEPTH_HUD,
+} from "./DepthLayers";
+export {
   drawPortrait,
   drawTerranPortrait,
   drawMiningPortrait,
@@ -28,9 +46,11 @@ export {
   drawShipPortrait,
   drawSystemPortrait,
   drawEventPortrait,
+  drawAlienPortrait,
   fillGradientV,
   fillGradientH,
   type PortraitType,
+  type AlienRole,
   type PortraitData,
 } from "./PortraitGenerator";
 export { PortraitPanel, type PortraitPanelConfig } from "./PortraitPanel";

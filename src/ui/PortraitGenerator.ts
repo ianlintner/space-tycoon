@@ -1,15 +1,15 @@
 import type Phaser from "phaser";
 import { SeededRNG } from "../utils/SeededRNG.ts";
-import type { PlanetType } from "../data/types.ts";
-import type { ShipClass } from "../data/types.ts";
-import type { EventCategory } from "../data/types.ts";
+import type { EventCategory, PlanetType, ShipClass } from "../data/types.ts";
 import { getTheme, lerpColor } from "./Theme.ts";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type PortraitType = "planet" | "ship" | "system" | "event";
+export type PortraitType = "planet" | "ship" | "system" | "event" | "alien";
+export type AlienRole =
+  | "broker"
+  | "miner"
+  | "researcher"
+  | "concierge"
+  | "enforcer";
 
 export interface PortraitData {
   planetType?: PlanetType;
@@ -17,709 +17,670 @@ export interface PortraitData {
   starColor?: number;
   planetCount?: number;
   eventCategory?: EventCategory;
+  alienRole?: AlienRole;
 }
 
-// ---------------------------------------------------------------------------
-// Gradient helpers
-// ---------------------------------------------------------------------------
+interface PixelGrid {
+  cols: number;
+  rows: number;
+  pixelSize: number;
+  originX: number;
+  originY: number;
+}
 
-/** Fill a vertical gradient (top to bottom) using horizontal strips. */
-export function fillGradientV(
+const LOGICAL_COLS = 32;
+const LOGICAL_ROWS = 32;
+
+function createPixelGrid(width: number, height: number): PixelGrid {
+  const pixelSize = Math.max(
+    2,
+    Math.floor(Math.min(width / LOGICAL_COLS, height / LOGICAL_ROWS)),
+  );
+  const contentWidth = pixelSize * LOGICAL_COLS;
+  const contentHeight = pixelSize * LOGICAL_ROWS;
+
+  return {
+    cols: LOGICAL_COLS,
+    rows: LOGICAL_ROWS,
+    pixelSize,
+    originX: Math.floor((width - contentWidth) / 2),
+    originY: Math.floor((height - contentHeight) / 2),
+  };
+}
+
+function px(
   g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
   x: number,
   y: number,
-  w: number,
-  h: number,
+  color: number,
+  w = 1,
+  h = 1,
+  alpha = 1,
+): void {
+  g.fillStyle(color, alpha);
+  g.fillRect(
+    grid.originX + Math.round(x) * grid.pixelSize,
+    grid.originY + Math.round(y) * grid.pixelSize,
+    Math.max(1, Math.round(w)) * grid.pixelSize,
+    Math.max(1, Math.round(h)) * grid.pixelSize,
+  );
+}
+
+function circleFill(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  cx: number,
+  cy: number,
+  radius: number,
+  color: number,
+  alpha = 1,
+): void {
+  for (let y = -radius; y <= radius; y++) {
+    for (let x = -radius; x <= radius; x++) {
+      if (x * x + y * y <= radius * radius) {
+        px(g, grid, cx + x, cy + y, color, 1, 1, alpha);
+      }
+    }
+  }
+}
+
+function ring(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  cx: number,
+  cy: number,
+  radius: number,
+  color: number,
+  alpha = 1,
+): void {
+  for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 18) {
+    const x = Math.round(cx + Math.cos(angle) * radius);
+    const y = Math.round(cy + Math.sin(angle) * radius);
+    px(g, grid, x, y, color, 1, 1, alpha);
+  }
+}
+
+function fillGradientV(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
   colorTop: number,
   colorBottom: number,
-  steps = 8,
 ): void {
-  const stripH = h / steps;
-  for (let i = 0; i < steps; i++) {
-    const t = steps > 1 ? i / (steps - 1) : 0;
-    g.fillStyle(lerpColor(colorTop, colorBottom, t), 1);
-    g.fillRect(x, y + stripH * i, w, Math.ceil(stripH));
+  for (let y = 0; y < grid.rows; y++) {
+    const t = y / Math.max(grid.rows - 1, 1);
+    px(g, grid, 0, y, lerpColor(colorTop, colorBottom, t), grid.cols, 1);
   }
 }
 
-/** Fill a horizontal gradient (left to right) using vertical strips. */
-export function fillGradientH(
+function fillGradientH(
   g: Phaser.GameObjects.Graphics,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
+  grid: PixelGrid,
   colorLeft: number,
   colorRight: number,
-  steps = 8,
 ): void {
-  const stripW = w / steps;
-  for (let i = 0; i < steps; i++) {
-    const t = steps > 1 ? i / (steps - 1) : 0;
-    g.fillStyle(lerpColor(colorLeft, colorRight, t), 1);
-    g.fillRect(x + stripW * i, y, Math.ceil(stripW), h);
+  for (let x = 0; x < grid.cols; x++) {
+    const t = x / Math.max(grid.cols - 1, 1);
+    px(g, grid, x, 0, lerpColor(colorLeft, colorRight, t), 1, grid.rows);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Planet portraits
-// ---------------------------------------------------------------------------
-
-export function drawTerranPortrait(
+function horizontalBand(
   g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  seed: number,
+  grid: PixelGrid,
+  baseY: number,
+  amplitude: number,
+  frequency: number,
+  phase: number,
+  color: number,
 ): void {
-  const rng = new SeededRNG(seed);
-
-  // Dark blue to lighter blue gradient sky
-  fillGradientV(g, 0, 0, w, h, 0x000033, 0x3366aa, 16);
-
-  // Clouds — white semi-transparent dots in upper 40%
-  const cloudCount = rng.nextInt(3, 5);
-  for (let i = 0; i < cloudCount; i++) {
-    const cx = rng.nextFloat(0, w);
-    const cy = rng.nextFloat(h * 0.05, h * 0.4);
-    const cw = rng.nextFloat(20, 50);
-    const ch = rng.nextFloat(4, 10);
-    g.fillStyle(0xffffff, 0.15);
-    g.fillRect(cx, cy, cw, ch);
-  }
-
-  // 2-3 horizontal terrain bands using sine waves (green/teal)
-  const bandCount = rng.nextInt(2, 3);
-  const terrainColors = [0x226633, 0x338844, 0x2a7755];
-  for (let b = 0; b < bandCount; b++) {
-    const baseY = h * (0.55 + b * 0.15);
-    const freq = 0.02 + rng.nextFloat(0, 0.02);
-    const amp = 8 + rng.nextFloat(0, 8);
-    const color = terrainColors[b % terrainColors.length];
-    g.fillStyle(color, 1);
-    // Draw as strips following sine wave
-    for (let x = 0; x < w; x += 2) {
-      const yOff = Math.sin((x + rng.nextFloat(0, 100)) * freq) * amp;
-      g.fillRect(x, baseY + yOff, 3, h - baseY - yOff);
-    }
-  }
-
-  // City silhouettes at bottom (3-6 buildings)
-  const buildingCount = rng.nextInt(3, 6);
-  for (let i = 0; i < buildingCount; i++) {
-    const bx = rng.nextFloat(10, w - 20);
-    const bw = rng.nextFloat(8, 18);
-    const bh = rng.nextFloat(20, 60);
-    g.fillStyle(0x112233, 1);
-    g.fillRect(bx, h - bh, bw, bh);
-    // Antenna on some buildings
-    if (rng.chance(0.3)) {
-      const ax = bx + bw / 2;
-      const aSize = rng.nextFloat(3, 7);
-      g.fillTriangle(
-        ax - aSize,
-        h - bh,
-        ax + aSize,
-        h - bh,
-        ax,
-        h - bh - aSize * 2,
-      );
-    }
+  for (let x = 0; x < grid.cols; x++) {
+    const yOffset = Math.round(Math.sin((x + phase) * frequency) * amplitude);
+    const y = Math.max(0, Math.min(grid.rows - 1, baseY + yOffset));
+    px(g, grid, x, y, color, 1, grid.rows - y);
   }
 }
 
-export function drawMiningPortrait(
+function starfield(
   g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  seed: number,
+  grid: PixelGrid,
+  rng: SeededRNG,
+  count: number,
+  palette: readonly number[],
 ): void {
-  const rng = new SeededRNG(seed);
-
-  // Dark brown to dark orange gradient
-  fillGradientV(g, 0, 0, w, h, 0x1a0a05, 0x3a2010, 16);
-
-  // Rocky terrain base
-  const terrainTop = Math.floor(h * 0.5);
-  g.fillStyle(0x443322, 1);
-  g.fillRect(0, terrainTop, w, h - terrainTop);
-
-  // Jagged rocky terrain peaks (triangles with varying heights)
-  const jagged = rng.nextInt(6, 10);
-  for (let i = 0; i < jagged; i++) {
-    const tx = rng.nextFloat(0, w);
-    const tw = rng.nextFloat(15, 40);
-    const th = rng.nextFloat(20, 50);
-    g.fillStyle(0x332211, 1);
-    g.fillTriangle(tx, h - th * 0.2, tx + tw, h - th * 0.2, tx + tw / 2, h - th);
-  }
-
-  // Mining rig silhouettes (2-3 tall thin rectangles with small triangle tops)
-  const rigCount = rng.nextInt(2, 3);
-  for (let i = 0; i < rigCount; i++) {
-    const rx = rng.nextFloat(10, w - 20);
-    const rw = rng.nextFloat(6, 12);
-    const rh = rng.nextFloat(40, 70);
-    g.fillStyle(0x221111, 1);
-    g.fillRect(rx, h - rh, rw, rh);
-    g.fillTriangle(
-      rx - 2,
-      h - rh,
-      rx + rw + 2,
-      h - rh,
-      rx + rw / 2,
-      h - rh - 10,
+  for (let i = 0; i < count; i++) {
+    px(
+      g,
+      grid,
+      rng.nextInt(0, grid.cols - 1),
+      rng.nextInt(0, grid.rows - 1),
+      palette[i % palette.length],
+      1,
+      1,
+      rng.nextFloat(0.25, 0.85),
     );
   }
-
-  // Bright orange/red thin horizontal lines for "ore veins" (2-4)
-  const veinCount = rng.nextInt(2, 4);
-  g.lineStyle(1, 0xff6622, 0.6);
-  for (let i = 0; i < veinCount; i++) {
-    const vy = rng.nextFloat(terrainTop + 10, h - 10);
-    g.lineBetween(0, vy, w, vy);
-  }
 }
 
-export function drawAgriculturalPortrait(
-  g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  seed: number,
-): void {
-  const rng = new SeededRNG(seed);
-
-  // Warm amber to light green gradient
-  fillGradientV(g, 0, 0, w, h, 0x332200, 0x336622, 16);
-
-  // Gentle rolling sine-wave hills in green (2 layers, different frequencies)
-  const hillColors = [0x336622, 0x448833];
-  for (let layer = 0; layer < 2; layer++) {
-    const baseY = h * (0.5 + layer * 0.15);
-    const freq = 0.015 + rng.nextFloat(0, 0.015);
-    const amp = 10 + rng.nextFloat(0, 10);
-    const phaseOff = rng.nextFloat(0, 100);
-    g.fillStyle(hillColors[layer], 1);
-    for (let x = 0; x < w; x += 2) {
-      const yOff = Math.sin((x + phaseOff) * freq) * amp;
-      g.fillRect(x, baseY + yOff, 3, h - baseY - yOff);
-    }
-  }
-
-  // Small rectangle silhouettes at bottom for silos/barns (2-4)
-  const buildCount = rng.nextInt(2, 4);
-  for (let i = 0; i < buildCount; i++) {
-    const bx = rng.nextFloat(10, w - 25);
-    const bw = rng.nextFloat(12, 22);
-    const bh = rng.nextFloat(18, 40);
-    g.fillStyle(0x221100, 1);
-    g.fillRect(bx, h - bh, bw, bh);
-    // Triangle roof
-    g.fillTriangle(
-      bx - 3,
-      h - bh,
-      bx + bw + 3,
-      h - bh,
-      bx + bw / 2,
-      h - bh - 10,
-    );
-  }
-
-  // Yellow dots scattered in the field area for grain
-  const grainCount = rng.nextInt(15, 30);
-  for (let i = 0; i < grainCount; i++) {
-    const gx = rng.nextFloat(5, w - 5);
-    const gy = rng.nextFloat(h * 0.55, h - 10);
-    g.fillStyle(0xddcc44, 0.6);
-    g.fillCircle(gx, gy, 1);
-  }
-}
-
-export function drawIndustrialPortrait(
-  g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  seed: number,
-): void {
-  const rng = new SeededRNG(seed);
-
-  // Dark gray to steel blue gradient
-  fillGradientV(g, 0, 0, w, h, 0x0a0a10, 0x2a2a3a, 16);
-
-  // Factory rectangle silhouettes along bottom (3-5 rectangles)
-  const factoryCount = rng.nextInt(3, 5);
-  for (let i = 0; i < factoryCount; i++) {
-    const fx = rng.nextFloat(5, w - 30);
-    const fw = rng.nextFloat(20, 45);
-    const fh = rng.nextFloat(30, 60);
-    g.fillStyle(0x1a1a22, 1);
-    g.fillRect(fx, h - fh, fw, fh);
-  }
-
-  // Tall thin rectangles for smokestacks (2-3)
-  const stackCount = rng.nextInt(2, 3);
-  for (let i = 0; i < stackCount; i++) {
-    const sx = rng.nextFloat(15, w - 15);
-    const sw = rng.nextFloat(4, 7);
-    const sh = rng.nextFloat(40, 80);
-    g.fillStyle(0x1a1a22, 1);
-    g.fillRect(sx, h - sh, sw, sh);
-
-    // Small orange dots above smokestacks for sparks
-    const sparkCount = rng.nextInt(2, 4);
-    for (let s = 0; s < sparkCount; s++) {
-      const spX = sx + rng.nextFloat(-3, sw + 3);
-      const spY = h - sh - rng.nextFloat(4, 15);
-      g.fillStyle(0xff6622, 0.7);
-      g.fillCircle(spX, spY, 1.5);
-    }
-  }
-
-  // Thin gray horizontal lines for smoke/haze
-  const hazeCount = rng.nextInt(3, 5);
-  for (let i = 0; i < hazeCount; i++) {
-    const hy = rng.nextFloat(h * 0.15, h * 0.5);
-    g.lineStyle(1, 0x666688, 0.2);
-    g.lineBetween(0, hy, w, hy);
-  }
-}
-
-export function drawHubStationPortrait(
-  g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  seed: number,
-): void {
-  const rng = new SeededRNG(seed);
-
-  // Deep space gradient (near-black to dark blue)
-  fillGradientV(g, 0, 0, w, h, 0x000005, 0x0a0a2a, 16);
-
-  const cx = w / 2;
-  const cy = h / 2;
-
-  // Central station structure: concentric circles (2-3 rings)
-  const ringCount = rng.nextInt(2, 3);
-  for (let i = 0; i < ringCount; i++) {
-    const radius = 20 + i * 18 + rng.nextFloat(-3, 3);
-    g.lineStyle(2, 0xccddee, 0.6);
-    g.strokeCircle(cx, cy, radius);
-  }
-
-  // Radial spokes (4-8 thin lines from center)
-  const spokeCount = rng.nextInt(4, 8);
-  g.lineStyle(1, 0x8899aa, 0.4);
-  for (let i = 0; i < spokeCount; i++) {
-    const angle = (i / spokeCount) * Math.PI * 2;
-    const outerR = 20 + (ringCount - 1) * 18 + 10;
-    g.lineBetween(
-      cx + Math.cos(angle) * 5,
-      cy + Math.sin(angle) * 5,
-      cx + Math.cos(angle) * outerR,
-      cy + Math.sin(angle) * outerR,
-    );
-  }
-
-  // Station core
-  g.fillStyle(0x334455, 1);
-  g.fillCircle(cx, cy, 8);
-
-  // Small white accent dots at intersections for lights
-  const lightCount = rng.nextInt(6, 12);
-  for (let i = 0; i < lightCount; i++) {
-    const angle = rng.nextFloat(0, Math.PI * 2);
-    const dist = rng.nextFloat(15, 55);
-    const lx = cx + Math.cos(angle) * dist;
-    const ly = cy + Math.sin(angle) * dist;
-    g.fillStyle(0x00ffcc, 0.7);
-    g.fillCircle(lx, ly, 1.5);
-  }
-}
-
-export function drawResortPortrait(
-  g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  seed: number,
-): void {
-  const rng = new SeededRNG(seed);
-
-  // Turquoise to bright blue gradient
-  fillGradientV(g, 0, 0, w, h, 0x004455, 0x2288bb, 16);
-
-  // Horizontal bands of slightly different blue for water
-  const waterTop = Math.floor(h * 0.6);
-  const waterBands = 3;
-  const waterColors = [0x006688, 0x007799, 0x0088aa];
-  const bandH = Math.floor((h - waterTop) / waterBands);
-  for (let i = 0; i < waterBands; i++) {
-    g.fillStyle(waterColors[i], 1);
-    g.fillRect(0, waterTop + bandH * i, w, bandH + 1);
-  }
-
-  // Dome silhouettes along bottom (semicircles, 3-5)
-  const domeCount = rng.nextInt(3, 5);
-  for (let i = 0; i < domeCount; i++) {
-    const dx = rng.nextFloat(10, w - 20);
-    const dr = rng.nextFloat(10, 22);
-    g.fillStyle(0x442244, 1);
-    // Base rectangle
-    g.fillRect(dx - dr, waterTop - dr * 0.3, dr * 2, dr * 0.6);
-    // Dome top arc approximation via triangle
-    g.fillTriangle(
-      dx - dr,
-      waterTop - dr * 0.3,
-      dx + dr,
-      waterTop - dr * 0.3,
-      dx,
-      waterTop - dr * 1.1,
-    );
-  }
-
-  // Pink and golden small dots scattered for decorative lights
-  const lightCount = rng.nextInt(10, 20);
-  for (let i = 0; i < lightCount; i++) {
-    const lx = rng.nextFloat(5, w - 5);
-    const ly = rng.nextFloat(waterTop - 30, h - 5);
-    const isPink = rng.chance(0.5);
-    g.fillStyle(isPink ? 0xff88aa : 0xffcc44, 0.6);
-    g.fillCircle(lx, ly, 1);
-  }
-}
-
-export function drawResearchPortrait(
-  g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  seed: number,
-): void {
-  const rng = new SeededRNG(seed);
-
-  // Deep purple to dark cyan gradient
-  fillGradientV(g, 0, 0, w, h, 0x0a0015, 0x0a1a2a, 16);
-
-  // Satellite dish silhouettes (triangles pointing up with small circles on top, 2-3)
-  const dishCount = rng.nextInt(2, 3);
-  for (let i = 0; i < dishCount; i++) {
-    const dx = rng.nextFloat(20, w - 30);
-    const dy = h - rng.nextFloat(20, 50);
-    const dr = rng.nextFloat(12, 22);
-
-    // Support rod
-    g.fillStyle(0x221133, 1);
-    g.fillRect(dx - 1, dy, 3, h - dy);
-
-    // Dish (triangle pointing up)
-    g.fillTriangle(dx - dr, dy, dx + dr, dy, dx, dy - dr * 0.8);
-
-    // Small circle on top
-    g.fillStyle(0x44ffff, 0.6);
-    g.fillCircle(dx, dy - dr * 0.8 - 3, 3);
-  }
-
-  // Horizontal dashed cyan lines across the middle area for "data streams"
-  const streamCount = rng.nextInt(4, 6);
-  g.lineStyle(1, 0x44ffff, 0.4);
-  for (let i = 0; i < streamCount; i++) {
-    const sy = rng.nextFloat(h * 0.2, h * 0.5);
-    // Draw dashed line as segments
-    const segLen = 8;
-    const gap = 6;
-    for (let x = 0; x < w; x += segLen + gap) {
-      g.lineBetween(x, sy, Math.min(x + segLen, w), sy);
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Ship portrait
-// ---------------------------------------------------------------------------
-
-export function drawShipPortrait(
-  g: Phaser.GameObjects.Graphics,
-  shipClass: ShipClass,
-  w: number,
-  h: number,
-): void {
+function drawFrame(g: Phaser.GameObjects.Graphics, grid: PixelGrid): void {
   const theme = getTheme();
+  const outer = 0x070b14;
+  const middle = theme.colors.panelBorder;
+  const inner = 0x0c1327;
 
-  // Dark space gradient background
-  fillGradientV(g, 0, 0, w, h, 0x000000, 0x050510, 8);
+  px(g, grid, 0, 0, outer, grid.cols, grid.rows);
+  px(g, grid, 1, 1, middle, grid.cols - 2, grid.rows - 2);
+  px(g, grid, 2, 2, inner, grid.cols - 4, grid.rows - 4);
+  px(g, grid, 2, 2, theme.colors.accent, grid.cols - 4, 1, 0.18);
+  px(g, grid, 2, grid.rows - 3, theme.colors.accent, grid.cols - 4, 1, 0.18);
+}
 
-  const cx = w / 2;
-  const cy = h / 2;
-  const shipColor = 0x445566;
+function renderTerranPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x13356a, 0x4aa3d9);
 
-  // Ship body varies by class
-  switch (shipClass) {
-    case "cargoShuttle": {
-      // Small box with small triangular nose
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 15, cy - 8, 30, 16);
-      g.fillTriangle(cx + 15, cy - 6, cx + 15, cy + 6, cx + 24, cy);
-      break;
-    }
-    case "passengerShuttle": {
-      // Rounded tube shape (rectangle with semicircle front)
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 22, cy - 5, 44, 10);
-      g.fillTriangle(cx + 22, cy - 4, cx + 22, cy + 4, cx + 32, cy);
-      break;
-    }
-    case "mixedHauler": {
-      // Wider rectangle with angular wings
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 18, cy - 10, 36, 20);
-      g.fillTriangle(cx + 18, cy - 8, cx + 18, cy + 8, cx + 28, cy);
-      break;
-    }
-    case "fastCourier": {
-      // Elongated thin triangle (dart shape)
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 10, cy - 4, 28, 8);
-      g.fillTriangle(cx + 18, cy - 3, cx + 18, cy + 3, cx + 28, cy);
-      // Wide tail
-      g.fillTriangle(cx - 10, cy - 14, cx - 10, cy + 14, cx - 22, cy);
-      break;
-    }
-    case "bulkFreighter": {
-      // Very wide, long rectangle with small bridge on top
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 30, cy - 12, 60, 24);
-      g.fillTriangle(cx + 30, cy - 10, cx + 30, cy + 10, cx + 38, cy);
-      // Bridge on top
-      g.fillRect(cx + 10, cy - 18, 12, 6);
-      break;
-    }
-    case "starLiner": {
-      // Sleek rectangle with angled wings, row of small window dots
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 28, cy - 6, 56, 12);
-      g.fillTriangle(cx + 28, cy - 5, cx + 28, cy + 5, cx + 38, cy);
-      // Angled wings
-      g.fillTriangle(cx - 20, cy - 6, cx - 10, cy - 6, cx - 15, cy - 16);
-      g.fillTriangle(cx - 20, cy + 6, cx - 10, cy + 6, cx - 15, cy + 16);
-      // Window dots
-      g.fillStyle(0xaaddff, 0.7);
-      for (let wx = cx - 20; wx <= cx + 20; wx += 6) {
-        g.fillCircle(wx, cy, 1);
-      }
-      break;
-    }
-    case "megaHauler": {
-      // Massive rectangle, almost fills width, stubby wings
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 35, cy - 16, 70, 32);
-      g.fillTriangle(cx + 35, cy - 12, cx + 35, cy + 12, cx + 42, cy);
-      // Stubby wings
-      g.fillRect(cx - 25, cy - 22, 15, 6);
-      g.fillRect(cx - 25, cy + 16, 15, 6);
-      break;
-    }
-    case "luxuryLiner": {
-      // Elegant elongated shape with curved fins
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 32, cy - 7, 64, 14);
-      g.fillTriangle(cx + 32, cy - 5, cx + 32, cy + 5, cx + 42, cy);
-      // Curved fins
-      g.fillTriangle(cx - 24, cy - 7, cx - 14, cy - 7, cx - 19, cy - 18);
-      g.fillTriangle(cx - 24, cy + 7, cx - 14, cy + 7, cx - 19, cy + 18);
-      // Decorative accent lines
-      g.lineStyle(1, theme.colors.accent, 0.5);
-      g.lineBetween(cx - 30, cy - 3, cx + 30, cy - 3);
-      g.lineBetween(cx - 30, cy + 3, cx + 30, cy + 3);
-      break;
-    }
-    default: {
-      // Fallback: basic shape
-      g.fillStyle(shipColor, 1);
-      g.fillRect(cx - 15, cy - 8, 30, 16);
-      g.fillTriangle(cx + 15, cy - 6, cx + 15, cy + 6, cx + 24, cy);
-      break;
+  horizontalBand(g, grid, 18, 1, 0.35, rng.nextFloat(0, 10), 0x3db46a);
+  horizontalBand(g, grid, 22, 1, 0.28, rng.nextFloat(0, 10), 0x246c48);
+
+  for (let i = 0; i < 5; i++) {
+    const bx = rng.nextInt(4, 26);
+    const bh = rng.nextInt(3, 8);
+    px(g, grid, bx, 31 - bh, 0x12213c, 2, bh);
+    if (rng.chance(0.5)) {
+      px(g, grid, bx + 1, 31 - bh - 1, 0xeaf6ff);
     }
   }
 
-  // Accent-colored circle at rear for engine glow
-  g.fillStyle(theme.colors.accent, 0.7);
-  g.fillCircle(cx - 30, cy, 4);
-  g.lineStyle(1, theme.colors.accent, 0.2);
-  g.strokeCircle(cx - 30, cy, 8);
-
-  // Lighter tint at front for cockpit area
-  g.fillStyle(0xaaddff, 0.4);
-  g.fillCircle(cx + 20, cy, 3);
+  for (let i = 0; i < 6; i++) {
+    px(
+      g,
+      grid,
+      rng.nextInt(4, 27),
+      rng.nextInt(6, 13),
+      0xf7fcff,
+      rng.nextInt(2, 4),
+      1,
+      0.18,
+    );
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Star system portrait
-// ---------------------------------------------------------------------------
-
-export function drawSystemPortrait(
+function renderMiningPortrait(
   g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x26120b, 0x6a3421);
+  horizontalBand(g, grid, 19, 2, 0.45, rng.nextFloat(0, 5), 0x4b2c1f);
+  horizontalBand(g, grid, 23, 2, 0.34, rng.nextFloat(0, 5), 0x322017);
+
+  for (let i = 0; i < 3; i++) {
+    const x = 5 + i * 8 + rng.nextInt(-1, 1);
+    px(g, grid, x, 18, 0x171113, 1, 9);
+    px(g, grid, x - 1, 18, 0x171113, 3, 1);
+    px(g, grid, x + 1, 16, 0xff7a39);
+  }
+
+  for (let i = 0; i < 3; i++) {
+    px(
+      g,
+      grid,
+      rng.nextInt(4, 27),
+      rng.nextInt(21, 28),
+      0xff6b2e,
+      rng.nextInt(2, 4),
+      1,
+      0.7,
+    );
+  }
+}
+
+function renderAgriculturalPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x6f4f19, 0xa6cf53);
+  horizontalBand(g, grid, 17, 1, 0.25, rng.nextFloat(0, 8), 0x87ba43);
+  horizontalBand(g, grid, 21, 2, 0.2, rng.nextFloat(0, 8), 0x5d9534);
+
+  for (let i = 0; i < 2; i++) {
+    const x = 8 + i * 10;
+    px(g, grid, x, 24, 0x4d2b17, 3, 5);
+    px(g, grid, x - 1, 23, 0x7c5024, 5, 1);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    px(g, grid, rng.nextInt(3, 28), rng.nextInt(19, 29), 0xe8d86a, 1, 1, 0.8);
+  }
+}
+
+function renderIndustrialPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x1a1f30, 0x4e5568);
+  px(g, grid, 0, 22, 0x202430, grid.cols, 10);
+
+  for (let i = 0; i < 4; i++) {
+    const x = 4 + i * 6 + rng.nextInt(-1, 1);
+    const h = rng.nextInt(5, 9);
+    px(g, grid, x, 31 - h, 0x121722, 4, h);
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const x = 6 + i * 9 + rng.nextInt(-1, 1);
+    px(g, grid, x, 16, 0x10141e, 1, 10);
+    px(g, grid, x - 1, 14, 0x79839a, 3, 1, 0.35);
+    px(g, grid, x, 13, 0xff8c4b, 1, 1, 0.8);
+  }
+}
+
+function renderHubStationPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x03050a, 0x0a1433);
+  starfield(g, grid, rng, 22, [0xf5f9ff, 0x8ce8ff]);
+  ring(g, grid, 16, 16, 5, 0xb6d0e8, 0.85);
+  ring(g, grid, 16, 16, 8, 0x5ee9da, 0.5);
+  px(g, grid, 12, 15, 0x9fb7ca, 8, 2);
+  px(g, grid, 15, 12, 0x9fb7ca, 2, 8);
+  px(g, grid, 15, 15, 0xffffff, 2, 2);
+}
+
+function renderResortPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x1f5c89, 0x6fe0f2);
+  px(g, grid, 0, 21, 0x12a2c2, grid.cols, 11);
+  px(g, grid, 0, 24, 0x0b84a4, grid.cols, 8, 0.7);
+
+  for (let i = 0; i < 3; i++) {
+    const x = 7 + i * 7;
+    circleFill(g, grid, x, 20, 2, 0xffb6e8, 0.9);
+    px(g, grid, x - 2, 20, 0x5e2557, 5, 2, 0.8);
+  }
+
+  for (let i = 0; i < 10; i++) {
+    px(
+      g,
+      grid,
+      rng.nextInt(3, 28),
+      rng.nextInt(18, 29),
+      rng.chance(0.5) ? 0xffd66d : 0xff8ed0,
+      1,
+      1,
+      0.8,
+    );
+  }
+}
+
+function renderResearchPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x150d33, 0x12304b);
+
+  for (let i = 0; i < 4; i++) {
+    px(g, grid, 0, 10 + i * 3, 0x67e8f9, grid.cols, 1, 0.15);
+  }
+
+  for (let i = 0; i < 3; i++) {
+    const x = 8 + i * 8;
+    px(g, grid, x, 21, 0x211634, 1, 8);
+    px(g, grid, x - 2, 21, 0x211634, 5, 1);
+    px(g, grid, x, 18, 0x67e8f9);
+    px(g, grid, x - 1, 19, 0x67e8f9, 3, 1, 0.5);
+  }
+
+  for (let i = 0; i < 6; i++) {
+    px(g, grid, rng.nextInt(5, 26), rng.nextInt(8, 16), 0xc18cff, 1, 1, 0.28);
+  }
+}
+
+function renderShipPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  shipClass: ShipClass,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x03050a, 0x11182a);
+  starfield(g, grid, rng, 14, [0xeef5ff, 0x7fdfff]);
+
+  const accentMap: Record<ShipClass, number> = {
+    cargoShuttle: 0x2de5d4,
+    passengerShuttle: 0xf0ca68,
+    mixedHauler: 0x7ed2ff,
+    fastCourier: 0xff69c9,
+    bulkFreighter: 0xff9b54,
+    starLiner: 0x76f7ce,
+    megaHauler: 0xe19a6b,
+    luxuryLiner: 0xd9a7ff,
+  };
+
+  const accent = accentMap[shipClass];
+  const body = 0x6f7d94;
+  const dark = 0x475367;
+  const light = 0xbcd2ec;
+  const y = 16;
+
+  switch (shipClass) {
+    case "cargoShuttle":
+      px(g, grid, 8, y - 2, body, 10, 4);
+      px(g, grid, 18, y - 1, dark, 4, 2);
+      px(g, grid, 6, y - 1, accent, 2, 2);
+      break;
+    case "passengerShuttle":
+      px(g, grid, 7, y - 1, body, 13, 3);
+      px(g, grid, 20, y, dark, 3, 1);
+      px(g, grid, 11, y - 2, light, 5, 1, 0.7);
+      px(g, grid, 5, y, accent, 2, 1);
+      break;
+    case "mixedHauler":
+      px(g, grid, 8, y - 2, body, 12, 4);
+      px(g, grid, 20, y - 1, dark, 3, 2);
+      px(g, grid, 10, y - 4, dark, 3, 2);
+      px(g, grid, 10, y + 2, dark, 3, 2);
+      px(g, grid, 6, y, accent, 2, 1);
+      break;
+    case "fastCourier":
+      px(g, grid, 10, y - 1, body, 10, 2);
+      px(g, grid, 20, y - 2, dark, 3, 4);
+      px(g, grid, 7, y - 3, dark, 3, 2);
+      px(g, grid, 7, y + 1, dark, 3, 2);
+      px(g, grid, 5, y, accent, 2, 1);
+      break;
+    case "bulkFreighter":
+      px(g, grid, 6, y - 3, body, 16, 6);
+      px(g, grid, 22, y - 2, dark, 3, 4);
+      px(g, grid, 15, y - 5, dark, 4, 2);
+      px(g, grid, 4, y - 1, accent, 2, 2);
+      break;
+    case "starLiner":
+      px(g, grid, 6, y - 2, body, 16, 4);
+      px(g, grid, 22, y - 1, dark, 3, 2);
+      px(g, grid, 9, y - 4, dark, 4, 2);
+      px(g, grid, 9, y + 2, dark, 4, 2);
+      for (let x = 11; x <= 18; x += 2) {
+        px(g, grid, x, y - 1, light);
+      }
+      px(g, grid, 4, y, accent, 2, 1);
+      break;
+    case "megaHauler":
+      px(g, grid, 4, y - 4, body, 19, 8);
+      px(g, grid, 23, y - 2, dark, 3, 4);
+      px(g, grid, 7, y - 6, dark, 5, 2);
+      px(g, grid, 7, y + 4, dark, 5, 2);
+      px(g, grid, 2, y - 1, accent, 2, 2);
+      break;
+    case "luxuryLiner":
+      px(g, grid, 5, y - 2, body, 17, 4);
+      px(g, grid, 22, y - 1, dark, 3, 2);
+      px(g, grid, 8, y - 5, dark, 4, 3);
+      px(g, grid, 8, y + 2, dark, 4, 3);
+      for (let x = 10; x <= 19; x += 2) {
+        px(g, grid, x, y - 1, light, 1, 1, 0.8);
+      }
+      px(g, grid, 3, y, accent, 2, 1);
+      break;
+  }
+
+  px(g, grid, 2, y, accent, 2, 1, 0.4);
+  px(g, grid, 1, y, accent, 1, 1, 0.2);
+}
+
+function renderSystemPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
   starColor: number,
   planetCount: number,
-  w: number,
-  h: number,
+  seed: number,
 ): void {
-  const rng = new SeededRNG(starColor);
+  const rng = new SeededRNG(seed);
+  drawFrame(g, grid);
+  fillGradientV(g, grid, 0x020307, 0x071328);
+  starfield(g, grid, rng, 20, [0xffffff, 0x8bdfff, 0xffd5a0]);
+  circleFill(g, grid, 16, 16, 3, starColor, 1);
+  circleFill(g, grid, 16, 16, 5, starColor, 0.22);
 
-  // Black background
-  g.fillStyle(0x000000, 1);
-  g.fillRect(0, 0, w, h);
-
-  const cx = w / 2;
-  const cy = h / 2;
-  const starRadius = Math.floor(Math.min(w, h) * 0.12);
-
-  // Central circle filled with starColor
-  g.fillStyle(starColor, 1);
-  g.fillCircle(cx, cy, starRadius);
-
-  // Radial gradient glow around star (2-3 concentric circles with decreasing alpha)
-  const glowLayers = 3;
-  for (let i = 1; i <= glowLayers; i++) {
-    const alpha = 0.25 / i;
-    g.lineStyle(2, starColor, alpha);
-    g.strokeCircle(cx, cy, starRadius + i * 5);
-  }
-
-  // Orbit circles for each planet, evenly spaced
-  const orbitStart = starRadius + 18;
-  const orbitGap = Math.floor(
-    (Math.min(w, h) / 2 - orbitStart - 10) / Math.max(planetCount, 1),
-  );
   for (let i = 0; i < planetCount; i++) {
-    const orbitR = orbitStart + i * orbitGap;
-    // Orbit line
-    g.lineStyle(1, 0xffffff, 0.1);
-    g.strokeCircle(cx, cy, orbitR);
-    // Small colored dot at random position on orbit
+    const radius = 6 + i * 3;
+    ring(g, grid, 16, 16, radius, 0x6a7692, 0.35);
     const angle = rng.nextFloat(0, Math.PI * 2);
-    const px = cx + Math.cos(angle) * orbitR;
-    const py = cy + Math.sin(angle) * orbitR;
-    g.fillStyle(lerpColor(0x4488cc, 0xccaa44, rng.next()), 1);
-    g.fillCircle(px, py, 2.5);
+    px(
+      g,
+      grid,
+      16 + Math.round(Math.cos(angle) * radius),
+      16 + Math.round(Math.sin(angle) * radius),
+      lerpColor(0x4d8de6, 0xf2c46b, rng.next()),
+    );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Event portrait
-// ---------------------------------------------------------------------------
-
-export function drawEventPortrait(
+function renderEventPortrait(
   g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
   category: EventCategory,
-  w: number,
-  h: number,
+  seed: number,
 ): void {
-  const rng = new SeededRNG(
-    category === "market"
-      ? 1001
-      : category === "hazard"
-        ? 2002
-        : category === "opportunity"
-          ? 3003
-          : 4004,
-  );
-  const cx = w / 2;
-  const cy = h / 2;
+  const rng = new SeededRNG(seed);
+  const palettes: Record<EventCategory, [number, number, number]> = {
+    market: [0x0d2b1e, 0x143f28, 0x2de58c],
+    hazard: [0x300d10, 0x48161a, 0xff6b3d],
+    opportunity: [0x2c2408, 0x4b3d10, 0xffd36c],
+    flavor: [0x1b1038, 0x2a1751, 0xb37dff],
+  };
+  const [top, bottom, accent] = palettes[category];
 
-  switch (category) {
-    case "market": {
-      fillGradientV(g, 0, 0, w, h, 0x001a0a, 0x0a2a1a, 12);
-      // 2-3 chart lines of different colors going up/down
-      const lineColors = [0x00ff88, 0x44aaff, 0xffcc44];
-      const lineCount = rng.nextInt(2, 3);
-      for (let l = 0; l < lineCount; l++) {
-        g.lineStyle(2, lineColors[l], 0.7);
-        const segments = rng.nextInt(5, 9);
-        let px = 10;
-        let py = cy + rng.nextFloat(-20, 20);
-        for (let i = 0; i < segments; i++) {
-          const nx = px + (w - 20) / segments;
-          const ny = cy + rng.nextFloat(-30, 30);
-          g.lineBetween(px, py, nx, ny);
-          px = nx;
-          py = ny;
-        }
+  drawFrame(g, grid);
+  fillGradientV(g, grid, top, bottom);
+
+  if (category === "market") {
+    for (let i = 0; i < 3; i++) {
+      let x = 5;
+      let y = 22 - i * 4;
+      while (x < 27) {
+        px(g, grid, x, y, accent, 1, 1, 0.7);
+        px(g, grid, x + 1, y, accent, 1, 1, 0.45);
+        x += 4;
+        y += rng.nextInt(-2, 2);
       }
-      break;
     }
-    case "hazard": {
-      fillGradientV(g, 0, 0, w, h, 0x1a0505, 0x330a0a, 12);
-      // Red/orange explosion burst (triangles radiating from center)
-      const burstCount = rng.nextInt(8, 14);
-      for (let i = 0; i < burstCount; i++) {
-        const angle =
-          (i / burstCount) * Math.PI * 2 + rng.nextFloat(-0.15, 0.15);
-        const innerR = rng.nextFloat(6, 12);
-        const outerR = rng.nextFloat(25, 45);
-        const spread = rng.nextFloat(0.08, 0.18);
-        g.fillStyle(lerpColor(0xff2222, 0xff8800, rng.next()), 0.7);
-        g.fillTriangle(
-          cx + Math.cos(angle - spread) * innerR,
-          cy + Math.sin(angle - spread) * innerR,
-          cx + Math.cos(angle + spread) * innerR,
-          cy + Math.sin(angle + spread) * innerR,
-          cx + Math.cos(angle) * outerR,
-          cy + Math.sin(angle) * outerR,
-        );
-      }
-      break;
+  } else if (category === "hazard") {
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 * i) / 12;
+      const x = 16 + Math.round(Math.cos(angle) * rng.nextInt(4, 9));
+      const y = 16 + Math.round(Math.sin(angle) * rng.nextInt(4, 9));
+      px(g, grid, x, y, i % 2 === 0 ? 0xffb069 : accent, 2, 2, 0.85);
     }
-    case "opportunity": {
-      fillGradientV(g, 0, 0, w, h, 0x0a1a0a, 0x1a2a0a, 12);
-      // Golden star shape (overlapping triangles making a 6-pointed star)
-      g.fillStyle(0xffcc44, 0.8);
-      const r = Math.min(w, h) * 0.2;
-      // Up-pointing triangle
-      g.fillTriangle(
-        cx,
-        cy - r,
-        cx - r * 0.87,
-        cy + r * 0.5,
-        cx + r * 0.87,
-        cy + r * 0.5,
+    circleFill(g, grid, 16, 16, 3, 0xffd3a0, 0.8);
+  } else if (category === "opportunity") {
+    const points = [
+      [16, 7],
+      [18, 13],
+      [24, 13],
+      [19, 17],
+      [21, 24],
+      [16, 20],
+      [11, 24],
+      [13, 17],
+      [8, 13],
+      [14, 13],
+    ];
+    for (const [x, y] of points) {
+      px(g, grid, x, y, accent, 2, 2, 0.9);
+    }
+  } else {
+    for (let i = 0; i < 18; i++) {
+      px(
+        g,
+        grid,
+        8 + Math.floor(i / 2),
+        10 + Math.round(Math.sin(i / 2) * 4),
+        accent,
+        1,
+        1,
+        0.7,
       );
-      // Down-pointing triangle
-      g.fillTriangle(
-        cx,
-        cy + r,
-        cx - r * 0.87,
-        cy - r * 0.5,
-        cx + r * 0.87,
-        cy - r * 0.5,
+      px(
+        g,
+        grid,
+        16 + Math.round(Math.cos(i / 3) * 6),
+        16 + Math.round(Math.sin(i / 3) * 6),
+        0x6be7ff,
+        1,
+        1,
+        0.4,
       );
-      break;
-    }
-    default: {
-      // Flavor: decorative spiral/swirl (arc segments in accent color)
-      fillGradientV(g, 0, 0, w, h, 0x0a051a, 0x1a0a2a, 12);
-      const curveCount = rng.nextInt(4, 8);
-      g.lineStyle(1, 0xaa88ff, 0.5);
-      for (let i = 0; i < curveCount; i++) {
-        const startAngle = rng.nextFloat(0, Math.PI * 2);
-        const radius = rng.nextFloat(10, 40);
-        const steps = 12;
-        let prevX = cx + Math.cos(startAngle) * radius;
-        let prevY = cy + Math.sin(startAngle) * radius;
-        for (let s = 1; s <= steps; s++) {
-          const a = startAngle + (s / steps) * Math.PI;
-          const r = radius + s * 2;
-          const curX = cx + Math.cos(a) * r;
-          const curY = cy + Math.sin(a) * r;
-          g.lineBetween(prevX, prevY, curX, curY);
-          prevX = curX;
-          prevY = curY;
-        }
-      }
-      break;
     }
   }
 }
 
-// ---------------------------------------------------------------------------
-// Main dispatcher
-// ---------------------------------------------------------------------------
+function renderAlienPortrait(
+  g: Phaser.GameObjects.Graphics,
+  grid: PixelGrid,
+  role: AlienRole,
+  seed: number,
+): void {
+  const rng = new SeededRNG(seed);
+  const schemes: Record<
+    AlienRole,
+    {
+      bgTop: number;
+      bgBottom: number;
+      skin: number;
+      dark: number;
+      accent: number;
+      eye: number;
+    }
+  > = {
+    broker: {
+      bgTop: 0x132143,
+      bgBottom: 0x08111e,
+      skin: 0x6be7ff,
+      dark: 0x17475f,
+      accent: 0xffd98a,
+      eye: 0xdffcff,
+    },
+    miner: {
+      bgTop: 0x2a1711,
+      bgBottom: 0x0f0907,
+      skin: 0x8b7d76,
+      dark: 0x332722,
+      accent: 0xff9656,
+      eye: 0xffe0bf,
+    },
+    researcher: {
+      bgTop: 0x201644,
+      bgBottom: 0x09101f,
+      skin: 0x9ad6ff,
+      dark: 0x26316f,
+      accent: 0xb57cff,
+      eye: 0xffffff,
+    },
+    concierge: {
+      bgTop: 0x173350,
+      bgBottom: 0x09111b,
+      skin: 0x74dccd,
+      dark: 0x205564,
+      accent: 0xff80d3,
+      eye: 0xfff7ff,
+    },
+    enforcer: {
+      bgTop: 0x14261a,
+      bgBottom: 0x08100b,
+      skin: 0x70b75c,
+      dark: 0x274123,
+      accent: 0xff6666,
+      eye: 0xf1ffae,
+    },
+  };
+
+  const scheme = schemes[role];
+  drawFrame(g, grid);
+  fillGradientV(g, grid, scheme.bgTop, scheme.bgBottom);
+  ring(g, grid, 16, 14, 11, scheme.accent, 0.2);
+  ring(g, grid, 16, 14, 8, 0x2de5d4, 0.2);
+
+  px(g, grid, 8, 23, scheme.dark, 16, 7);
+  px(g, grid, 11, 19, scheme.dark, 10, 5);
+  px(g, grid, 12, 8, scheme.skin, 8, 10);
+  px(g, grid, 11, 10, scheme.skin, 10, 6);
+  px(g, grid, 10, 12, scheme.skin, 12, 4);
+  px(g, grid, 12, 7, scheme.skin, 2, 1);
+  px(g, grid, 18, 7, scheme.skin, 2, 1);
+
+  if (role === "broker") {
+    px(g, grid, 11, 6, scheme.accent, 3, 1);
+    px(g, grid, 18, 6, scheme.accent, 3, 1);
+    px(g, grid, 14, 4, scheme.accent, 4, 1);
+  } else if (role === "miner") {
+    px(g, grid, 10, 6, scheme.dark, 3, 2);
+    px(g, grid, 19, 6, scheme.dark, 3, 2);
+    px(g, grid, 13, 4, scheme.dark, 2, 2);
+    px(g, grid, 17, 4, scheme.dark, 2, 2);
+  } else if (role === "researcher") {
+    px(g, grid, 13, 5, scheme.accent, 1, 2);
+    px(g, grid, 18, 5, scheme.accent, 1, 2);
+    ring(g, grid, 16, 21, 4, scheme.accent, 0.4);
+  } else if (role === "concierge") {
+    px(g, grid, 9, 8, scheme.accent, 2, 1);
+    px(g, grid, 21, 8, scheme.accent, 2, 1);
+    px(g, grid, 8, 9, scheme.accent, 1, 2);
+    px(g, grid, 23, 9, scheme.accent, 1, 2);
+  } else if (role === "enforcer") {
+    px(g, grid, 10, 7, scheme.dark, 3, 2);
+    px(g, grid, 19, 7, scheme.dark, 3, 2);
+    px(g, grid, 12, 5, scheme.dark, 8, 1);
+  }
+
+  px(g, grid, 13, 11, 0x091018, 2, 2);
+  px(g, grid, 18, 11, 0x091018, 2, 2);
+  px(g, grid, 13, 11, scheme.eye, 1, 1, 0.9);
+  px(g, grid, 19, 11, scheme.eye, 1, 1, 0.9);
+  px(g, grid, 14, 14, scheme.dark, 4, 1);
+  px(g, grid, 14, 16, scheme.dark, 4, 1, 0.7);
+  px(g, grid, 14, 23, scheme.accent, 4, 1, 0.55);
+  px(g, grid, 11 + rng.nextInt(0, 2), 18, scheme.accent, 1, 1, 0.35);
+  px(g, grid, 19 - rng.nextInt(0, 2), 18, scheme.accent, 1, 1, 0.35);
+
+  if (role === "broker") {
+    px(g, grid, 12, 20, 0x0f1d2c, 8, 2);
+  } else if (role === "miner") {
+    px(g, grid, 11, 20, 0x1a1412, 10, 3);
+  } else if (role === "researcher") {
+    px(g, grid, 12, 20, 0x10173d, 8, 2);
+  } else if (role === "concierge") {
+    px(g, grid, 12, 20, 0x143544, 8, 2);
+  } else {
+    px(g, grid, 11, 20, 0x101b11, 10, 3);
+  }
+}
 
 export function drawPortrait(
   graphics: Phaser.GameObjects.Graphics,
@@ -730,50 +691,173 @@ export function drawPortrait(
   data?: PortraitData,
 ): void {
   graphics.clear();
+  const grid = createPixelGrid(width, height);
 
   switch (type) {
     case "planet": {
       const planetType = data?.planetType ?? "terran";
       switch (planetType) {
         case "terran":
-          drawTerranPortrait(graphics, width, height, seed);
+          renderTerranPortrait(graphics, grid, seed);
           break;
         case "mining":
-          drawMiningPortrait(graphics, width, height, seed);
+          renderMiningPortrait(graphics, grid, seed);
           break;
         case "agricultural":
-          drawAgriculturalPortrait(graphics, width, height, seed);
+          renderAgriculturalPortrait(graphics, grid, seed);
           break;
         case "industrial":
-          drawIndustrialPortrait(graphics, width, height, seed);
+          renderIndustrialPortrait(graphics, grid, seed);
           break;
         case "hubStation":
-          drawHubStationPortrait(graphics, width, height, seed);
+          renderHubStationPortrait(graphics, grid, seed);
           break;
         case "resort":
-          drawResortPortrait(graphics, width, height, seed);
+          renderResortPortrait(graphics, grid, seed);
           break;
         case "research":
-          drawResearchPortrait(graphics, width, height, seed);
+          renderResearchPortrait(graphics, grid, seed);
           break;
       }
       break;
     }
     case "ship": {
-      const shipClass = data?.shipClass ?? "cargoShuttle";
-      drawShipPortrait(graphics, shipClass, width, height);
+      renderShipPortrait(
+        graphics,
+        grid,
+        data?.shipClass ?? "cargoShuttle",
+        seed,
+      );
       break;
     }
     case "system": {
-      const starColor = data?.starColor ?? 0xffcc44;
-      const planetCount = data?.planetCount ?? 4;
-      drawSystemPortrait(graphics, starColor, planetCount, width, height);
+      renderSystemPortrait(
+        graphics,
+        grid,
+        data?.starColor ?? 0xffcc44,
+        data?.planetCount ?? 4,
+        seed,
+      );
       break;
     }
     case "event": {
-      const eventCategory = data?.eventCategory ?? "flavor";
-      drawEventPortrait(graphics, eventCategory, width, height);
+      renderEventPortrait(
+        graphics,
+        grid,
+        data?.eventCategory ?? "flavor",
+        seed,
+      );
+      break;
+    }
+    case "alien": {
+      renderAlienPortrait(graphics, grid, data?.alienRole ?? "broker", seed);
       break;
     }
   }
 }
+
+export function drawTerranPortrait(
+  g: Phaser.GameObjects.Graphics,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderTerranPortrait(g, createPixelGrid(w, h), seed);
+}
+
+export function drawMiningPortrait(
+  g: Phaser.GameObjects.Graphics,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderMiningPortrait(g, createPixelGrid(w, h), seed);
+}
+
+export function drawAgriculturalPortrait(
+  g: Phaser.GameObjects.Graphics,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderAgriculturalPortrait(g, createPixelGrid(w, h), seed);
+}
+
+export function drawIndustrialPortrait(
+  g: Phaser.GameObjects.Graphics,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderIndustrialPortrait(g, createPixelGrid(w, h), seed);
+}
+
+export function drawHubStationPortrait(
+  g: Phaser.GameObjects.Graphics,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderHubStationPortrait(g, createPixelGrid(w, h), seed);
+}
+
+export function drawResortPortrait(
+  g: Phaser.GameObjects.Graphics,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderResortPortrait(g, createPixelGrid(w, h), seed);
+}
+
+export function drawResearchPortrait(
+  g: Phaser.GameObjects.Graphics,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderResearchPortrait(g, createPixelGrid(w, h), seed);
+}
+
+export function drawShipPortrait(
+  g: Phaser.GameObjects.Graphics,
+  shipClass: ShipClass,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderShipPortrait(g, createPixelGrid(w, h), shipClass, seed);
+}
+
+export function drawSystemPortrait(
+  g: Phaser.GameObjects.Graphics,
+  starColor: number,
+  planetCount: number,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderSystemPortrait(g, createPixelGrid(w, h), starColor, planetCount, seed);
+}
+
+export function drawEventPortrait(
+  g: Phaser.GameObjects.Graphics,
+  category: EventCategory,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderEventPortrait(g, createPixelGrid(w, h), category, seed);
+}
+
+export function drawAlienPortrait(
+  g: Phaser.GameObjects.Graphics,
+  role: AlienRole,
+  w: number,
+  h: number,
+  seed: number,
+): void {
+  renderAlienPortrait(g, createPixelGrid(w, h), role, seed);
+}
+
+export { fillGradientV, fillGradientH };
