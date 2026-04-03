@@ -22,6 +22,7 @@ export class ScrollableList extends Phaser.GameObjects.Container {
   private scrollThumb: Phaser.GameObjects.Rectangle | null = null;
   private hoverIndicator: Phaser.GameObjects.Rectangle | null = null;
   private currentHoverContainer: Phaser.GameObjects.Container | null = null;
+  private wheelCapture: Phaser.GameObjects.Rectangle;
 
   constructor(scene: Phaser.Scene, config: ScrollableListConfig) {
     super(scene, config.x, config.y);
@@ -30,24 +31,25 @@ export class ScrollableList extends Phaser.GameObjects.Container {
     // Clipping mask
     this.maskGraphics = scene.make.graphics({});
     this.maskGraphics.fillStyle(0xffffff);
-    this.maskGraphics.fillRect(config.x, config.y, config.width, config.height);
+    this.maskGraphics.fillRect(0, 0, config.width, config.height);
+    this.maskGraphics.setPosition(config.x, config.y);
     const mask = this.maskGraphics.createGeometryMask();
 
     this.contentContainer = scene.add.container(0, 0);
     this.contentContainer.setMask(mask);
     this.add(this.contentContainer);
 
-    // Scroll via mouse wheel
-    const hitArea = scene.add
+    // Wheel capture area (kept behind list content so it doesn't block row clicks)
+    this.wheelCapture = scene.add
       .rectangle(0, 0, config.width, config.height, 0x000000, 0)
       .setOrigin(0, 0)
       .setInteractive(
         new Phaser.Geom.Rectangle(0, 0, config.width, config.height),
         Phaser.Geom.Rectangle.Contains,
       );
-    this.add(hitArea);
+    this.addAt(this.wheelCapture, 0);
 
-    hitArea.on(
+    this.wheelCapture.on(
       "wheel",
       (
         _pointer: Phaser.Input.Pointer,
@@ -113,6 +115,17 @@ export class ScrollableList extends Phaser.GameObjects.Container {
     container.on("pointerdown", () => {
       hitBg.setAlpha(0.82);
     });
+    container.on(
+      "wheel",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _dx: number,
+        _dy: number,
+        dz: number,
+      ) => {
+        this.scrollBy(dz * 0.5);
+      },
+    );
     container.on("pointerup", () => {
       hitBg.setAlpha(1);
       this.selectedIndex = index;

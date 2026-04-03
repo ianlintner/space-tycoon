@@ -30,6 +30,7 @@ export class GameHUDScene extends Phaser.Scene {
   private musicVolumeValueLabel: Label | null = null;
   private sfxVolumeValueLabel: Label | null = null;
   private reducedUiSfxValueLabel: Label | null = null;
+  private musicStyleValueLabel: Label | null = null;
 
   private stateListener = (_data: unknown) => {
     this.updateHUD();
@@ -337,7 +338,7 @@ export class GameHUDScene extends Phaser.Scene {
     });
 
     const panelW = 420;
-    const panelH = 260;
+    const panelH = 332;
     const panelX = Math.floor((GAME_WIDTH - panelW) / 2);
     const panelY = Math.floor((GAME_HEIGHT - panelH) / 2);
     const panel = new Panel(this, {
@@ -352,6 +353,7 @@ export class GameHUDScene extends Phaser.Scene {
     const row1Y = panelY + content.y + 8;
     const row2Y = row1Y + 62;
     const row3Y = row2Y + 62;
+    const row4Y = row3Y + 62;
 
     const musicLabel = new Label(this, {
       x: panelX + content.x,
@@ -466,6 +468,58 @@ export class GameHUDScene extends Phaser.Scene {
       },
     });
 
+    const styleLabel = new Label(this, {
+      x: panelX + content.x,
+      y: row4Y,
+      text: "Music Style",
+      style: "body",
+    });
+
+    const prettyStyle = (
+      style: "ambient" | "ftl" | "score" | "retro",
+    ): string => {
+      switch (style) {
+        case "ftl":
+          return "FTL";
+        case "score":
+          return "Score";
+        case "retro":
+          return "Retro";
+        default:
+          return "Ambient";
+      }
+    };
+
+    this.musicStyleValueLabel = new Label(this, {
+      x: panelX + panelW - content.x,
+      y: row4Y,
+      text: prettyStyle(settings.musicStyle),
+      style: "value",
+    });
+    this.musicStyleValueLabel.setOrigin(1, 0);
+
+    const cycleStyleBtn = new Button(this, {
+      x: panelX + content.x,
+      y: row4Y + 26,
+      width: 120,
+      height: 32,
+      label: "Cycle",
+      onClick: () => {
+        const current = audio.getSettings().musicStyle;
+        const next =
+          current === "ambient"
+            ? "ftl"
+            : current === "ftl"
+              ? "score"
+              : current === "score"
+                ? "retro"
+                : "ambient";
+        audio.setMusicStyle(next);
+        this.refreshAudioPanelValues();
+        audio.sfx("ui_tab_switch");
+      },
+    });
+
     const closeBtn = new Button(this, {
       x: panelX + panelW - content.x - 110,
       y: panelY + panelH - 44,
@@ -489,6 +543,8 @@ export class GameHUDScene extends Phaser.Scene {
       incSfxBtn,
       reducedLabel,
       toggleReducedBtn,
+      styleLabel,
+      cycleStyleBtn,
       closeBtn,
     ];
 
@@ -500,6 +556,9 @@ export class GameHUDScene extends Phaser.Scene {
     }
     if (this.reducedUiSfxValueLabel) {
       this.audioPanelObjects.push(this.reducedUiSfxValueLabel);
+    }
+    if (this.musicStyleValueLabel) {
+      this.audioPanelObjects.push(this.musicStyleValueLabel);
     }
 
     this.audioPanelOpen = true;
@@ -517,6 +576,15 @@ export class GameHUDScene extends Phaser.Scene {
       `${Math.round(settings.sfxVolume * 100)}%`,
     );
     this.reducedUiSfxValueLabel?.setText(settings.reducedUiSfx ? "On" : "Off");
+    this.musicStyleValueLabel?.setText(
+      settings.musicStyle === "ftl"
+        ? "FTL"
+        : settings.musicStyle === "score"
+          ? "Score"
+          : settings.musicStyle === "retro"
+            ? "Retro"
+            : "Ambient",
+    );
   }
 
   private destroyAudioPanel(): void {
@@ -529,6 +597,7 @@ export class GameHUDScene extends Phaser.Scene {
     this.musicVolumeValueLabel = null;
     this.sfxVolumeValueLabel = null;
     this.reducedUiSfxValueLabel = null;
+    this.musicStyleValueLabel = null;
     this.audioPanelOpen = false;
   }
 }

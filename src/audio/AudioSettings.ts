@@ -1,13 +1,16 @@
+export type MusicStyle = "ambient" | "ftl" | "score" | "retro";
+
 export interface AudioSettings {
   musicVolume: number;
   sfxVolume: number;
   reducedUiSfx: boolean;
+  musicStyle: MusicStyle;
 }
 
 const AUDIO_SETTINGS_KEY = "sft_audio_settings";
 
 interface AudioSettingsEnvelope {
-  version: 1;
+  version: 1 | 2;
   settings: AudioSettings;
 }
 
@@ -15,17 +18,30 @@ export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   musicVolume: 0.7,
   sfxVolume: 0.8,
   reducedUiSfx: false,
+  musicStyle: "ftl",
 };
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-function sanitize(settings: AudioSettings): AudioSettings {
+function sanitizeMusicStyle(value: unknown): MusicStyle {
+  return value === "ftl" ||
+    value === "retro" ||
+    value === "score" ||
+    value === "ambient"
+    ? value
+    : DEFAULT_AUDIO_SETTINGS.musicStyle;
+}
+
+function sanitize(settings: Partial<AudioSettings>): AudioSettings {
   return {
-    musicVolume: clamp01(settings.musicVolume),
-    sfxVolume: clamp01(settings.sfxVolume),
-    reducedUiSfx: settings.reducedUiSfx,
+    musicVolume: clamp01(
+      settings.musicVolume ?? DEFAULT_AUDIO_SETTINGS.musicVolume,
+    ),
+    sfxVolume: clamp01(settings.sfxVolume ?? DEFAULT_AUDIO_SETTINGS.sfxVolume),
+    reducedUiSfx: settings.reducedUiSfx ?? DEFAULT_AUDIO_SETTINGS.reducedUiSfx,
+    musicStyle: sanitizeMusicStyle(settings.musicStyle),
   };
 }
 
@@ -40,7 +56,7 @@ export function loadAudioSettings(): AudioSettings {
     if (
       envelope &&
       typeof envelope === "object" &&
-      envelope.version === 1 &&
+      (envelope.version === 1 || envelope.version === 2) &&
       envelope.settings
     ) {
       return sanitize(envelope.settings);
@@ -54,7 +70,7 @@ export function loadAudioSettings(): AudioSettings {
 
 export function saveAudioSettings(settings: AudioSettings): void {
   const envelope: AudioSettingsEnvelope = {
-    version: 1,
+    version: 2,
     settings: sanitize(settings),
   };
   localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(envelope));

@@ -66,17 +66,18 @@ export class DataTable extends Phaser.GameObjects.Container {
         this.handleWheel(dz);
       },
     );
-    this.add(this.wheelHitArea);
+    this.addAt(this.wheelHitArea, 0);
 
     // Mask for body scrolling
     const maskShape = scene.make.graphics({});
     maskShape.fillStyle(0xffffff);
     maskShape.fillRect(
-      config.x,
-      config.y + this.headerHeight,
+      0,
+      this.headerHeight,
       config.width,
       config.height - this.headerHeight,
     );
+    maskShape.setPosition(config.x, config.y);
     const mask = maskShape.createGeometryMask();
     this.bodyContainer.setMask(mask);
 
@@ -144,6 +145,17 @@ export class DataTable extends Phaser.GameObjects.Container {
         hitArea.on("pointerdown", () => {
           hitArea.setAlpha(0.75);
         });
+        hitArea.on(
+          "wheel",
+          (
+            _pointer: Phaser.Input.Pointer,
+            _dx: number,
+            _dy: number,
+            dz: number,
+          ) => {
+            this.handleWheel(dz);
+          },
+        );
         hitArea.on("pointerup", () => {
           hitArea.setAlpha(1);
           getAudioDirector().sfx("ui_tab_switch");
@@ -229,6 +241,17 @@ export class DataTable extends Phaser.GameObjects.Container {
       rowBg.on("pointerdown", () => {
         rowBg.setAlpha(0.72);
       });
+      rowBg.on(
+        "wheel",
+        (
+          _pointer: Phaser.Input.Pointer,
+          _dx: number,
+          _dy: number,
+          dz: number,
+        ) => {
+          this.handleWheel(dz);
+        },
+      );
       rowBg.on("pointerup", () => {
         rowBg.setAlpha(0.85);
         getAudioDirector().sfx("ui_row_select");

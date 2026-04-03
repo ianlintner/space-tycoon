@@ -86,9 +86,15 @@ export class Button extends Phaser.GameObjects.Container {
     this.off("pointerup");
 
     this.startIdleShimmer();
+    const hitPadding = 8;
     this.setSize(this.widthPx, this.heightPx);
     this.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, this.widthPx, this.heightPx),
+      new Phaser.Geom.Rectangle(
+        -hitPadding,
+        -hitPadding,
+        this.widthPx + hitPadding * 2,
+        this.heightPx + hitPadding * 2,
+      ),
       Phaser.Geom.Rectangle.Contains,
     );
     if (this.input) {
