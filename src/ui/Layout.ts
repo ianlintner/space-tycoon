@@ -15,6 +15,9 @@ export const CONTENT_GAP = 12;
 export const HUD_TOP_BAR_HEIGHT = 56;
 export const HUD_BOTTOM_BAR_HEIGHT = 52;
 
+// Left navigation sidebar (Paradox-style icon strip)
+export const NAV_SIDEBAR_WIDTH = 56;
+
 // Derived content area
 export const CONTENT_TOP = HUD_TOP_BAR_HEIGHT;
 export const CONTENT_HEIGHT =

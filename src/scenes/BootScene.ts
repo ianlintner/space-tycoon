@@ -20,6 +20,7 @@ export class BootScene extends Phaser.Scene {
     this.generateDividerH(theme);
     this.generateGlowDot();
     this.generatePixelWhite();
+    this.generateNavIcons();
 
     // Proceed to main menu after textures are ready
     this.scene.start("MainMenuScene");
@@ -253,5 +254,166 @@ export class BootScene extends Phaser.Scene {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, 4, 4);
     tex.refresh();
+  }
+
+  /**
+   * Nav icons (24x24 each): Simple geometric icons for the left sidebar.
+   * Drawn in white so they can be tinted at runtime.
+   */
+  private generateNavIcons(): void {
+    const s = 24; // icon size
+    const col = "#ffffff";
+
+    // ── icon-map: 4-pointed star (galaxy) ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-map", s, s);
+      const cx = s / 2,
+        cy = s / 2;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      const spikes = 4,
+        outerR = 10,
+        innerR = 4;
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (Math.PI * i) / spikes - Math.PI / 2;
+        const px = cx + Math.cos(angle) * r;
+        const py = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      tex.refresh();
+    }
+
+    // ── icon-fleet: Spaceship silhouette (upward triangle with fins) ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-fleet", s, s);
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(12, 2); // nose
+      ctx.lineTo(17, 14); // right wing
+      ctx.lineTo(20, 22); // right fin tip
+      ctx.lineTo(15, 18); // right fin inner
+      ctx.lineTo(12, 20); // tail center
+      ctx.lineTo(9, 18); // left fin inner
+      ctx.lineTo(4, 22); // left fin tip
+      ctx.lineTo(7, 14); // left wing
+      ctx.closePath();
+      ctx.fill();
+      tex.refresh();
+    }
+
+    // ── icon-routes: Two nodes connected by a line ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-routes", s, s);
+      ctx.strokeStyle = col;
+      ctx.fillStyle = col;
+      ctx.lineWidth = 2;
+      // Connecting line
+      ctx.beginPath();
+      ctx.moveTo(6, 6);
+      ctx.lineTo(18, 18);
+      ctx.stroke();
+      // Nodes
+      ctx.beginPath();
+      ctx.arc(6, 6, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(18, 18, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Small waypoint
+      ctx.beginPath();
+      ctx.arc(12, 12, 2, 0, Math.PI * 2);
+      ctx.fill();
+      tex.refresh();
+    }
+
+    // ── icon-finance: Bar chart (3 ascending bars) ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-finance", s, s);
+      ctx.fillStyle = col;
+      const barW = 5,
+        gap = 2;
+      const startX = 3;
+      // Bar 1 (short)
+      ctx.fillRect(startX, 15, barW, 7);
+      // Bar 2 (medium)
+      ctx.fillRect(startX + barW + gap, 10, barW, 12);
+      // Bar 3 (tall)
+      ctx.fillRect(startX + (barW + gap) * 2, 4, barW, 18);
+      tex.refresh();
+    }
+
+    // ── icon-market: Exchange arrows (↔) ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-market", s, s);
+      ctx.fillStyle = col;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2;
+      // Right arrow
+      ctx.beginPath();
+      ctx.moveTo(4, 8);
+      ctx.lineTo(18, 8);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(14, 4);
+      ctx.lineTo(20, 8);
+      ctx.lineTo(14, 12);
+      ctx.closePath();
+      ctx.fill();
+      // Left arrow
+      ctx.beginPath();
+      ctx.moveTo(20, 16);
+      ctx.lineTo(6, 16);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(10, 12);
+      ctx.lineTo(4, 16);
+      ctx.lineTo(10, 20);
+      ctx.closePath();
+      ctx.fill();
+      tex.refresh();
+    }
+
+    // ── icon-audio: Speaker with sound wave ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-audio", s, s);
+      ctx.fillStyle = col;
+      ctx.strokeStyle = col;
+      // Speaker body
+      ctx.beginPath();
+      ctx.moveTo(3, 9);
+      ctx.lineTo(7, 9);
+      ctx.lineTo(12, 5);
+      ctx.lineTo(12, 19);
+      ctx.lineTo(7, 15);
+      ctx.lineTo(3, 15);
+      ctx.closePath();
+      ctx.fill();
+      // Sound waves
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(13, 12, 4, -Math.PI / 3, Math.PI / 3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(13, 12, 7, -Math.PI / 4, Math.PI / 4);
+      ctx.stroke();
+      tex.refresh();
+    }
+
+    // ── icon-end-turn: Play/forward arrow ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-end-turn", s, s);
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(6, 3);
+      ctx.lineTo(20, 12);
+      ctx.lineTo(6, 21);
+      ctx.closePath();
+      ctx.fill();
+      tex.refresh();
+    }
   }
 }

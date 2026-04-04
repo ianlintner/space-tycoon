@@ -87,7 +87,7 @@ export class Button extends Phaser.GameObjects.Container {
 
     this.startIdleShimmer();
     const hitPadding = 8;
-    this.setSize(this.widthPx, this.heightPx);
+    this.setSize(this.widthPx + hitPadding * 2, this.heightPx + hitPadding * 2);
     this.setInteractive(
       new Phaser.Geom.Rectangle(
         -hitPadding,

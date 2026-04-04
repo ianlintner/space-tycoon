@@ -196,10 +196,37 @@ const SCORE_LEAD_PATTERNS: Record<MusicState, number[]> = {
   gameover: [7, 10, 12, 10, 8, 7, 5, 3],
 };
 
+interface ExternalBgmTrack {
+  url: string;
+  label: string;
+}
+
+const EXTERNAL_BGM_PLAYLIST: ExternalBgmTrack[] = [
+  {
+    url: "/concepts/audio/Beyond_the_Gateway.mp3",
+    label: "Beyond the Gateway",
+  },
+  {
+    url: "/concepts/audio/Coffee_in_the_Airlock.mp3",
+    label: "Coffee in the Airlock",
+  },
+  {
+    url: "/concepts/audio/Porchlight_in_the_Nebula.mp3",
+    label: "Porchlight in the Nebula",
+  },
+  {
+    url: "/concepts/audio/approachingparsecseven.mp3",
+    label: "Approaching Parsec Seven",
+  },
+];
+
 class AudioDirector {
   private ctx: AudioContext | null = null;
   private initialized = false;
   private enabled = true;
+  private usingExternalBgm = false;
+  private externalBgm: HTMLAudioElement | null = null;
+  private externalBgmTrackIndex = 0;
   private settingsHydrated = false;
   private currentState: MusicState = "menu";
   private currentPlanningSubstate: PlanningSubstate = "galaxy";
@@ -214,6 +241,31 @@ class AudioDirector {
   private pulseGain: GainNode | null = null;
   private textureGain: GainNode | null = null;
   private colorFilter: BiquadFilterNode | null = null;
+
+  // Brown noise bed (deep space rumble)
+  private noiseNode: AudioBufferSourceNode | null = null;
+  private noiseGain: GainNode | null = null;
+  private noiseFilter: BiquadFilterNode | null = null;
+
+  // Ambient synth — CS-80 dual-layer architecture (per Reverbmachine analysis)
+  private ambientGain: GainNode | null = null;
+  private ambientFilter: BiquadFilterNode | null = null;
+  private ambientBrilliance: BiquadFilterNode | null = null; // CS-80 "Brilliance" HPF
+  // Layer I: saw + square mix
+  private ambientOscA: OscillatorNode | null = null; // Layer I saw
+  private ambientOscB: OscillatorNode | null = null; // Layer I square (detuned)
+  // Layer II: saw (5th) + sub sine
+  private ambientOscSub: OscillatorNode | null = null;
+  private ambientOscFifth: OscillatorNode | null = null;
+  // Ring mod shimmer (Main Title metallic character)
+  private ambientRingCarrier: OscillatorNode | null = null;
+  private ambientRingGain: GainNode | null = null;
+  private ambientLfo: OscillatorNode | null = null;
+  private ambientLfoGain: GainNode | null = null;
+  private ambientVibrato: OscillatorNode | null = null;
+  private ambientVibratoGain: GainNode | null = null;
+  private ambientVibratoRampId: number | null = null;
+  private ambientTimerId: number | null = null;
 
   private padRootOsc: OscillatorNode | null = null;
   private padMidOsc: OscillatorNode | null = null;
@@ -285,6 +337,19 @@ class AudioDirector {
     this.persistSettings();
   }
 
+  getCurrentTrackLabel(): string {
+    if (EXTERNAL_BGM_PLAYLIST.length === 0) return "N/A";
+    return EXTERNAL_BGM_PLAYLIST[this.externalBgmTrackIndex]?.label ?? "N/A";
+  }
+
+  nextTrack(): void {
+    this.stepExternalTrack(1);
+  }
+
+  previousTrack(): void {
+    this.stepExternalTrack(-1);
+  }
+
   setSettings(settings: AudioSettings): void {
     this.musicVolume = Phaser.Math.Clamp(settings.musicVolume, 0, 1);
     this.sfxVolume = Phaser.Math.Clamp(settings.sfxVolume, 0, 1);
@@ -302,10 +367,18 @@ class AudioDirector {
     if (this.ctx.state === "suspended") {
       await this.ctx.resume();
     }
+    await this.playExternalBgmIfNeeded();
   }
 
   setMusicState(state: MusicState): void {
     this.ensureInitialized();
+    if (this.usingExternalBgm) {
+      this.currentState = state;
+      this.clearVariationTimers();
+      this.stopScoreScheduler();
+      return;
+    }
+
     if (
       !this.ctx ||
       !this.padRootOsc ||
@@ -336,6 +409,7 @@ class AudioDirector {
         this.colorFilter.frequency.setTargetAtTime(1700, now, 0.3);
       }
       this.startScoreScheduler();
+      this.resetAmbientTimer();
       return;
     }
 
@@ -361,6 +435,7 @@ class AudioDirector {
     }
 
     this.resetVariationTimers();
+    this.resetAmbientTimer();
   }
 
   setPlanningSubstate(substate: PlanningSubstate): void {
@@ -594,6 +669,168 @@ class AudioDirector {
       window.clearInterval(this.driftTimerId);
       this.driftTimerId = null;
     }
+    if (this.ambientTimerId !== null) {
+      window.clearInterval(this.ambientTimerId);
+      this.ambientTimerId = null;
+    }
+    if (this.ambientVibratoRampId !== null) {
+      window.clearInterval(this.ambientVibratoRampId);
+      this.ambientVibratoRampId = null;
+    }
+  }
+
+  // Blade Runner–inspired ambient chord voicings:
+  // Open 5ths, sus4, minor 7ths, Dm Aeolian center with cinematic tensions
+  private static readonly AMBIENT_CHORDS: Record<MusicState, number[][]> = {
+    menu: [
+      [0, 7, 12, 19], // Dm open 5th stack (D–A–D–A)
+      [5, 10, 17, 22], // Gm sus → Gm7 feel (G–C–G–C)
+      [3, 7, 15, 19], // Fmaj w/ 5th (F–A–D–F) — the "Love Theme" lift
+      [0, 5, 12, 17], // Dsus4 (D–G–D–G) — suspended tension
+    ],
+    setup: [
+      [0, 7, 14, 19], // Dm open (D–A–E–A)
+      [5, 12, 17, 24], // Gm (G–D–G–D)
+      [3, 10, 15, 22], // F→Cm feel
+      [0, 5, 12, 19], // Dsus4 open
+    ],
+    planning: [
+      [0, 7, 12, 19], // Dm stack
+      [2, 7, 14, 19], // Em pull (tension)
+      [5, 12, 17, 24], // Gm
+      [3, 7, 12, 19], // F/A → back to D
+      [0, 5, 10, 17], // Dsus4 → C (Blade Runner descending motion)
+    ],
+    sim: [
+      [0, 7, 14, 21], // Dm7 open stack — urgency
+      [5, 12, 19, 24], // Gm stacked 5ths
+      [3, 10, 17, 22], // F open
+      [7, 12, 19, 24], // Am → resolution motion
+    ],
+    report: [
+      [0, 7, 12, 19], // Dm rest
+      [5, 10, 17, 22], // Gm reflective
+      [3, 7, 15, 19], // F — Love Theme callback
+    ],
+    gameover: [
+      [0, 3, 7, 12], // Dm close voicing — intimate, sad
+      [0, 5, 10, 15], // Dsus4 → Cm descent
+      [3, 7, 10, 15], // F → Dm — "Tears in Rain"
+      [0, 3, 8, 12], // Dm(b5) — dark, final
+    ],
+  };
+
+  private ambientChordStep = 0;
+
+  private resetAmbientTimer(): void {
+    if (this.ambientTimerId !== null) {
+      window.clearInterval(this.ambientTimerId);
+      this.ambientTimerId = null;
+    }
+    if (
+      !this.ctx ||
+      !this.ambientOscA ||
+      !this.ambientOscB ||
+      !this.ambientOscSub ||
+      !this.ambientOscFifth ||
+      !this.ambientFilter ||
+      !this.ambientLfo
+    )
+      return;
+
+    this.ambientChordStep = 0;
+    this.applyAmbientChord();
+    this.startVibratoRamp();
+
+    // Vangelis-pace chord changes: very slow, breathe with the scene
+    const intervalMs =
+      this.currentState === "sim"
+        ? 12000
+        : this.currentState === "gameover"
+          ? 18000
+          : this.currentState === "menu"
+            ? 15000
+            : 14000;
+
+    this.ambientTimerId = window.setInterval(() => {
+      this.ambientChordStep += 1;
+      this.applyAmbientChord();
+    }, intervalMs);
+  }
+
+  private applyAmbientChord(): void {
+    if (
+      !this.ctx ||
+      !this.ambientOscA ||
+      !this.ambientOscB ||
+      !this.ambientOscSub ||
+      !this.ambientOscFifth ||
+      !this.ambientFilter
+    )
+      return;
+
+    const now = this.ctx.currentTime;
+    const progression = AudioDirector.AMBIENT_CHORDS[this.currentState];
+    const chord = progression[this.ambientChordStep % progression.length];
+    const fundamental = MUSIC_FUNDAMENTAL[this.currentState];
+
+    // Very slow portamento glides — limits how fast pitch can change
+    const rootHz = fundamental * this.ratioFromSemitones(chord[0]);
+    // Layer I: slow glides (5-6s time constants = glacial pitch movement)
+    this.ambientOscA.frequency.setTargetAtTime(rootHz, now, 5.5);
+    this.ambientOscB.frequency.setTargetAtTime(rootHz, now, 6.5);
+
+    // Layer II: open 5th voice — even slower glide
+    const fifthHz = fundamental * this.ratioFromSemitones(chord[1]);
+    this.ambientOscFifth.frequency.setTargetAtTime(fifthHz, now, 6.0);
+
+    // Sub: octave below root — deep foundation, slowest glide
+    this.ambientOscSub.frequency.setTargetAtTime(rootHz * 0.5, now, 4.5);
+
+    // Ring mod carrier at +12 semitones (octave, not +19 — less harsh)
+    if (this.ambientRingCarrier) {
+      const ringHz = fundamental * this.ratioFromSemitones(chord[0] + 12);
+      this.ambientRingCarrier.frequency.setTargetAtTime(ringHz, now, 5.0);
+    }
+
+    // Filter envelope — stays lower, opens less, slower movement
+    const baseCutoff = this.currentState === "gameover" ? 200 : 280;
+    const peakCutoff = this.currentState === "sim" ? 700 : 520;
+    // Close filter first (slower close)
+    this.ambientFilter.frequency.setTargetAtTime(baseCutoff, now, 1.0);
+    // Slow attack open — gentler, stays in bass range
+    this.ambientFilter.frequency.setTargetAtTime(peakCutoff, now + 1.5, 5.0);
+    // Very slow decay back — long breathing
+    this.ambientFilter.frequency.setTargetAtTime(
+      baseCutoff + 80,
+      now + 10.0,
+      6.0,
+    );
+
+    // Lower resonance range — less whine at cutoff frequency
+    const q = 1.8 + (this.ambientChordStep % 3) * 0.6; // Q cycles 1.8 → 2.4 → 3.0
+    this.ambientFilter.Q.setTargetAtTime(Math.min(q, 4), now, 3.0);
+
+    // Reset vibrato ramp each chord (CS-80 aftertouch ramps from zero)
+    this.startVibratoRamp();
+  }
+
+  /** CS-80 aftertouch simulation: vibrato depth ramps from 0 to full over ~4s */
+  private startVibratoRamp(): void {
+    if (this.ambientVibratoRampId !== null) {
+      window.clearInterval(this.ambientVibratoRampId);
+      this.ambientVibratoRampId = null;
+    }
+    if (!this.ctx || !this.ambientVibratoGain) return;
+
+    // Start with no vibrato
+    this.ambientVibratoGain.gain.setValueAtTime(0, this.ctx.currentTime);
+    // Ramp to full depth over ~4 seconds
+    this.ambientVibratoGain.gain.setTargetAtTime(
+      5.0,
+      this.ctx.currentTime + 0.5,
+      1.8,
+    );
   }
 
   private persistSettings(): void {
@@ -616,20 +853,100 @@ class AudioDirector {
   }
 
   private applyBusVolumes(): void {
-    if (!this.ctx || !this.musicBus || !this.sfxBus) return;
+    if (!this.ctx || !this.sfxBus) return;
 
     const now = this.ctx.currentTime;
     const enabledMultiplier = this.enabled ? 1 : 0;
-    this.musicBus.gain.setTargetAtTime(
-      enabledMultiplier * this.musicVolume * 0.26,
-      now,
-      0.08,
-    );
+    if (this.externalBgm) {
+      this.externalBgm.volume = Phaser.Math.Clamp(
+        enabledMultiplier * this.musicVolume,
+        0,
+        1,
+      );
+    }
+    if (this.musicBus) {
+      this.musicBus.gain.setTargetAtTime(
+        enabledMultiplier * this.musicVolume * 0.22,
+        now,
+        0.08,
+      );
+    }
+    if (this.noiseGain) {
+      this.noiseGain.gain.setTargetAtTime(
+        enabledMultiplier * this.musicVolume * 0.045,
+        now,
+        0.12,
+      );
+    }
+    if (this.ambientGain) {
+      this.ambientGain.gain.setTargetAtTime(
+        enabledMultiplier * this.musicVolume * 0.08,
+        now,
+        0.12,
+      );
+    }
     this.sfxBus.gain.setTargetAtTime(
       enabledMultiplier * this.sfxVolume * 0.4,
       now,
       0.04,
     );
+  }
+
+  private initializeExternalBgm(): void {
+    if (this.externalBgm || typeof window === "undefined") return;
+    if (EXTERNAL_BGM_PLAYLIST.length === 0) {
+      this.usingExternalBgm = false;
+      return;
+    }
+
+    try {
+      const bgm = new Audio(
+        EXTERNAL_BGM_PLAYLIST[this.externalBgmTrackIndex].url,
+      );
+      bgm.loop = true;
+      bgm.preload = "auto";
+      bgm.volume = 0;
+      this.externalBgm = bgm;
+      this.usingExternalBgm = true;
+    } catch {
+      this.externalBgm = null;
+      this.usingExternalBgm = false;
+    }
+  }
+
+  private async playExternalBgmIfNeeded(): Promise<void> {
+    if (!this.externalBgm || !this.enabled) return;
+    if (!this.externalBgm.paused) return;
+    try {
+      await this.externalBgm.play();
+    } catch {
+      // Browser autoplay rules can block this until a user gesture.
+    }
+  }
+
+  private stepExternalTrack(delta: number): void {
+    if (!this.usingExternalBgm || !this.externalBgm) return;
+    const total = EXTERNAL_BGM_PLAYLIST.length;
+    if (total <= 1) return;
+
+    this.externalBgmTrackIndex =
+      (this.externalBgmTrackIndex + delta + total) % total;
+    this.switchExternalTrack();
+  }
+
+  private switchExternalTrack(): void {
+    if (!this.externalBgm) return;
+    const track = EXTERNAL_BGM_PLAYLIST[this.externalBgmTrackIndex];
+    const shouldPlay = this.enabled;
+
+    this.externalBgm.pause();
+    this.externalBgm.src = track.url;
+    this.externalBgm.currentTime = 0;
+    this.externalBgm.load();
+
+    if (shouldPlay) {
+      void this.playExternalBgmIfNeeded();
+    }
   }
 
   private getMixForState(state: MusicState): {
@@ -1156,13 +1473,22 @@ class AudioDirector {
 
     this.ctx = ctx;
 
-    this.musicBus = ctx.createGain();
-    this.musicBus.gain.value = this.musicVolume * 0.26;
-    this.musicBus.connect(ctx.destination);
+    this.initializeExternalBgm();
 
     this.sfxBus = ctx.createGain();
     this.sfxBus.gain.value = this.sfxVolume * 0.4;
     this.sfxBus.connect(ctx.destination);
+
+    if (this.usingExternalBgm) {
+      this.initialized = true;
+      this.applyBusVolumes();
+      void this.playExternalBgmIfNeeded();
+      return;
+    }
+
+    this.musicBus = ctx.createGain();
+    this.musicBus.gain.value = this.musicVolume * 0.26;
+    this.musicBus.connect(ctx.destination);
 
     this.colorFilter = ctx.createBiquadFilter();
     this.colorFilter.type = "lowpass";
@@ -1228,6 +1554,137 @@ class AudioDirector {
     this.applyStyleVoicing();
 
     this.colorFilter.connect(this.musicBus);
+
+    // ── Brown noise bed (deep space rumble — sub-bass focus) ──
+    this.noiseGain = ctx.createGain();
+    this.noiseGain.gain.value = this.musicVolume * 0.055;
+    // Two-stage LPF for steep rolloff — kills any remaining highs
+    this.noiseFilter = ctx.createBiquadFilter();
+    this.noiseFilter.type = "lowpass";
+    this.noiseFilter.frequency.value = 60; // very deep cutoff
+    this.noiseFilter.Q.value = 0.7; // slight resonance boost at cutoff
+    const noiseLpf2 = ctx.createBiquadFilter();
+    noiseLpf2.type = "lowpass";
+    noiseLpf2.frequency.value = 80; // second stage — steeper rolloff
+    noiseLpf2.Q.value = 0.5;
+    const noiseHi = ctx.createBiquadFilter();
+    noiseHi.type = "highpass";
+    noiseHi.frequency.value = 15; // subsonic floor
+    noiseHi.Q.value = 0.5;
+
+    const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    let lastOut = 0;
+    for (let i = 0; i < data.length; i++) {
+      const white = Math.random() * 2 - 1;
+      // Brown noise: integrate white noise (lower coeff = deeper)
+      lastOut = (lastOut + 0.015 * white) / 1.015;
+      data[i] = lastOut * 4.0;
+    }
+    this.noiseNode = ctx.createBufferSource();
+    this.noiseNode.buffer = noiseBuf;
+    this.noiseNode.loop = true;
+    this.noiseNode.connect(this.noiseFilter);
+    this.noiseFilter.connect(noiseLpf2);
+    noiseLpf2.connect(noiseHi);
+    noiseHi.connect(this.noiseGain);
+    this.noiseGain.connect(ctx.destination);
+    this.noiseNode.start();
+
+    // ── CS-80 dual-layer synth (per Reverbmachine Blade Runner analysis) ──
+    this.ambientGain = ctx.createGain();
+    this.ambientGain.gain.value = this.musicVolume * 0.08;
+
+    // CS-80 "Brilliance" — lowered to preserve bass weight
+    this.ambientBrilliance = ctx.createBiquadFilter();
+    this.ambientBrilliance.type = "highpass";
+    this.ambientBrilliance.frequency.value = 60; // very low — just removes DC/subsonic
+    this.ambientBrilliance.Q.value = 0.3;
+
+    this.ambientFilter = ctx.createBiquadFilter();
+    this.ambientFilter.type = "lowpass";
+    this.ambientFilter.frequency.value = 350; // starts closed and low — bass focus
+    this.ambientFilter.Q.value = 3.0; // moderate resonance — less whine at cutoff
+
+    // ─ Layer I: sawtooth + square (CS-80 Layer I = two waveforms mixed) ─
+    this.ambientOscA = ctx.createOscillator();
+    this.ambientOscA.type = "sawtooth";
+    this.ambientOscA.frequency.value = 55;
+    this.ambientOscA.detune.value = -12;
+
+    this.ambientOscB = ctx.createOscillator();
+    this.ambientOscB.type = "square"; // Layer I square — adds hollow body
+    this.ambientOscB.frequency.value = 55;
+    this.ambientOscB.detune.value = 14; // wider spread vs saw for beating
+
+    // ─ Layer II: sawtooth at 5th + sine sub ─
+    this.ambientOscFifth = ctx.createOscillator();
+    this.ambientOscFifth.type = "sawtooth";
+    this.ambientOscFifth.frequency.value = 55 * 1.5; // P5 above
+    this.ambientOscFifth.detune.value = -6;
+
+    this.ambientOscSub = ctx.createOscillator();
+    this.ambientOscSub.type = "sine";
+    this.ambientOscSub.frequency.value = 27.5;
+
+    // ─ Ring modulator: metallic shimmer between layers (Main Title char.) ─
+    // Multiply Layer I root × a high carrier for inharmonic partials
+    this.ambientRingCarrier = ctx.createOscillator();
+    this.ambientRingCarrier.type = "sine";
+    this.ambientRingCarrier.frequency.value = 55 * this.ratioFromSemitones(19);
+    this.ambientRingGain = ctx.createGain();
+    this.ambientRingGain.gain.value = 0.04; // very subtle ring mod — minimal high shimmer
+    this.ambientRingCarrier.connect(this.ambientRingGain);
+    // Modulate Layer I saw amplitude with carrier (AM = ring mod)
+    this.ambientRingGain.connect(this.ambientOscA.frequency); // FM approximation of ring mod
+
+    // ─ LFO 1: slow filter sweep (Blade Runner breathing) ─
+    this.ambientLfo = ctx.createOscillator();
+    this.ambientLfo.type = "triangle";
+    this.ambientLfo.frequency.value = 0.012; // ~80 second full cycle — very slow
+    this.ambientLfoGain = ctx.createGain();
+    this.ambientLfoGain.gain.value = 150; // reduced sweep range — stays in bass territory
+    this.ambientLfo.connect(this.ambientLfoGain);
+    this.ambientLfoGain.connect(this.ambientFilter.frequency);
+
+    // ─ LFO 2: pitch vibrato — starts at 0, ramps in (CS-80 aftertouch) ─
+    this.ambientVibrato = ctx.createOscillator();
+    this.ambientVibrato.type = "sine";
+    this.ambientVibrato.frequency.value = 5.2; // ~5 Hz vibrato
+    this.ambientVibratoGain = ctx.createGain();
+    this.ambientVibratoGain.gain.value = 0; // starts at zero — ramps via aftertouch sim
+    this.ambientVibrato.connect(this.ambientVibratoGain);
+    this.ambientVibratoGain.connect(this.ambientOscA.detune);
+    this.ambientVibratoGain.connect(this.ambientOscB.detune);
+    this.ambientVibratoGain.connect(this.ambientOscFifth.detune);
+
+    // ─ Gain staging ─
+    const layerISquareMix = ctx.createGain();
+    layerISquareMix.gain.value = 0.45; // square quieter than saw in CS-80 Layer I
+    const fifthMix = ctx.createGain();
+    fifthMix.gain.value = 0.65;
+    const subMix = ctx.createGain();
+    subMix.gain.value = 0.4;
+
+    // ─ Signal chain: oscs → filter → brilliance HPF → gain → output ─
+    this.ambientOscA.connect(this.ambientFilter);
+    this.ambientOscB.connect(layerISquareMix);
+    layerISquareMix.connect(this.ambientFilter);
+    this.ambientOscFifth.connect(fifthMix);
+    fifthMix.connect(this.ambientFilter);
+    this.ambientOscSub.connect(subMix);
+    subMix.connect(this.ambientFilter);
+    this.ambientFilter.connect(this.ambientBrilliance);
+    this.ambientBrilliance.connect(this.ambientGain);
+    this.ambientGain.connect(ctx.destination);
+
+    this.ambientOscA.start();
+    this.ambientOscB.start();
+    this.ambientOscFifth.start();
+    this.ambientOscSub.start();
+    this.ambientRingCarrier.start();
+    this.ambientLfo.start();
+    this.ambientVibrato.start();
 
     this.padRootOsc.start();
     this.padMidOsc.start();

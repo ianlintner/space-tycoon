@@ -274,6 +274,7 @@ export class DataTable extends Phaser.GameObjects.Container {
           fontSize: `${theme.fonts.body.size}px`,
           fontFamily: theme.fonts.body.family,
           color: colorToString(color ?? theme.colors.text),
+          wordWrap: { width: col.width - 16 },
         });
 
         if (col.align === "right") {

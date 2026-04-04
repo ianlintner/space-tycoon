@@ -8,9 +8,11 @@ import {
   GAME_HEIGHT,
   HUD_TOP_BAR_HEIGHT,
   HUD_BOTTOM_BAR_HEIGHT,
+  NAV_SIDEBAR_WIDTH,
 } from "../ui/Layout.ts";
 import { gameStore } from "../data/GameStore.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
+import { Tooltip } from "../ui/Tooltip.ts";
 
 function formatCash(amount: number): string {
   return "\u00A7" + amount.toLocaleString();
@@ -25,12 +27,16 @@ export class GameHUDScene extends Phaser.Scene {
   private activeContentScene = "GalaxyMapScene";
   private previousCash = 0;
   private navIndicators = new Map<string, Phaser.GameObjects.Rectangle>();
+  private navButtons = new Map<string, Phaser.GameObjects.Container>();
+  private navTooltip!: Tooltip;
   private audioPanelObjects: Phaser.GameObjects.GameObject[] = [];
   private audioPanelOpen = false;
   private musicVolumeValueLabel: Label | null = null;
   private sfxVolumeValueLabel: Label | null = null;
   private reducedUiSfxValueLabel: Label | null = null;
   private musicStyleValueLabel: Label | null = null;
+  private musicTrackValueLabel: Label | null = null;
+  private muteValueLabel: Label | null = null;
 
   private stateListener = (_data: unknown) => {
     this.updateHUD();
@@ -96,61 +102,185 @@ export class GameHUDScene extends Phaser.Scene {
     });
     this.cashLabel.setOrigin(1, 0.5);
 
-    // ── Navigation Buttons (horizontal row below top bar) ───
+    // ── Left Navigation Sidebar (Paradox-style icon strip) ──
     const navItems = [
-      { label: "Map", scene: "GalaxyMapScene" },
-      { label: "Fleet", scene: "FleetScene" },
-      { label: "Routes", scene: "RoutesScene" },
-      { label: "Finance", scene: "FinanceScene" },
-      { label: "Market", scene: "MarketScene" },
+      { label: "Map", scene: "GalaxyMapScene", icon: "icon-map" },
+      { label: "Fleet", scene: "FleetScene", icon: "icon-fleet" },
+      { label: "Routes", scene: "RoutesScene", icon: "icon-routes" },
+      { label: "Finance", scene: "FinanceScene", icon: "icon-finance" },
+      { label: "Market", scene: "MarketScene", icon: "icon-market" },
     ];
 
-    const navBtnWidth = 100;
-    const navBtnHeight = 32;
-    const navSpacing = 8;
-    const totalNavWidth =
-      navItems.length * navBtnWidth + (navItems.length - 1) * navSpacing;
-    const navStartX = (GAME_WIDTH - totalNavWidth) / 2;
-    const navY = HUD_TOP_BAR_HEIGHT + 4;
+    const navSidebarTop = HUD_TOP_BAR_HEIGHT;
+    const navSidebarH =
+      GAME_HEIGHT - HUD_TOP_BAR_HEIGHT - HUD_BOTTOM_BAR_HEIGHT;
+
+    // Sidebar background strip
+    this.add
+      .nineslice(
+        0,
+        navSidebarTop,
+        "hud-bar-bg",
+        undefined,
+        NAV_SIDEBAR_WIDTH,
+        navSidebarH,
+        10,
+        10,
+        10,
+        10,
+      )
+      .setOrigin(0, 0)
+      .setAlpha(0.88);
+
+    // Right edge accent line
+    this.add
+      .rectangle(
+        NAV_SIDEBAR_WIDTH - 1,
+        navSidebarTop,
+        1,
+        navSidebarH,
+        theme.colors.panelBorder,
+      )
+      .setOrigin(0, 0)
+      .setAlpha(0.6);
+
+    this.navTooltip = new Tooltip(this, { showDelay: 300 });
+
+    const iconBtnSize = 44;
+    const iconSpacing = 6;
+    const navStartY = navSidebarTop + 12;
+    const navCenterX = NAV_SIDEBAR_WIDTH / 2;
 
     for (let i = 0; i < navItems.length; i++) {
       const item = navItems[i];
-      const btnX = navStartX + i * (navBtnWidth + navSpacing);
+      const btnY = navStartY + i * (iconBtnSize + iconSpacing);
+      const btnContainer = this.add.container(navCenterX, btnY);
 
-      new Button(this, {
-        x: btnX,
-        y: navY,
-        width: navBtnWidth,
-        height: navBtnHeight,
-        label: item.label,
-        onClick: () => {
-          this.switchContentScene(item.scene);
-        },
-      });
+      // Button background (hover/active states)
+      const bg = this.add
+        .rectangle(
+          0,
+          iconBtnSize / 2,
+          iconBtnSize,
+          iconBtnSize,
+          theme.colors.buttonBg,
+          0.0,
+        )
+        .setOrigin(0.5, 0.5);
 
-      // Active indicator: accent-colored bar (3px tall) below button
+      // Icon image
+      const icon = this.add
+        .image(0, iconBtnSize / 2, item.icon)
+        .setOrigin(0.5, 0.5);
+
+      // Active indicator: left-edge accent bar (3px wide, full button height)
       const indicator = this.add
         .rectangle(
-          btnX + navBtnWidth / 2,
-          navY + navBtnHeight + 2,
-          navBtnWidth,
+          -(iconBtnSize / 2),
+          iconBtnSize / 2,
           3,
+          iconBtnSize,
           theme.colors.accent,
         )
-        .setOrigin(0.5, 0);
-      indicator.setVisible(item.scene === this.activeContentScene);
+        .setOrigin(0, 0.5);
+
+      const isActive = item.scene === this.activeContentScene;
+      indicator.setVisible(isActive);
+      if (isActive) {
+        bg.setAlpha(0.3);
+        icon.setTint(theme.colors.accent);
+      } else {
+        icon.setTint(theme.colors.textDim);
+      }
+
+      btnContainer.add([bg, icon, indicator]);
+      btnContainer.setSize(NAV_SIDEBAR_WIDTH, iconBtnSize + iconSpacing);
+      btnContainer.setInteractive(
+        new Phaser.Geom.Rectangle(
+          -navCenterX,
+          -iconSpacing / 2,
+          NAV_SIDEBAR_WIDTH,
+          iconBtnSize + iconSpacing,
+        ),
+        Phaser.Geom.Rectangle.Contains,
+      );
+
+      if (btnContainer.input) {
+        btnContainer.input.cursor = "pointer";
+      }
+
+      // Tooltip
+      this.navTooltip.attachTo(btnContainer, item.label);
+
+      btnContainer.on("pointerover", () => {
+        if (item.scene !== this.activeContentScene) {
+          getAudioDirector().sfx("ui_hover");
+          bg.setAlpha(0.2);
+          icon.setTint(theme.colors.text);
+        }
+      });
+      btnContainer.on("pointerout", () => {
+        if (item.scene !== this.activeContentScene) {
+          bg.setAlpha(0.0);
+          icon.setTint(theme.colors.textDim);
+        }
+      });
+      btnContainer.on("pointerup", () => {
+        getAudioDirector().sfx("ui_click_primary");
+        this.switchContentScene(item.scene);
+      });
+
       this.navIndicators.set(item.scene, indicator);
+      this.navButtons.set(item.scene, btnContainer);
     }
 
-    new Button(this, {
-      x: GAME_WIDTH - 96,
-      y: navY,
-      width: 80,
-      height: navBtnHeight,
-      label: "Audio",
-      onClick: () => {
-        this.toggleAudioPanel();
-      },
+    // ── Audio button at bottom of nav sidebar ──
+    const audioBtnY = navSidebarTop + navSidebarH - iconBtnSize - 12;
+    const audioContainer = this.add.container(navCenterX, audioBtnY);
+
+    const audioBg = this.add
+      .rectangle(
+        0,
+        iconBtnSize / 2,
+        iconBtnSize,
+        iconBtnSize,
+        theme.colors.buttonBg,
+        0.0,
+      )
+      .setOrigin(0.5, 0.5);
+
+    const audioIcon = this.add
+      .image(0, iconBtnSize / 2, "icon-audio")
+      .setOrigin(0.5, 0.5)
+      .setTint(theme.colors.textDim);
+
+    audioContainer.add([audioBg, audioIcon]);
+    audioContainer.setSize(NAV_SIDEBAR_WIDTH, iconBtnSize + iconSpacing);
+    audioContainer.setInteractive(
+      new Phaser.Geom.Rectangle(
+        -navCenterX,
+        -iconSpacing / 2,
+        NAV_SIDEBAR_WIDTH,
+        iconBtnSize + iconSpacing,
+      ),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    if (audioContainer.input) {
+      audioContainer.input.cursor = "pointer";
+    }
+    this.navTooltip.attachTo(audioContainer, "Audio Settings");
+
+    audioContainer.on("pointerover", () => {
+      getAudioDirector().sfx("ui_hover");
+      audioBg.setAlpha(0.2);
+      audioIcon.setTint(theme.colors.text);
+    });
+    audioContainer.on("pointerout", () => {
+      audioBg.setAlpha(0.0);
+      audioIcon.setTint(theme.colors.textDim);
+    });
+    audioContainer.on("pointerup", () => {
+      this.toggleAudioPanel();
     });
 
     // ── Bottom Bar ───────────────────────────────────────────
@@ -181,14 +311,26 @@ export class GameHUDScene extends Phaser.Scene {
     });
     this.phaseLabel.setOrigin(0, 0.5);
 
-    // End Turn button (centered in bottom bar)
-    const endTurnW = 160;
+    // End Turn button cluster (bottom right area)
+    // Turn info display
+    const currentQuarter = ((state.turn - 1) % 4) + 1;
+    const currentYear = Math.ceil(state.turn / 4);
+    const turnInfoLabel = new Label(this, {
+      x: GAME_WIDTH - 24,
+      y: GAME_HEIGHT - HUD_BOTTOM_BAR_HEIGHT - 18,
+      text: `Q${currentQuarter} Y${currentYear}`,
+      style: "caption",
+    });
+    turnInfoLabel.setOrigin(1, 1);
+
+    // End Turn button (rounded, bottom-right corner)
+    const endTurnSize = 52;
     this.endTurnButton = new Button(this, {
-      x: GAME_WIDTH / 2 - endTurnW / 2,
-      y: bottomBarY + 6,
-      width: endTurnW,
-      height: 40,
-      label: "End Turn",
+      x: GAME_WIDTH - endTurnSize / 2 - 12,
+      y: GAME_HEIGHT - HUD_BOTTOM_BAR_HEIGHT / 2,
+      width: endTurnSize,
+      height: endTurnSize,
+      label: "▶",
       onClick: () => {
         this.switchContentScene("SimPlaybackScene");
       },
@@ -255,6 +397,7 @@ export class GameHUDScene extends Phaser.Scene {
    */
   switchContentScene(sceneName: string, data?: object): void {
     const audio = getAudioDirector();
+    const theme = getTheme();
 
     // Stop overlay scenes that might be stacked on top
     const overlayScenes = ["PlanetDetailScene"];
@@ -304,9 +447,22 @@ export class GameHUDScene extends Phaser.Scene {
     // Launch new content scene
     this.scene.launch(sceneName, data);
 
-    // Update active indicators
+    // Update active indicators and icon tints
     for (const [scene, indicator] of this.navIndicators) {
-      indicator.setVisible(scene === sceneName);
+      const isActive = scene === sceneName;
+      indicator.setVisible(isActive);
+      const btnContainer = this.navButtons.get(scene);
+      if (btnContainer) {
+        const bg = btnContainer.getAt(0) as Phaser.GameObjects.Rectangle;
+        const icon = btnContainer.getAt(1) as Phaser.GameObjects.Image;
+        if (isActive) {
+          bg.setAlpha(0.3);
+          icon.setTint(theme.colors.accent);
+        } else {
+          bg.setAlpha(0.0);
+          icon.setTint(theme.colors.textDim);
+        }
+      }
     }
 
     this.activeContentScene = sceneName;
@@ -338,7 +494,7 @@ export class GameHUDScene extends Phaser.Scene {
     });
 
     const panelW = 420;
-    const panelH = 332;
+    const panelH = 456;
     const panelX = Math.floor((GAME_WIDTH - panelW) / 2);
     const panelY = Math.floor((GAME_HEIGHT - panelH) / 2);
     const panel = new Panel(this, {
@@ -354,6 +510,8 @@ export class GameHUDScene extends Phaser.Scene {
     const row2Y = row1Y + 62;
     const row3Y = row2Y + 62;
     const row4Y = row3Y + 62;
+    const row5Y = row4Y + 62;
+    const row6Y = row5Y + 62;
 
     const musicLabel = new Label(this, {
       x: panelX + content.x,
@@ -520,6 +678,82 @@ export class GameHUDScene extends Phaser.Scene {
       },
     });
 
+    const muteLabel = new Label(this, {
+      x: panelX + content.x,
+      y: row6Y,
+      text: "Mute All",
+      style: "body",
+    });
+
+    const trackLabel = new Label(this, {
+      x: panelX + content.x,
+      y: row5Y,
+      text: "Now Playing",
+      style: "body",
+    });
+
+    this.musicTrackValueLabel = new Label(this, {
+      x: panelX + panelW - content.x,
+      y: row5Y,
+      text: audio.getCurrentTrackLabel(),
+      style: "value",
+    });
+    this.musicTrackValueLabel.setOrigin(1, 0);
+
+    const prevTrackBtn = new Button(this, {
+      x: panelX + content.x,
+      y: row5Y + 26,
+      width: 80,
+      height: 32,
+      label: "Back",
+      onClick: () => {
+        audio.previousTrack();
+        this.refreshAudioPanelValues();
+        audio.sfx("ui_tab_switch");
+      },
+    });
+
+    const nextTrackBtn = new Button(this, {
+      x: panelX + content.x + 88,
+      y: row5Y + 26,
+      width: 80,
+      height: 32,
+      label: "Next",
+      onClick: () => {
+        audio.nextTrack();
+        this.refreshAudioPanelValues();
+        audio.sfx("ui_tab_switch");
+      },
+    });
+
+    this.muteValueLabel = new Label(this, {
+      x: panelX + panelW - content.x,
+      y: row6Y,
+      text:
+        settings.musicVolume === 0 && settings.sfxVolume === 0 ? "Muted" : "On",
+      style: "value",
+    });
+    this.muteValueLabel.setOrigin(1, 0);
+
+    const muteBtn = new Button(this, {
+      x: panelX + content.x,
+      y: row6Y + 26,
+      width: 120,
+      height: 32,
+      label: "Toggle Mute",
+      onClick: () => {
+        const s = audio.getSettings();
+        if (s.musicVolume > 0 || s.sfxVolume > 0) {
+          audio.setMusicVolume(0);
+          audio.setSfxVolume(0);
+        } else {
+          audio.setMusicVolume(0.7);
+          audio.setSfxVolume(0.8);
+        }
+        this.refreshAudioPanelValues();
+      },
+    });
+
     const closeBtn = new Button(this, {
       x: panelX + panelW - content.x - 110,
       y: panelY + panelH - 44,
@@ -545,6 +779,11 @@ export class GameHUDScene extends Phaser.Scene {
       toggleReducedBtn,
       styleLabel,
       cycleStyleBtn,
+      trackLabel,
+      prevTrackBtn,
+      nextTrackBtn,
+      muteLabel,
+      muteBtn,
       closeBtn,
     ];
 
@@ -559,6 +798,12 @@ export class GameHUDScene extends Phaser.Scene {
     }
     if (this.musicStyleValueLabel) {
       this.audioPanelObjects.push(this.musicStyleValueLabel);
+    }
+    if (this.musicTrackValueLabel) {
+      this.audioPanelObjects.push(this.musicTrackValueLabel);
+    }
+    if (this.muteValueLabel) {
+      this.audioPanelObjects.push(this.muteValueLabel);
     }
 
     this.audioPanelOpen = true;
@@ -585,6 +830,10 @@ export class GameHUDScene extends Phaser.Scene {
             ? "Retro"
             : "Ambient",
     );
+    this.musicTrackValueLabel?.setText(getAudioDirector().getCurrentTrackLabel());
+    this.muteValueLabel?.setText(
+      settings.musicVolume === 0 && settings.sfxVolume === 0 ? "Muted" : "On",
+    );
   }
 
   private destroyAudioPanel(): void {
@@ -598,6 +847,8 @@ export class GameHUDScene extends Phaser.Scene {
     this.sfxVolumeValueLabel = null;
     this.reducedUiSfxValueLabel = null;
     this.musicStyleValueLabel = null;
+    this.musicTrackValueLabel = null;
+    this.muteValueLabel = null;
     this.audioPanelOpen = false;
   }
 }

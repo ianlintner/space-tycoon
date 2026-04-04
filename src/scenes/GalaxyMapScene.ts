@@ -2,13 +2,12 @@ import Phaser from "phaser";
 import { gameStore } from "../data/GameStore.ts";
 import { getTheme, colorToString } from "../ui/Theme.ts";
 import { Label } from "../ui/Label.ts";
+import { CONTENT_TOP } from "../ui/Layout.ts";
 import { createStarfield } from "../ui/Starfield.ts";
 import { addPulseTween } from "../ui/AmbientFX.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
-
-const HUD_TOP = 60;
 
 export class GalaxyMapScene extends Phaser.Scene {
   constructor() {
@@ -27,7 +26,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     // Subtle title (caption style, top-left)
     new Label(this, {
       x: 20,
-      y: HUD_TOP + 10,
+      y: CONTENT_TOP + 10,
       text: "Galaxy Map",
       style: "caption",
       color: theme.colors.textDim,
@@ -37,7 +36,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     for (const sector of sectors) {
       // Outer nebula ellipse — gently breathes for a cosmic atmosphere
       const outerEllipse = this.add
-        .ellipse(sector.x, sector.y + HUD_TOP, 230, 185, sector.color, 0.06)
+        .ellipse(sector.x, sector.y + CONTENT_TOP, 230, 185, sector.color, 0.06)
         .setOrigin(0.5, 0.5);
       addPulseTween(this, outerEllipse, {
         minAlpha: 0.03,
@@ -48,11 +47,11 @@ export class GalaxyMapScene extends Phaser.Scene {
 
       // Inner sector ellipse
       this.add
-        .ellipse(sector.x, sector.y + HUD_TOP, 200, 160, sector.color, 0.12)
+        .ellipse(sector.x, sector.y + CONTENT_TOP, 200, 160, sector.color, 0.12)
         .setOrigin(0.5, 0.5);
 
       this.add
-        .text(sector.x, sector.y + HUD_TOP - 70, sector.name, {
+        .text(sector.x, sector.y + CONTENT_TOP - 70, sector.name, {
           fontSize: `${theme.fonts.caption.size}px`,
           fontFamily: theme.fonts.caption.family,
           color: colorToString(theme.colors.textDim),
@@ -84,14 +83,14 @@ export class GalaxyMapScene extends Phaser.Scene {
       if (!originSys || !destSys) continue;
 
       routeGraphics.beginPath();
-      routeGraphics.moveTo(originSys.x, originSys.y + HUD_TOP);
-      routeGraphics.lineTo(destSys.x, destSys.y + HUD_TOP);
+      routeGraphics.moveTo(originSys.x, originSys.y + CONTENT_TOP);
+      routeGraphics.lineTo(destSys.x, destSys.y + CONTENT_TOP);
       routeGraphics.strokePath();
 
       // Glow pip — tiny dot that glides along the route continuously
       const pip = this.add.circle(
         originSys.x,
-        originSys.y + HUD_TOP,
+        originSys.y + CONTENT_TOP,
         2,
         theme.colors.accent,
         0.7,
@@ -99,7 +98,7 @@ export class GalaxyMapScene extends Phaser.Scene {
       this.tweens.add({
         targets: pip,
         x: destSys.x,
-        y: destSys.y + HUD_TOP,
+        y: destSys.y + CONTENT_TOP,
         duration: theme.ambient.routeFlowDuration,
         yoyo: true,
         repeat: -1,
@@ -124,7 +123,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     // Draw each star system
     for (const system of systems) {
       const sysX = system.x;
-      const sysY = system.y + HUD_TOP;
+      const sysY = system.y + CONTENT_TOP;
       const mainRadius = 6;
 
       // Glow halo behind the star dot — pulses with a faint heartbeat
