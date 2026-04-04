@@ -21,11 +21,23 @@ import {
 import type { TurnResult } from "../data/types.ts";
 import type { GameHUDScene } from "./GameHUDScene.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
+import { MilestoneOverlay } from "../ui/MilestoneOverlay.ts";
 
 function formatCash(amount: number): string {
   const sign = amount < 0 ? "-" : "";
   const abs = Math.abs(Math.round(amount));
   return sign + "\u00A7" + abs.toLocaleString();
+}
+
+/** Grade the turn: S/A/B/C/D/F based on net-profit margin. */
+function getTurnGrade(netProfit: number, revenue: number): { grade: string; color: number } {
+  const margin = revenue > 0 ? netProfit / revenue : (netProfit >= 0 ? 1 : -1);
+  if (margin >= 0.4)  return { grade: "S", color: 0xffdd00 };
+  if (margin >= 0.2)  return { grade: "A", color: 0x00ff88 };
+  if (margin >= 0.05) return { grade: "B", color: 0x00ccff };
+  if (margin >= 0)    return { grade: "C", color: 0x88cc88 };
+  if (margin >= -0.15) return { grade: "D", color: 0xff9900 };
+  return { grade: "F", color: 0xff4444 };
 }
 
 export class TurnReportScene extends Phaser.Scene {
@@ -123,12 +135,17 @@ export class TurnReportScene extends Phaser.Scene {
     ];
 
     let rowY = plContent.y + 4;
-    for (const row of plRows) {
-      const labelText = this.add.text(plContent.x + 8, rowY, row.label, {
-        fontSize: `${theme.fonts.body.size}px`,
-        fontFamily: theme.fonts.body.family,
-        color: colorToString(theme.colors.text),
-      });
+    for (let i = 0; i < plRows.length; i++) {
+      const row = plRows[i];
+      const delay = i * 90;
+
+      const labelText = this.add
+        .text(plContent.x + 8, rowY, row.label, {
+          fontSize: `${theme.fonts.body.size}px`,
+          fontFamily: theme.fonts.body.family,
+          color: colorToString(theme.colors.text),
+        })
+        .setAlpha(0);
       plPanel.add(labelText);
 
       const valueText = this.add
@@ -137,8 +154,23 @@ export class TurnReportScene extends Phaser.Scene {
           fontFamily: theme.fonts.value.family,
           color: colorToString(row.color),
         })
-        .setOrigin(1, 0);
+        .setOrigin(1, 0)
+        .setAlpha(0);
       plPanel.add(valueText);
+
+      // Stagger-in: slide from left + fade
+      this.tweens.add({
+        targets: [labelText, valueText],
+        alpha: 1,
+        x: `+=18`,
+        duration: 220,
+        delay,
+        ease: "Cubic.easeOut",
+        onStart: () => {
+          labelText.x -= 18;
+          valueText.x -= 18;
+        },
+      });
 
       rowY += 28;
     }
@@ -156,29 +188,158 @@ export class TurnReportScene extends Phaser.Scene {
     plPanel.add(sepLine);
     rowY += 12;
 
-    // Net profit row
+    // Net profit row — animated counter
     const plNetColor =
       lastTurn.netProfit >= 0 ? theme.colors.profit : theme.colors.loss;
-    const netLabel = this.add.text(plContent.x + 8, rowY, "Net Profit", {
-      fontSize: `${theme.fonts.body.size}px`,
-      fontFamily: theme.fonts.body.family,
-      color: colorToString(theme.colors.text),
-    });
+    const netLabel = this.add
+      .text(plContent.x + 8, rowY, "Net Profit", {
+        fontSize: `${theme.fonts.body.size}px`,
+        fontFamily: theme.fonts.body.family,
+        color: colorToString(theme.colors.text),
+      })
+      .setAlpha(0);
     plPanel.add(netLabel);
 
     const netValue = this.add
       .text(
         plContent.x + plContent.width - 8,
         rowY,
-        formatCash(lastTurn.netProfit),
+        formatCash(0),
         {
           fontSize: `${theme.fonts.value.size}px`,
           fontFamily: theme.fonts.value.family,
           color: colorToString(plNetColor),
         },
       )
-      .setOrigin(1, 0);
+      .setOrigin(1, 0)
+      .setAlpha(0);
     plPanel.add(netValue);
+
+    // Fade in the net row after the P&L rows have appeared
+    const netRevealDelay = plRows.length * 90 + 80;
+    this.tweens.add({
+      targets: [netLabel, netValue],
+      alpha: 1,
+      duration: 260,
+      delay: netRevealDelay,
+    });
+
+    // Animate the counter rolling up from 0 to final value
+    const counterTarget = { value: 0 };
+    this.tweens.add({
+      targets: counterTarget,
+      value: lastTurn.netProfit,
+      duration: 700,
+      delay: netRevealDelay + 60,
+      ease: "Cubic.easeOut",
+      onUpdate: () => {
+        netValue.setText(formatCash(counterTarget.value));
+      },
+      onComplete: () => {
+        netValue.setText(formatCash(lastTurn.netProfit));
+        // Punch-in scale on completion
+        this.tweens.add({
+          targets: netValue,
+          scaleX: 1.2,
+          scaleY: 1.2,
+          duration: 120,
+          yoyo: true,
+          ease: "Back.easeOut",
+        });
+      },
+    });
+
+    // ── Performance grade badge ────────────────────────────────────────────
+    const { grade, color: gradeColor } = getTurnGrade(
+      lastTurn.netProfit,
+      lastTurn.revenue,
+    );
+    const gradeLabel = this.add
+      .text(
+        plContent.x + plContent.width - 8,
+        plContent.y + 4,
+        grade,
+        {
+          fontSize: "42px",
+          fontFamily: theme.fonts.heading.family,
+          fontStyle: "bold",
+          color: "#" + gradeColor.toString(16).padStart(6, "0"),
+          stroke: "#000000",
+          strokeThickness: 3,
+        },
+      )
+      .setOrigin(1, 0)
+      .setAlpha(0)
+      .setScale(1.5);
+    plPanel.add(gradeLabel);
+    this.tweens.add({
+      targets: gradeLabel,
+      alpha: 0.85,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 320,
+      delay: netRevealDelay + 700,
+      ease: "Back.easeOut",
+    });
+
+    // ── Streak badge ───────────────────────────────────────────────────────
+    const streakTurns = state.storyteller.consecutiveProfitTurns;
+    if (streakTurns >= 2) {
+      const streakText = `\uD83D\uDD25 ${streakTurns}-Turn Streak!`;
+      const streakBadge = this.add
+        .text(plContent.x + plContent.width / 2, rowY, streakText, {
+          fontSize: `${theme.fonts.caption.size}px`,
+          fontFamily: theme.fonts.caption.family,
+          color: colorToString(theme.colors.accent),
+          stroke: "#000000",
+          strokeThickness: 2,
+        })
+        .setOrigin(0.5, 0)
+        .setAlpha(0);
+      plPanel.add(streakBadge);
+      this.tweens.add({
+        targets: streakBadge,
+        alpha: 1,
+        y: `+=0`,
+        duration: 280,
+        delay: netRevealDelay + 820,
+      });
+    }
+
+    // ── Audio & milestone overlay ──────────────────────────────────────────
+    const audio = getAudioDirector();
+    const revealDelay = netRevealDelay + 700;
+    this.time.delayedCall(revealDelay, () => {
+      if (lastTurn.netProfit >= 0) {
+        audio.sfx("milestone_profit");
+        // Big profit milestone
+        if (lastTurn.netProfit >= 5000) {
+          MilestoneOverlay.show(
+            this,
+            "big_profit",
+            "PROFITABLE!",
+            "+" + "\u00A7" + Math.round(lastTurn.netProfit).toLocaleString(),
+          );
+        } else if (streakTurns >= 3) {
+          MilestoneOverlay.show(
+            this,
+            "profit_streak",
+            `\uD83D\uDD25 ${streakTurns}-TURN STREAK!`,
+            "Keep the momentum going!",
+          );
+        }
+      } else {
+        audio.sfxLossSting();
+        if (lastTurn.netProfit < -10000) {
+          MilestoneOverlay.show(
+            this,
+            "loss_warning",
+            "HEAVY LOSSES",
+            formatCash(lastTurn.netProfit) + " this turn",
+          );
+        }
+      }
+    });
 
     // -----------------------------------------------------------------------
     // Route Performance (middle of main content area)

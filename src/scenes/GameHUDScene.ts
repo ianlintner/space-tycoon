@@ -13,6 +13,7 @@ import {
 import { gameStore } from "../data/GameStore.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { Tooltip } from "../ui/Tooltip.ts";
+import { FloatingText } from "../ui/FloatingText.ts";
 
 function formatCash(amount: number): string {
   return "\u00A7" + amount.toLocaleString();
@@ -22,6 +23,7 @@ export class GameHUDScene extends Phaser.Scene {
   private companyLabel!: Label;
   private turnLabel!: Label;
   private cashLabel!: Label;
+  private streakLabel!: Label;
   private phaseLabel!: Label;
   private bottomTurnInfoLabel!: Label;
   private endTurnButton!: Button;
@@ -117,6 +119,18 @@ export class GameHUDScene extends Phaser.Scene {
       color: state.cash >= 0 ? theme.colors.profit : theme.colors.loss,
     });
     this.cashLabel.setOrigin(1, 0.5);
+
+    // Streak counter (left of cash, hidden until streak >= 2)
+    const initStreak = state.storyteller?.consecutiveProfitTurns ?? 0;
+    this.streakLabel = new Label(this, {
+      x: GAME_WIDTH - 20,
+      y: HUD_TOP_BAR_HEIGHT / 2 + 1,
+      text: initStreak >= 2 ? `\uD83D\uDD25 ${initStreak}` : "",
+      style: "caption",
+      color: theme.colors.accent,
+    });
+    this.streakLabel.setOrigin(1, 0.5);
+    this.streakLabel.setAlpha(initStreak >= 2 ? 1 : 0);
 
     // ── Left Navigation Sidebar (Paradox-style icon strip) ──
     const navItems = [
@@ -395,9 +409,11 @@ export class GameHUDScene extends Phaser.Scene {
     );
 
     if (newCash !== this.previousCash) {
-      audio.sfx(newCash > this.previousCash ? "ui_confirm" : "ui_error");
+      const delta = newCash - this.previousCash;
+      const isGain = delta > 0;
+      audio.sfx(isGain ? "ui_confirm" : "ui_error");
       const flashTint =
-        newCash > this.previousCash ? theme.colors.profit : theme.colors.loss;
+        isGain ? theme.colors.profit : theme.colors.loss;
       this.cashLabel.setTint(flashTint);
       this.tweens.add({
         targets: this.cashLabel,
@@ -408,7 +424,30 @@ export class GameHUDScene extends Phaser.Scene {
           this.cashLabel.clearTint();
         },
       });
+
+      // Floating delta popup near the cash label
+      const sign = isGain ? "+" : "";
+      const deltaStr = sign + formatCash(delta);
+      new FloatingText(
+        this,
+        GAME_WIDTH - 24,
+        HUD_TOP_BAR_HEIGHT / 2 - 8,
+        deltaStr,
+        isGain ? theme.colors.profit : theme.colors.loss,
+        { size: "small", riseDistance: 36, driftX: -12 },
+      );
+
       this.previousCash = newCash;
+    }
+
+    // Streak label
+    const streakTurns = state.storyteller?.consecutiveProfitTurns ?? 0;
+    if (streakTurns >= 2) {
+      this.streakLabel.setText(`\uD83D\uDD25 ${streakTurns}`);
+      this.streakLabel.setAlpha(1);
+    } else {
+      this.streakLabel.setText("");
+      this.streakLabel.setAlpha(0);
     }
 
     this.phaseLabel.setText(`Phase: ${state.phase}`);

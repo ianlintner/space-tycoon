@@ -5,6 +5,7 @@
  * Use registerAmbientCleanup() to auto-stop a batch of tweens on scene shutdown.
  */
 import Phaser from "phaser";
+import { GAME_WIDTH, GAME_HEIGHT } from "./Layout.ts";
 
 // ─── Config interfaces ─────────────────────────────────────────────────────
 
@@ -138,5 +139,34 @@ export function registerAmbientCleanup(
         tween.stop();
       }
     }
+  });
+}
+
+// ─── Screen flash ───────────────────────────────────────────────────────────
+
+/**
+ * Briefly flash the whole screen with a solid color then fade back out.
+ * @param color   Hex color (e.g. 0x00ff88 for profit green, 0xff4444 for loss red)
+ * @param peakAlpha  Maximum overlay opacity (0–1). 0.35 is a good default.
+ * @param duration   Full flash duration in ms (rise + fall). Default 600ms.
+ */
+export function flashScreen(
+  scene: Phaser.Scene,
+  color: number,
+  peakAlpha = 0.35,
+  duration = 600,
+): void {
+  const flash = scene.add
+    .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, color, 0)
+    .setOrigin(0, 0)
+    .setDepth(950);
+
+  scene.tweens.add({
+    targets: flash,
+    alpha: peakAlpha,
+    duration: duration * 0.25,
+    ease: "Linear",
+    yoyo: true,
+    onComplete: () => flash.destroy(),
   });
 }

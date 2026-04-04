@@ -34,7 +34,16 @@ export type SfxKey =
   | "ui_modal_open"
   | "ui_modal_close"
   | "ui_end_turn"
-  | "map_star_select";
+  | "map_star_select"
+  // Gamey feedback sounds
+  | "cash_gain"
+  | "cash_loss"
+  | "route_complete"
+  | "event_opportunity"
+  | "event_hazard"
+  | "milestone_profit"
+  | "sim_complete"
+  | "streak_increment";
 
 interface SfxPatch {
   type: OscillatorType;
@@ -481,6 +490,68 @@ class AudioDirector {
 
     osc.start(now);
     osc.stop(now + patch.attack + patch.decay + 0.02);
+  }
+
+  /**
+   * Play a rapid sequence of SFX notes (arpeggio / fanfare effect).
+   * Each step can optionally supply its own hz override.
+   */
+  sfxMelody(steps: Array<{ key: SfxKey; delayMs: number; hzOverride?: number }>): void {
+    for (const step of steps) {
+      const delayS = step.delayMs / 1000;
+      this.ensureInitialized();
+      if (!this.ctx || !this.sfxBus || !this.enabled) continue;
+      const patch = this.getSfxPatch(step.key);
+      if (!patch) continue;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 4200;
+
+      osc.type = patch.type;
+      const startHz = step.hzOverride ?? patch.startHz;
+      const endHz = step.hzOverride
+        ? step.hzOverride * (patch.endHz / Math.max(1, patch.startHz))
+        : patch.endHz;
+      const now = this.ctx.currentTime + delayS;
+
+      osc.frequency.setValueAtTime(startHz, now);
+      osc.frequency.exponentialRampToValueAtTime(
+        Math.max(20, endHz),
+        now + patch.attack + patch.decay,
+      );
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(patch.gain, now + patch.attack);
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        now + patch.attack + patch.decay,
+      );
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxBus);
+      osc.start(now);
+      osc.stop(now + patch.attack + patch.decay + 0.02);
+    }
+  }
+
+  /** Play a 3-note ascending profit fanfare arpeggio. */
+  sfxProfitFanfare(): void {
+    this.sfxMelody([
+      { key: "cash_gain",       delayMs: 0,   hzOverride: 440 },
+      { key: "cash_gain",       delayMs: 90,  hzOverride: 550 },
+      { key: "milestone_profit", delayMs: 180, hzOverride: 880 },
+    ]);
+  }
+
+  /** Play a 3-note descending loss sting. */
+  sfxLossSting(): void {
+    this.sfxMelody([
+      { key: "cash_loss", delayMs: 0,   hzOverride: 320 },
+      { key: "cash_loss", delayMs: 100, hzOverride: 220 },
+      { key: "cash_loss", delayMs: 200, hzOverride: 140 },
+    ]);
   }
 
   private applyPlanningSubstateColor(): void {
@@ -1452,6 +1523,79 @@ class AudioDirector {
           attack: 0.003,
           decay: 0.08,
           gain: 0.065,
+        };
+      // ── Gamey feedback sounds ─────────────────────────────
+      case "cash_gain":
+        return {
+          type: "triangle",
+          startHz: 440,
+          endHz: 880,
+          attack: 0.003,
+          decay: 0.1,
+          gain: 0.09,
+        };
+      case "cash_loss":
+        return {
+          type: "sawtooth",
+          startHz: 320,
+          endHz: 110,
+          attack: 0.003,
+          decay: 0.14,
+          gain: 0.085,
+        };
+      case "route_complete":
+        return {
+          type: "triangle",
+          startHz: 520,
+          endHz: 780,
+          attack: 0.003,
+          decay: 0.1,
+          gain: 0.08,
+        };
+      case "event_opportunity":
+        return {
+          type: "triangle",
+          startHz: 420,
+          endHz: 840,
+          attack: 0.008,
+          decay: 0.16,
+          gain: 0.09,
+        };
+      case "event_hazard":
+        return {
+          type: "sawtooth",
+          startHz: 200,
+          endHz: 70,
+          attack: 0.005,
+          decay: 0.2,
+          gain: 0.1,
+        };
+      case "milestone_profit":
+        return {
+          type: "sine",
+          startHz: 880,
+          endHz: 1320,
+          attack: 0.01,
+          decay: 0.22,
+          gain: 0.07,
+        };
+      case "sim_complete":
+        return {
+          type: "square",
+          startHz: 260,
+          endHz: 520,
+          attack: 0.006,
+          decay: 0.18,
+          gain: 0.09,
+        };
+      case "streak_increment":
+        return {
+          type: "triangle",
+          startHz: 660,
+          endHz: 990,
+          attack: 0.004,
+          decay: 0.13,
+          gain: 0.085,
         };
       default:
         return null;

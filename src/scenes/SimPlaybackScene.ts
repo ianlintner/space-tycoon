@@ -10,6 +10,11 @@ import { createStarfield } from "../ui/Starfield.ts";
 import type { GameHUDScene } from "./GameHUDScene.ts";
 import { GAME_WIDTH, GAME_HEIGHT, CONTENT_TOP } from "../ui/Layout.ts";
 import type { GameState, TurnResult } from "../data/types.ts";
+import { EventCategory } from "../data/types.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
+import { FloatingText } from "../ui/FloatingText.ts";
+import { MilestoneOverlay } from "../ui/MilestoneOverlay.ts";
+import { flashScreen } from "../ui/AmbientFX.ts";
 
 function formatCash(amount: number): string {
   return "\u00A7" + amount.toLocaleString();
@@ -80,6 +85,12 @@ export class SimPlaybackScene extends Phaser.Scene {
     // Draw route lines and animate ships with glow trails
     const routeGraphics = this.add.graphics();
     routeGraphics.lineStyle(1, theme.colors.accent, 0.3);
+
+    // Build a lookup from routeId → revenue from this turn's route performance
+    const routeRevenueMap = new Map<string, number>();
+    for (const rp of this.turnResult.routePerformance) {
+      routeRevenueMap.set(rp.routeId, rp.revenue);
+    }
 
     for (const route of state.activeRoutes) {
       const originSysId = planetSystemMap.get(route.originPlanetId);
@@ -171,6 +182,25 @@ export class SimPlaybackScene extends Phaser.Scene {
         ease: "Sine.easeInOut",
         delay: 180,
       });
+
+      // Mid-point revenue popup — fires when the ship reaches its destination
+      const routeRevenue = routeRevenueMap.get(route.id) ?? 0;
+      if (routeRevenue > 0) {
+        const midX = (originSys.x + destSys.x) / 2;
+        const midY = (originSys.y + destSys.y) / 2;
+        this.time.delayedCall(halfDuration, () => {
+          if (this.animationComplete) return;
+          new FloatingText(
+            this,
+            midX,
+            midY,
+            "+" + "\u00A7" + routeRevenue.toLocaleString(),
+            theme.colors.profit,
+            { size: "small", riseDistance: 44 },
+          );
+          getAudioDirector().sfx("route_complete");
+        });
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -267,7 +297,7 @@ export class SimPlaybackScene extends Phaser.Scene {
           if (this.animationComplete) return;
           const detail = activeEvents.find((e) => e.name === eventName);
           const description = detail ? detail.description : "";
-          this.showEventPopup(eventName, description, index);
+          this.showEventPopup(eventName, description, index, detail?.category);
         });
       });
     }
@@ -335,9 +365,33 @@ export class SimPlaybackScene extends Phaser.Scene {
     name: string,
     description: string,
     index: number,
+    category?: string,
   ): void {
     const theme = getTheme();
     const popupY = 200 + index * 70;
+
+    const isHazard = category === EventCategory.Hazard;
+    const isOpportunity = category === EventCategory.Opportunity;
+    const borderColor = isHazard
+      ? theme.colors.loss
+      : isOpportunity
+        ? theme.colors.profit
+        : theme.colors.warning;
+    const nameColor = isHazard
+      ? theme.colors.loss
+      : isOpportunity
+        ? theme.colors.accent
+        : theme.colors.accent;
+
+    // Play SFX keyed to category
+    const audio = getAudioDirector();
+    if (isHazard) {
+      audio.sfx("event_hazard");
+    } else if (isOpportunity) {
+      audio.sfx("event_opportunity");
+    } else {
+      audio.sfx("ui_click_secondary");
+    }
 
     const container = this.add.container(1280, popupY);
 
@@ -345,16 +399,16 @@ export class SimPlaybackScene extends Phaser.Scene {
     const bg = this.add
       .rectangle(0, 0, 300, 55, theme.colors.panelBg, 0.85)
       .setOrigin(0, 0);
-    // Warning-colored accent left border bar
+    // Category-colored accent left border bar
     const border = this.add
-      .rectangle(0, 0, 4, 55, theme.colors.warning)
+      .rectangle(0, 0, 4, 55, borderColor)
       .setOrigin(0, 0);
 
     const truncName = name.length > 30 ? name.substring(0, 27) + "..." : name;
     const nameText = this.add.text(12, 6, truncName, {
       fontSize: `${theme.fonts.body.size}px`,
       fontFamily: theme.fonts.body.family,
-      color: colorToString(theme.colors.accent),
+      color: colorToString(nameColor),
       wordWrap: { width: 276 },
     });
 
@@ -417,9 +471,35 @@ export class SimPlaybackScene extends Phaser.Scene {
     // Commit the simulated state to the store
     gameStore.setState(this.newState);
 
+    const theme = getTheme();
+    const audio = getAudioDirector();
+    const net = this.turnResult.netProfit;
+
+    // Dopamine hit: screen flash + sfx keyed to outcome
+    if (net >= 0) {
+      flashScreen(this, theme.colors.profit, 0.28, 600);
+      audio.sfxProfitFanfare();
+    } else {
+      flashScreen(this, theme.colors.loss, 0.22, 500);
+      audio.sfxLossSting();
+    }
+    audio.sfx("sim_complete");
+
+    // Show milestone overlay for notable outcomes
+    const isLargeProfit = net > 0 && net >= 5000;
+    if (isLargeProfit) {
+      const sign = net >= 0 ? "+" : "";
+      MilestoneOverlay.show(
+        this,
+        "sim_complete",
+        "SIM COMPLETE",
+        sign + "\u00A7" + Math.abs(Math.round(net)).toLocaleString() + " Net",
+      );
+    }
+
     // Brief pause then transition to the turn report via HUD
     this.time.timeScale = 1;
-    this.time.delayedCall(500, () => {
+    this.time.delayedCall(isLargeProfit ? 2200 : 500, () => {
       const hud = this.scene.get("GameHUDScene") as GameHUDScene;
       hud.switchContentScene("TurnReportScene");
     });
