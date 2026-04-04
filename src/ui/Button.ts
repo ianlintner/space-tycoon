@@ -16,11 +16,14 @@ export class Button extends Phaser.GameObjects.Container {
   private bg: Phaser.GameObjects.NineSlice;
   private label: Phaser.GameObjects.Text;
   private accentLine: Phaser.GameObjects.Rectangle;
+  private hitZone: Phaser.GameObjects.Zone | null = null;
   private widthPx: number;
   private heightPx: number;
   private isDisabled: boolean;
   private onClickFn: () => void;
   private idleShimmerTween: Phaser.Tweens.Tween | null = null;
+  private readonly hitPaddingX = 10;
+  private readonly hitPaddingY = 8;
 
   constructor(scene: Phaser.Scene, config: ButtonConfig) {
     super(scene, config.x, config.y);
@@ -32,6 +35,17 @@ export class Button extends Phaser.GameObjects.Container {
     this.isDisabled = config.disabled ?? false;
     this.onClickFn = config.onClick;
     this.setSize(width, height);
+
+    this.hitZone = scene.add
+      .zone(
+        config.x + width / 2,
+        config.y + height / 2,
+        width + this.hitPaddingX * 2,
+        height + this.hitPaddingY * 2,
+      )
+      .setOrigin(0.5);
+
+    this.syncHitZonePosition();
 
     const textureKey = this.isDisabled ? "btn-disabled" : "btn-normal";
     this.bg = scene.add
@@ -81,28 +95,20 @@ export class Button extends Phaser.GameObjects.Container {
   }
 
   private setupInteractive(): void {
-    this.off("pointerover");
-    this.off("pointerout");
-    this.off("pointerdown");
-    this.off("pointerup");
-    this.off("pointerupoutside");
+    if (!this.hitZone) return;
+
+    this.hitZone.off("pointerover");
+    this.hitZone.off("pointerout");
+    this.hitZone.off("pointerdown");
+    this.hitZone.off("pointerup");
+    this.hitZone.off("pointerupoutside");
 
     this.startIdleShimmer();
-    const hitPaddingX = 10;
-    const hitPaddingY = 8;
-    this.setInteractive(
-      new Phaser.Geom.Rectangle(
-        -hitPaddingX,
-        -hitPaddingY,
-        this.widthPx + hitPaddingX * 2,
-        this.heightPx + hitPaddingY * 2,
-      ),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    if (this.input) {
-      this.input.cursor = "pointer";
+    this.hitZone.setInteractive({ useHandCursor: true });
+    if (this.hitZone.input) {
+      this.hitZone.input.cursor = "pointer";
     }
-    this.on("pointerover", () => {
+    this.hitZone.on("pointerover", () => {
       getAudioDirector().sfx("ui_hover");
       // Pause idle shimmer so the hover brightening is clean
       if (this.idleShimmerTween) {
@@ -117,7 +123,7 @@ export class Button extends Phaser.GameObjects.Container {
         ease: "Power2",
       });
     });
-    this.on("pointerout", () => {
+    this.hitZone.on("pointerout", () => {
       this.setTexture("btn-normal");
       this.scene.tweens.add({
         targets: this.accentLine,
@@ -127,13 +133,13 @@ export class Button extends Phaser.GameObjects.Container {
         onComplete: () => this.startIdleShimmer(),
       });
     });
-    this.on("pointerdown", () => this.setTexture("btn-pressed"));
-    this.on("pointerup", () => {
+    this.hitZone.on("pointerdown", () => this.setTexture("btn-pressed"));
+    this.hitZone.on("pointerup", () => {
       this.setTexture("btn-hover");
       getAudioDirector().sfx("ui_click_primary");
       this.onClickFn();
     });
-    this.on("pointerupoutside", () => {
+    this.hitZone.on("pointerupoutside", () => {
       this.setTexture("btn-normal");
     });
   }
@@ -145,13 +151,14 @@ export class Button extends Phaser.GameObjects.Container {
   setDisabled(disabled: boolean): void {
     this.isDisabled = disabled;
     const theme = getTheme();
+    if (!this.hitZone) return;
     if (disabled) {
       if (this.idleShimmerTween) {
         this.idleShimmerTween.stop();
         this.idleShimmerTween = null;
       }
       this.bg.setTexture("btn-disabled");
-      this.removeInteractive();
+      this.hitZone.disableInteractive();
       this.label.setColor(colorToString(theme.colors.textDim));
       this.accentLine.setAlpha(0.15);
     } else {
@@ -164,5 +171,47 @@ export class Button extends Phaser.GameObjects.Container {
 
   setLabel(text: string): void {
     this.label.setText(text);
+  }
+
+  override setPosition(x?: number, y?: number, z?: number, w?: number): this {
+    super.setPosition(x, y, z, w);
+    this.syncHitZonePosition();
+    return this;
+  }
+
+  override setVisible(value: boolean): this {
+    super.setVisible(value);
+    if (!this.hitZone) {
+      return this;
+    }
+    if (value && !this.isDisabled) {
+      this.hitZone.setActive(true);
+      this.hitZone.setInteractive({ useHandCursor: true });
+      if (this.hitZone.input) {
+        this.hitZone.input.cursor = "pointer";
+      }
+    } else {
+      this.hitZone.disableInteractive();
+      this.hitZone.setActive(false);
+    }
+    return this;
+  }
+
+  override destroy(fromScene?: boolean): void {
+    if (this.idleShimmerTween) {
+      this.idleShimmerTween.stop();
+      this.idleShimmerTween = null;
+    }
+    this.hitZone?.destroy();
+    this.hitZone = null;
+    super.destroy(fromScene);
+  }
+
+  private syncHitZonePosition(): void {
+    if (!this.hitZone) return;
+    this.hitZone.setPosition(
+      this.x + this.widthPx / 2,
+      this.y + this.heightPx / 2,
+    );
   }
 }
