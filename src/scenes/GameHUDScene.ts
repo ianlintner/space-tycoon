@@ -29,6 +29,7 @@ export class GameHUDScene extends Phaser.Scene {
   private previousCash = 0;
   private navIndicators = new Map<string, Phaser.GameObjects.Rectangle>();
   private navButtons = new Map<string, Phaser.GameObjects.Container>();
+  private navHitAreas = new Map<string, Phaser.GameObjects.Rectangle>();
   private navTooltip!: Tooltip;
   private audioPanelObjects: Phaser.GameObjects.GameObject[] = [];
   private audioPanelOpen = false;
@@ -229,6 +230,7 @@ export class GameHUDScene extends Phaser.Scene {
 
       this.navIndicators.set(item.scene, indicator);
       this.navButtons.set(item.scene, btnContainer);
+      this.navHitAreas.set(item.scene, navHit);
     }
 
     // ── Audio button at bottom of nav sidebar ──
@@ -389,6 +391,16 @@ export class GameHUDScene extends Phaser.Scene {
 
     this.phaseLabel.setText(`Phase: ${state.phase}`);
     this.endTurnButton.setVisible(state.phase === "planning");
+
+    // Disable nav buttons during simulation and review phases
+    const navEnabled = state.phase === "planning";
+    for (const [, hitArea] of this.navHitAreas) {
+      if (navEnabled) {
+        hitArea.setInteractive();
+      } else {
+        hitArea.disableInteractive();
+      }
+    }
   }
 
   /**
@@ -411,9 +423,11 @@ export class GameHUDScene extends Phaser.Scene {
     if (sceneName === this.activeContentScene) return;
 
     if (sceneName === "SimPlaybackScene") {
+      gameStore.update({ phase: "simulation" });
       audio.setMusicState("sim");
       audio.sfx("ui_end_turn");
     } else if (sceneName === "TurnReportScene") {
+      gameStore.update({ phase: "review" });
       audio.setMusicState("report");
       audio.sfx("ui_confirm");
     } else {
