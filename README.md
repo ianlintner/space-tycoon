@@ -1,5 +1,7 @@
 # Star Freight Tycoon 🚀
 
+<img width="512" alt="cargo" src="https://github.com/user-attachments/assets/ab5101f7-1d86-456c-9fa2-6f9821a846f9" />
+
 A browser-based, turn-driven space trading and fleet management game built with **TypeScript**, **Phaser**, and **Vite**.
 
 You run a growing freight company in a living galaxy: buy low, sell high, expand your fleet, optimize routes, survive market swings, and chase the high score.
@@ -57,6 +59,7 @@ On pull requests and pushes to `main`, CI runs:
 1. Type checking (`npm run typecheck`)
 2. Unit tests (`npm run test`)
 3. Production build (`npm run build`)
+
 
 GitHub Pages deployment also enforces these gates before publish.
 
