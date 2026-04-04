@@ -277,7 +277,7 @@ export class TurnReportScene extends Phaser.Scene {
       x: MAIN_CONTENT_LEFT,
       y: bottomY,
       width: halfWidth,
-      height: 160,
+      height: 200,
       title: "News Digest",
     });
 
@@ -285,8 +285,8 @@ export class TurnReportScene extends Phaser.Scene {
       x: MAIN_CONTENT_LEFT + 10,
       y: bottomY + 40,
       width: halfWidth - 20,
-      height: 110,
-      itemHeight: 48,
+      height: 150,
+      itemHeight: 60,
     });
 
     const eventNames = lastTurn.eventsOccurred;
@@ -311,6 +311,7 @@ export class TurnReportScene extends Phaser.Scene {
           fontSize: `${theme.fonts.body.size}px`,
           fontFamily: theme.fonts.body.family,
           color: colorToString(theme.colors.accent),
+          wordWrap: { width: halfWidth - 40 },
         });
         const descText = this.add.text(10, 24, desc, {
           fontSize: `${theme.fonts.caption.size}px`,
@@ -328,7 +329,7 @@ export class TurnReportScene extends Phaser.Scene {
       x: MAIN_CONTENT_LEFT + MAIN_CONTENT_WIDTH / 2 + 5,
       y: bottomY,
       width: halfWidth,
-      height: 160,
+      height: 200,
       title: "Market Changes",
     });
     const mpContent = marketPanel.getContentArea();

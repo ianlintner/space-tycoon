@@ -273,6 +273,7 @@ export class PlanetDetailScene extends Phaser.Scene {
         fontSize: `${theme.fonts.body.size}px`,
         fontFamily: theme.fonts.body.family,
         color: colorToString(theme.colors.text),
+        wordWrap: { width: pickerContent.width - 20 },
       });
       itemContainer.add(itemText);
       list.addItem(itemContainer);
@@ -316,6 +317,7 @@ export class PlanetDetailScene extends Phaser.Scene {
       text: `${originPlanet.name} → ${destPlanet.name}`,
       style: "value",
       color: theme.colors.accent,
+      maxWidth: content.width,
     });
     uiObjects.push(routeInfo);
 
@@ -374,7 +376,7 @@ export class PlanetDetailScene extends Phaser.Scene {
     const autoBuyBtn = new Button(this, {
       x: panelX + content.x,
       y: panelY + content.y + 184,
-      width: 180,
+      width: 240,
       label: "Auto-buy if needed: ON",
       onClick: () => {
         autoBuy = !autoBuy;
@@ -543,6 +545,8 @@ export class PlanetDetailScene extends Phaser.Scene {
         const modal = new Modal(this, {
           title: "Route Ready",
           body: `Route ${latestOrigin.name} → ${latestDest.name} created.\nCargo: ${chosenCargo}\nShip: ${assignedShip}${shipIdToAssign ? "" : " (assign later in Routes)"}`,
+          width: 440,
+          height: 280,
           onOk: () => {
             modal.destroy();
           },

@@ -239,15 +239,30 @@ export class GalaxySetupScene extends Phaser.Scene {
 
       // Planet type list
       let listY = infoY + 28;
-      for (const planet of systemPlanets) {
+      const maxPlanetsShown = Math.floor(
+        (cardH - (listY - cardsY) - theme.spacing.sm) / 20,
+      );
+      const planetsToShow = systemPlanets.slice(0, maxPlanetsShown);
+      for (const planet of planetsToShow) {
         const pLabel = new Label(this, {
           x: infoX + theme.spacing.sm,
           y: listY,
           text: `${planet.name} (${planet.type})`,
           style: "caption",
+          maxWidth: cardW - theme.spacing.md * 2 - theme.spacing.sm,
         });
         this.cardObjects.push(pLabel);
         listY += 20;
+      }
+      if (systemPlanets.length > maxPlanetsShown) {
+        const moreLabel = new Label(this, {
+          x: infoX + theme.spacing.sm,
+          y: listY,
+          text: `+${systemPlanets.length - maxPlanetsShown} more...`,
+          style: "caption",
+          color: theme.colors.textDim,
+        });
+        this.cardObjects.push(moreLabel);
       }
 
       // Transparent clickable overlay

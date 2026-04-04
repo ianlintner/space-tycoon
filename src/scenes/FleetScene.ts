@@ -323,6 +323,7 @@ export class FleetScene extends Phaser.Scene {
           fontSize: `${theme.fonts.caption.size}px`,
           fontFamily: theme.fonts.caption.family,
           color: colorToString(theme.colors.textDim),
+          wordWrap: { width: content.width - 20 },
         },
       );
 

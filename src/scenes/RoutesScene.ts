@@ -316,6 +316,7 @@ export class RoutesScene extends Phaser.Scene {
         fontSize: `${theme.fonts.body.size}px`,
         fontFamily: theme.fonts.body.family,
         color: colorToString(theme.colors.text),
+        wordWrap: { width: content.width - 20 },
       });
       itemContainer.add(itemText);
       originList.addItem(itemContainer);
@@ -375,6 +376,7 @@ export class RoutesScene extends Phaser.Scene {
         fontSize: `${theme.fonts.body.size}px`,
         fontFamily: theme.fonts.body.family,
         color: colorToString(theme.colors.text),
+        wordWrap: { width: content.width - 20 },
       });
       itemContainer.add(itemText);
       destList.addItem(itemContainer);
@@ -584,6 +586,7 @@ export class RoutesScene extends Phaser.Scene {
         fontSize: `${theme.fonts.body.size}px`,
         fontFamily: theme.fonts.body.family,
         color: colorToString(theme.colors.text),
+        wordWrap: { width: content.width - 20 },
       });
       const statsText = this.add.text(
         10,
@@ -593,6 +596,7 @@ export class RoutesScene extends Phaser.Scene {
           fontSize: `${theme.fonts.caption.size}px`,
           fontFamily: theme.fonts.caption.family,
           color: colorToString(theme.colors.textDim),
+          wordWrap: { width: content.width - 20 },
         },
       );
       itemContainer.add([nameText, statsText]);

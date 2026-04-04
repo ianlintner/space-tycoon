@@ -72,6 +72,7 @@ export class GameOverScene extends Phaser.Scene {
       text: subtitleText,
       style: "body",
       color: theme.colors.text,
+      maxWidth: GAME_WIDTH - 80,
     });
     subtitle.setOrigin(0.5, 0);
 

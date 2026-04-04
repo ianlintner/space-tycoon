@@ -120,6 +120,7 @@ export class FinanceScene extends Phaser.Scene {
         fontSize: `${theme.fonts.body.size}px`,
         fontFamily: theme.fonts.body.family,
         color: colorToString(theme.colors.text),
+        wordWrap: { width: valueX - x - 10 },
       });
       container.add(labelText);
 
@@ -227,6 +228,7 @@ export class FinanceScene extends Phaser.Scene {
         fontSize: `${theme.fonts.body.size}px`,
         fontFamily: theme.fonts.body.family,
         color: colorToString(theme.colors.text),
+        wordWrap: { width: valueX - x - 10 },
       });
       container.add(labelText);
 

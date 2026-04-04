@@ -8,11 +8,7 @@ import { Label } from "../ui/Label.ts";
 import { Panel } from "../ui/Panel.ts";
 import { createStarfield } from "../ui/Starfield.ts";
 import type { GameHUDScene } from "./GameHUDScene.ts";
-import {
-  GAME_WIDTH,
-  GAME_HEIGHT,
-  CONTENT_TOP,
-} from "../ui/Layout.ts";
+import { GAME_WIDTH, GAME_HEIGHT, CONTENT_TOP } from "../ui/Layout.ts";
 import type { GameState, TurnResult } from "../data/types.ts";
 
 function formatCash(amount: number): string {
@@ -354,20 +350,23 @@ export class SimPlaybackScene extends Phaser.Scene {
       .rectangle(0, 0, 4, 55, theme.colors.warning)
       .setOrigin(0, 0);
 
-    const nameText = this.add.text(12, 6, name, {
+    const truncName = name.length > 30 ? name.substring(0, 27) + "..." : name;
+    const nameText = this.add.text(12, 6, truncName, {
       fontSize: `${theme.fonts.body.size}px`,
       fontFamily: theme.fonts.body.family,
       color: colorToString(theme.colors.accent),
+      wordWrap: { width: 276 },
     });
 
     const shortDesc =
-      description.length > 45
-        ? description.substring(0, 42) + "..."
+      description.length > 38
+        ? description.substring(0, 35) + "..."
         : description;
     const descText = this.add.text(12, 28, shortDesc, {
       fontSize: `${theme.fonts.caption.size}px`,
       fontFamily: theme.fonts.caption.family,
       color: colorToString(theme.colors.textDim),
+      wordWrap: { width: 276 },
     });
 
     container.add([bg, border, nameText, descText]);
