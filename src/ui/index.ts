@@ -22,4 +22,3 @@ export {
   type PortraitData,
 } from "./PortraitGenerator.ts";
 export { PortraitPanel, type PortraitPanelConfig } from "./PortraitPanel.ts";
-

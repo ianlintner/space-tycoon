@@ -2,7 +2,6 @@
 export { createStarfield } from "@spacebiz/ui";
 export type { StarfieldConfig } from "@spacebiz/ui";
 
-
 export interface StarfieldConfig {
   count?: number; // default 120
   drift?: boolean; // default true — slow parallax drift

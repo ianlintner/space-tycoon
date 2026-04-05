@@ -5,7 +5,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Foundation
-export { getTheme, setTheme, colorToString, lerpColor, DEFAULT_THEME } from "./Theme.ts";
+export {
+  getTheme,
+  setTheme,
+  colorToString,
+  lerpColor,
+  DEFAULT_THEME,
+} from "./Theme.ts";
 export type { ThemeConfig } from "./Theme.ts";
 
 export * from "./Layout.ts";

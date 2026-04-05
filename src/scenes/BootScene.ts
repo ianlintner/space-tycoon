@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import type { ThemeConfig } from "../ui/Theme.ts";
 import { getTheme, lerpColor } from "../ui/Theme.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
+import { registerUiSoundHandler } from "@spacebiz/ui";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -17,6 +18,7 @@ export class BootScene extends Phaser.Scene {
     const theme = getTheme();
 
     getAudioDirector().attachScene(this);
+    registerUiSoundHandler({ sfx: (key) => getAudioDirector().sfx(key) });
 
     this.generatePanelBg(theme);
     this.generatePanelGlow(theme);
