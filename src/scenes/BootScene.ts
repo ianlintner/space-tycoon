@@ -18,7 +18,9 @@ export class BootScene extends Phaser.Scene {
     const theme = getTheme();
 
     getAudioDirector().attachScene(this);
-    registerUiSoundHandler({ sfx: (key) => getAudioDirector().sfx(key as SfxKey) });
+    registerUiSoundHandler({
+      sfx: (key) => getAudioDirector().sfx(key as SfxKey),
+    });
 
     this.generatePanelBg(theme);
     this.generatePanelGlow(theme);
