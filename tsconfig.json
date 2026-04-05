@@ -23,7 +23,8 @@
     "noUncheckedSideEffectImports": true,
     "paths": {
       "@spacebiz/ui": ["packages/spacebiz-ui/src/index.ts"]
-    }
+    },
+    "baseUrl": "."
   },
   "include": ["src", "packages/spacebiz-ui/src"]
 }

@@ -70,4 +70,4 @@ export { MilestoneOverlay } from "./MilestoneOverlay.ts";
 export type { MilestoneType } from "./MilestoneOverlay.ts";
 
 // Scene utilities
-export { SceneUiDirector } from "./SceneUiDirector.ts";
+export { SceneUiDirector, SceneUiLayer } from "./SceneUiDirector.ts";
