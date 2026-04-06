@@ -5,8 +5,11 @@ import type {
   Ship,
   MarketState,
   CargoType,
+  CargoMarketEntry,
 } from "../../data/types.ts";
-import { TURN_DURATION } from "../../data/constants.ts";
+import { CargoType as CargoTypeEnum } from "../../data/types.ts";
+import { TURN_DURATION, SHIP_TEMPLATES } from "../../data/constants.ts";
+import type { ShipClass } from "../../data/types.ts";
 
 /**
  * Calculate distance between two planets.
@@ -187,4 +190,238 @@ export function estimateRouteFuelCost(
   const totalDistance = trips * route.distance * 2;
   const fuelCost = totalDistance * ship.fuelEfficiency * fuelPrice;
   return Math.round(fuelCost * 100) / 100;
+}
+
+// ── Route Opportunity Scanner ──────────────────────────────────────────
+
+export interface RouteOpportunity {
+  originPlanetId: string;
+  originName: string;
+  destinationPlanetId: string;
+  destinationName: string;
+  distance: number;
+  bestCargoType: CargoType;
+  destPrice: number;
+  destTrend: CargoMarketEntry["trend"];
+  estRevenue: number;
+  estFuelCost: number;
+  estProfit: number;
+  tripsPerTurn: number;
+  shipName: string;
+  shipClass: string;
+  shipSource: "owned" | "autoBuy" | "none";
+  shipCost: number;
+  alreadyActive: boolean;
+}
+
+/**
+ * Scan all origin→destination pairs and rank by estimated profit.
+ * For each pair, finds the best cargo type and best available ship.
+ */
+export function scanAllRouteOpportunities(
+  planets: Planet[],
+  systems: StarSystem[],
+  fleet: Ship[],
+  market: MarketState,
+  activeRoutes: ActiveRoute[],
+  cash: number,
+): RouteOpportunity[] {
+  const cargoTypes = Object.values(CargoTypeEnum) as CargoType[];
+  const availableShips = fleet.filter((s) => !s.assignedRouteId);
+
+  // Pre-build set of active route keys for quick lookup
+  const activeRouteKeys = new Set(
+    activeRoutes.map((r) => `${r.originPlanetId}→${r.destinationPlanetId}`),
+  );
+
+  const opportunities: RouteOpportunity[] = [];
+
+  for (const origin of planets) {
+    for (const dest of planets) {
+      if (origin.id === dest.id) continue;
+
+      const distance = calculateDistance(origin, dest, systems);
+      if (distance < 1) continue; // skip trivially close planets
+      const destMarket = market.planetMarkets[dest.id];
+      if (!destMarket) continue;
+
+      // Find best cargo type for this pair
+      let bestProfit = -Infinity;
+      let bestResult: {
+        cargoType: CargoType;
+        revenue: number;
+        fuelCost: number;
+        profit: number;
+        trips: number;
+        shipName: string;
+        shipClass: string;
+        shipSource: "owned" | "autoBuy" | "none";
+        shipCost: number;
+        destPrice: number;
+        destTrend: CargoMarketEntry["trend"];
+      } | null = null;
+
+      for (const cargoType of cargoTypes) {
+        const destEntry = destMarket[cargoType];
+        const price = destEntry.currentPrice;
+        const isPassenger = cargoType === "passengers";
+
+        // Try owned ships first
+        const ship = pickBestShipForCargo(availableShips, cargoType);
+        // Fall back to cheapest purchasable
+        const buyOption = getCheapestBuyOption(cargoType, cash);
+
+        const candidate = ship ?? buyOption;
+        if (!candidate) continue;
+
+        const capacity = isPassenger
+          ? candidate.passengerCapacity
+          : candidate.cargoCapacity;
+        if (capacity <= 0) continue;
+
+        const trips = calculateTripsPerTurn(distance, candidate.speed);
+        const revenue = Math.round(trips * capacity * price * 100) / 100;
+        const totalDist = trips * distance * 2;
+        const fuelCost =
+          Math.round(
+            totalDist * candidate.fuelEfficiency * market.fuelPrice * 100,
+          ) / 100;
+        const profit = revenue - fuelCost;
+
+        if (profit > bestProfit) {
+          bestProfit = profit;
+          bestResult = {
+            cargoType,
+            revenue,
+            fuelCost,
+            profit,
+            trips,
+            shipName: candidate.name,
+            shipClass: candidate.class,
+            shipSource: ship ? "owned" : "autoBuy",
+            shipCost: ship ? 0 : (candidate.purchaseCost ?? 0),
+            destPrice: price,
+            destTrend: destEntry.trend,
+          };
+        }
+      }
+
+      if (!bestResult) {
+        // No ship available at all — still show the opportunity with "none"
+        // Pick the highest-priced cargo as recommendation
+        let topCargo = cargoTypes[0];
+        let topPrice = 0;
+        for (const ct of cargoTypes) {
+          const p = destMarket[ct].currentPrice;
+          if (p > topPrice) {
+            topPrice = p;
+            topCargo = ct;
+          }
+        }
+
+        opportunities.push({
+          originPlanetId: origin.id,
+          originName: origin.name,
+          destinationPlanetId: dest.id,
+          destinationName: dest.name,
+          distance,
+          bestCargoType: topCargo,
+          destPrice: topPrice,
+          destTrend: destMarket[topCargo].trend,
+          estRevenue: 0,
+          estFuelCost: 0,
+          estProfit: 0,
+          tripsPerTurn: 0,
+          shipName: "—",
+          shipClass: "—",
+          shipSource: "none",
+          shipCost: 0,
+          alreadyActive: activeRouteKeys.has(`${origin.id}→${dest.id}`),
+        });
+        continue;
+      }
+
+      opportunities.push({
+        originPlanetId: origin.id,
+        originName: origin.name,
+        destinationPlanetId: dest.id,
+        destinationName: dest.name,
+        distance,
+        bestCargoType: bestResult.cargoType,
+        destPrice: bestResult.destPrice,
+        destTrend: bestResult.destTrend,
+        estRevenue: bestResult.revenue,
+        estFuelCost: bestResult.fuelCost,
+        estProfit: bestResult.profit,
+        tripsPerTurn: bestResult.trips,
+        shipName: bestResult.shipName,
+        shipClass: bestResult.shipClass,
+        shipSource: bestResult.shipSource,
+        shipCost: bestResult.shipCost,
+        alreadyActive: activeRouteKeys.has(`${origin.id}→${dest.id}`),
+      });
+    }
+  }
+
+  // Sort by profit descending and limit to top 100 for performance
+  opportunities.sort((a, b) => b.estProfit - a.estProfit);
+  if (opportunities.length > 100) {
+    opportunities.length = 100;
+  }
+  return opportunities;
+}
+
+function pickBestShipForCargo(
+  ships: Ship[],
+  cargoType: CargoType,
+): Ship | null {
+  const isPassenger = cargoType === "passengers";
+  const compatible = ships.filter((s) =>
+    isPassenger ? s.passengerCapacity > 0 : s.cargoCapacity > 0,
+  );
+  if (compatible.length === 0) return null;
+
+  compatible.sort((a, b) =>
+    isPassenger
+      ? b.passengerCapacity - a.passengerCapacity
+      : b.cargoCapacity - a.cargoCapacity,
+  );
+  return compatible[0];
+}
+
+interface BuyCandidate {
+  name: string;
+  class: string;
+  cargoCapacity: number;
+  passengerCapacity: number;
+  speed: number;
+  fuelEfficiency: number;
+  purchaseCost: number;
+}
+
+function getCheapestBuyOption(
+  cargoType: CargoType,
+  cash: number,
+): BuyCandidate | null {
+  const isPassenger = cargoType === "passengers";
+  const shipClasses = Object.keys(SHIP_TEMPLATES) as ShipClass[];
+  const candidates = shipClasses
+    .map((sc) => SHIP_TEMPLATES[sc])
+    .filter((t) =>
+      isPassenger ? t.passengerCapacity > 0 : t.cargoCapacity > 0,
+    )
+    .filter((t) => t.purchaseCost <= cash)
+    .sort((a, b) => a.purchaseCost - b.purchaseCost);
+
+  if (candidates.length === 0) return null;
+  const t = candidates[0];
+  return {
+    name: t.name,
+    class: t.class,
+    cargoCapacity: t.cargoCapacity,
+    passengerCapacity: t.passengerCapacity,
+    speed: t.speed,
+    fuelEfficiency: t.fuelEfficiency,
+    purchaseCost: t.purchaseCost,
+  };
 }

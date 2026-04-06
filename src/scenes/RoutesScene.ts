@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollableList,
   Panel,
+  TabGroup,
   PortraitPanel,
   openRouteBuilder,
   SceneUiDirector,
@@ -25,10 +26,17 @@ import {
 } from "../ui/index.ts";
 import {
   assignShipToRoute,
+  calculateDistance,
+  createRoute,
   deleteRoute,
   estimateRouteRevenue,
   estimateRouteFuelCost,
+  scanAllRouteOpportunities,
 } from "../game/routes/RouteManager.ts";
+import type { RouteOpportunity } from "../game/routes/RouteManager.ts";
+import { buyShip } from "../game/fleet/FleetManager.ts";
+import { SHIP_TEMPLATES } from "../data/constants.ts";
+import type { ShipClass } from "../data/types.ts";
 
 function formatCash(n: number): string {
   const sign = n < 0 ? "-" : "";
@@ -36,7 +44,28 @@ function formatCash(n: number): string {
   return sign + "\u00A7" + abs.toLocaleString("en-US");
 }
 
+function formatCompact(n: number): string {
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${sign}§${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 10_000) return `${sign}§${(abs / 1_000).toFixed(0)}K`;
+  if (abs >= 1_000) return `${sign}§${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}§${Math.round(abs)}`;
+}
+
+function trendArrow(trend: "rising" | "stable" | "falling"): string {
+  if (trend === "rising") return "\u25B2";
+  if (trend === "falling") return "\u25BC";
+  return "\u25C6";
+}
+
+function humanizeCargo(ct: CargoTypeValue): string {
+  if (ct === "rawMaterials") return "Raw Mat.";
+  return ct.charAt(0).toUpperCase() + ct.slice(1);
+}
+
 export class RoutesScene extends Phaser.Scene {
+  // ── Active Routes tab state ──
   private selectedRouteId: string | null = null;
   private routeTable!: DataTable;
   private portrait!: PortraitPanel;
@@ -47,6 +76,11 @@ export class RoutesScene extends Phaser.Scene {
   private assignShipButton!: Button;
   private setCargoButton!: Button;
 
+  // ── Route Finder tab state ──
+  private finderTable!: DataTable;
+  private finderSummary!: Phaser.GameObjects.Text;
+  private opportunities: RouteOpportunity[] = [];
+
   constructor() {
     super({ key: "RoutesScene" });
   }
@@ -55,74 +89,221 @@ export class RoutesScene extends Phaser.Scene {
     this.selectedRouteId = null;
     this.ui = new SceneUiDirector(this);
 
-    // Starfield background
     createStarfield(this);
 
-    // Sidebar portrait — destination planet of selected route
+    // Sidebar portrait — updates based on selected route/opportunity
     this.portrait = new PortraitPanel(this, {
       x: SIDEBAR_LEFT,
       y: CONTENT_TOP,
       width: SIDEBAR_WIDTH,
       height: CONTENT_HEIGHT,
     });
-    this.portrait.updatePortrait("planet", 0, "Select a Route", [], {
+    this.portrait.updatePortrait("planet", 0, "Route Command", [], {
       planetType: "terran",
     });
 
-    // Content panel
-    const contentPanel = new Panel(this, {
-      x: MAIN_CONTENT_LEFT,
-      y: CONTENT_TOP,
-      width: MAIN_CONTENT_WIDTH,
-      height: CONTENT_HEIGHT,
-      title: "Route Management",
+    // ── Build tab content containers ──
+    const finderContent = this.add.container(0, 0);
+    const activeContent = this.add.container(0, 0);
+
+    // ── Main Panel with TabGroup ──
+    const panelX = MAIN_CONTENT_LEFT;
+    const panelY = CONTENT_TOP;
+    const panelW = MAIN_CONTENT_WIDTH;
+    const panelH = CONTENT_HEIGHT;
+
+    // Background panel
+    new Panel(this, {
+      x: panelX,
+      y: panelY,
+      width: panelW,
+      height: panelH,
+      title: "Route Command Center",
     });
-    const content = contentPanel.getContentArea();
-    const absX = MAIN_CONTENT_LEFT + content.x;
-    const absY = CONTENT_TOP + content.y;
+
+    // Tab group sits at the top of the content area
+    const tabY = panelY + 38;
+    const tabContentY = 0; // relative to tab content container
+
+    new TabGroup(this, {
+      x: panelX,
+      y: tabY,
+      width: panelW,
+      tabs: [
+        { label: "\u2605 Route Finder", content: finderContent },
+        { label: "\u2693 Active Routes", content: activeContent },
+      ],
+      defaultTab: 0,
+    });
+
+    const contentInnerX = 12;
+    const contentInnerW = panelW - 24;
+    const tabBarHeight = 40; // theme.button.height
+    const summaryHeight = 50;
+    const buttonAreaHeight = 52; // 8px gap + 40px button + 4px pad
+    const tableTop = tabContentY + summaryHeight;
+    const tableHeight =
+      panelH - 38 - tabBarHeight - summaryHeight - buttonAreaHeight - 8; // 8px bottom pad
+
+    // ════════════════════════════════════════════════════════════════
+    // TAB 0 — ROUTE FINDER
+    // ════════════════════════════════════════════════════════════════
+
+    this.finderSummary = this.add.text(
+      contentInnerX,
+      tabContentY + 8,
+      "Scanning all possible routes... Select a route and press Enter to create it.",
+      {
+        fontSize: `${getTheme().fonts.caption.size}px`,
+        fontFamily: getTheme().fonts.caption.family,
+        color: colorToString(getTheme().colors.textDim),
+        wordWrap: { width: contentInnerW },
+      },
+    );
+    finderContent.add(this.finderSummary);
+
+    this.finderTable = new DataTable(this, {
+      x: contentInnerX,
+      y: tableTop,
+      width: contentInnerW,
+      height: tableHeight,
+      columns: [
+        { key: "origin", label: "From", width: 110, sortable: true },
+        { key: "destination", label: "To", width: 110, sortable: true },
+        { key: "cargo", label: "Cargo", width: 75, sortable: true },
+        {
+          key: "price",
+          label: "Price",
+          width: 65,
+          align: "right",
+          sortable: true,
+          format: (v) => `§${(v as number).toFixed(0)}`,
+        },
+        {
+          key: "trend",
+          label: "",
+          width: 28,
+          align: "center",
+          colorFn: (v) => {
+            const t = getTheme();
+            if (v === "\u25B2") return t.colors.profit;
+            if (v === "\u25BC") return t.colors.loss;
+            return t.colors.textDim;
+          },
+        },
+        {
+          key: "dist",
+          label: "Dist",
+          width: 50,
+          align: "right",
+          sortable: true,
+        },
+        {
+          key: "profit",
+          label: "Profit/Turn",
+          width: 100,
+          align: "right",
+          sortable: true,
+          format: (v) => formatCompact(v as number),
+          colorFn: (v) => {
+            const t = getTheme();
+            return (v as number) >= 0 ? t.colors.profit : t.colors.loss;
+          },
+        },
+        {
+          key: "ship",
+          label: "Ship",
+          width: 110,
+          sortable: true,
+        },
+      ],
+      keyboardNavigation: true,
+      autoFocus: true,
+      emptyStateText: "No route opportunities found",
+      emptyStateHint: "Generate a galaxy first.",
+      onRowSelect: (_rowIndex, rowData) => {
+        const oppIdx = rowData["_index"] as number;
+        this.updateFinderPortraitByIndex(oppIdx);
+      },
+      onRowActivate: (_rowIndex, rowData) => {
+        const oppIdx = rowData["_index"] as number;
+        this.createRouteFromOpportunityIndex(oppIdx);
+      },
+    });
+    finderContent.add(this.finderTable);
+
+    // Finder buttons
+    const finderButtonY = tableTop + tableHeight + 8;
+    const createSelectedBtn = new Button(this, {
+      x: contentInnerX,
+      y: finderButtonY,
+      width: 160,
+      label: "Create Route [Enter]",
+      onClick: () => {
+        const idx = this.finderTable.getSelectedRowIndex();
+        if (idx >= 0 && idx < this.opportunities.length) {
+          this.createRouteFromOpportunityIndex(idx);
+        }
+      },
+    });
+    finderContent.add(createSelectedBtn);
+
+    const customRouteBtn = new Button(this, {
+      x: contentInnerX + 180,
+      y: finderButtonY,
+      width: 160,
+      label: "Custom Route...",
+      onClick: () => this.startCreateRoute(),
+    });
+    finderContent.add(customRouteBtn);
+
+    // ════════════════════════════════════════════════════════════════
+    // TAB 1 — ACTIVE ROUTES
+    // ════════════════════════════════════════════════════════════════
 
     this.selectedRouteSummary = this.add.text(
-      absX,
-      absY,
+      contentInnerX,
+      tabContentY + 4,
       "Pick a route to manage it",
       {
         fontSize: `${getTheme().fonts.value.size}px`,
         fontFamily: getTheme().fonts.value.family,
         color: colorToString(getTheme().colors.accent),
-        wordWrap: { width: content.width },
+        wordWrap: { width: contentInnerW },
       },
     );
+    activeContent.add(this.selectedRouteSummary);
 
     this.selectedRouteHint = this.add.text(
-      absX,
-      absY + 24,
-      "Enter on a route continues the next useful step. Unassigned routes need a ship before profit estimates appear.",
+      contentInnerX,
+      tabContentY + 24,
+      "Enter on a route opens next useful step. Routes need a ship before profit estimates appear.",
       {
         fontSize: `${getTheme().fonts.caption.size}px`,
         fontFamily: getTheme().fonts.caption.family,
         color: colorToString(getTheme().colors.textDim),
-        wordWrap: { width: content.width },
+        wordWrap: { width: contentInnerW },
       },
     );
+    activeContent.add(this.selectedRouteHint);
 
-    // Route table
     this.routeTable = new DataTable(this, {
-      x: absX,
-      y: absY + 54,
-      width: content.width,
-      height: content.height - 104,
+      x: contentInnerX,
+      y: tableTop,
+      width: contentInnerW,
+      height: tableHeight,
       columns: [
-        { key: "origin", label: "Origin", width: 120, sortable: true },
+        { key: "origin", label: "Origin", width: 110, sortable: true },
         {
           key: "destination",
           label: "Destination",
-          width: 120,
+          width: 110,
           sortable: true,
         },
         {
           key: "distance",
-          label: "Distance",
-          width: 80,
+          label: "Dist",
+          width: 60,
           align: "right",
           sortable: true,
           format: (v) => (v as number).toFixed(1),
@@ -130,63 +311,59 @@ export class RoutesScene extends Phaser.Scene {
         {
           key: "ships",
           label: "Ships",
-          width: 60,
+          width: 50,
           align: "center",
           sortable: true,
         },
-        { key: "cargoType", label: "Cargo", width: 100, sortable: true },
+        { key: "cargoType", label: "Cargo", width: 90, sortable: true },
         {
           key: "revenue",
-          label: "Est. Revenue",
-          width: 110,
+          label: "Revenue",
+          width: 90,
           align: "right",
           format: (v) =>
             (v as string | number) === "\u2014"
               ? "\u2014"
               : formatCash(v as number),
           colorFn: (v) => {
-            const theme2 = getTheme();
-            return typeof v === "number"
-              ? theme2.colors.profit
-              : theme2.colors.textDim;
+            const t = getTheme();
+            return typeof v === "number" ? t.colors.profit : t.colors.textDim;
           },
         },
         {
           key: "fuelCost",
-          label: "Est. Fuel",
-          width: 110,
+          label: "Fuel",
+          width: 80,
           align: "right",
           format: (v) =>
             (v as string | number) === "\u2014"
               ? "\u2014"
               : formatCash(v as number),
           colorFn: (v) => {
-            const theme2 = getTheme();
-            return typeof v === "number"
-              ? theme2.colors.loss
-              : theme2.colors.textDim;
+            const t = getTheme();
+            return typeof v === "number" ? t.colors.loss : t.colors.textDim;
           },
         },
         {
           key: "profit",
-          label: "Est. Profit",
-          width: 110,
+          label: "Profit",
+          width: 90,
           align: "right",
+          sortable: true,
           format: (v) =>
             (v as string | number) === "\u2014"
               ? "\u2014"
               : formatCash(v as number),
           colorFn: (v) => {
-            const theme2 = getTheme();
-            if (typeof v !== "number") return theme2.colors.textDim;
-            return v >= 0 ? theme2.colors.profit : theme2.colors.loss;
+            const t = getTheme();
+            if (typeof v !== "number") return t.colors.textDim;
+            return v >= 0 ? t.colors.profit : t.colors.loss;
           },
         },
       ],
-      keyboardNavigation: true,
-      autoFocus: true,
+      keyboardNavigation: false,
       emptyStateText: "No trade routes yet",
-      emptyStateHint: "Create a route to start assigning ships and cargo.",
+      emptyStateHint: "Use Route Finder to discover profitable routes.",
       onRowActivate: () => {
         this.activateSelectedRoute();
       },
@@ -195,51 +372,252 @@ export class RoutesScene extends Phaser.Scene {
         this.updateSelectedRouteUi();
       },
     });
+    activeContent.add(this.routeTable);
 
-    this.refreshTable();
-
-    // Buttons at bottom of content panel
-    const buttonY = absY + content.height - 40;
-
-    new Button(this, {
-      x: absX,
-      y: buttonY,
-      width: 140,
-      label: "Create Route",
-      onClick: () => this.startCreateRoute(),
-    });
+    // Active routes buttons
+    const activeButtonY = tableTop + tableHeight + 8;
 
     this.deleteRouteButton = new Button(this, {
-      x: absX + 160,
-      y: buttonY,
-      width: 140,
+      x: contentInnerX,
+      y: activeButtonY,
+      width: 120,
       label: "Delete Route",
       disabled: true,
       onClick: () => this.confirmDeleteRoute(),
     });
+    activeContent.add(this.deleteRouteButton);
 
     this.assignShipButton = new Button(this, {
-      x: absX + 320,
-      y: buttonY,
-      width: 140,
+      x: contentInnerX + 140,
+      y: activeButtonY,
+      width: 120,
       label: "Assign Ship",
       disabled: true,
       onClick: () => this.showAssignShip(),
     });
+    activeContent.add(this.assignShipButton);
 
     this.setCargoButton = new Button(this, {
-      x: absX + 480,
-      y: buttonY,
-      width: 140,
+      x: contentInnerX + 280,
+      y: activeButtonY,
+      width: 120,
       label: "Set Cargo",
       disabled: true,
       onClick: () => this.showSetCargo(),
     });
+    activeContent.add(this.setCargoButton);
 
+    const addRouteBtn = new Button(this, {
+      x: contentInnerX + 420,
+      y: activeButtonY,
+      width: 140,
+      label: "Create Route",
+      onClick: () => this.startCreateRoute(),
+    });
+    activeContent.add(addRouteBtn);
+
+    // ── Initial data load ──
+    this.refreshFinderTable();
+    this.refreshActiveTable();
     this.updateSelectedRouteUi();
   }
 
-  private refreshTable(): void {
+  // ════════════════════════════════════════════════════════════════
+  // ROUTE FINDER methods
+  // ════════════════════════════════════════════════════════════════
+
+  private refreshFinderTable(): void {
+    const state = gameStore.getState();
+    this.opportunities = scanAllRouteOpportunities(
+      state.galaxy.planets,
+      state.galaxy.systems,
+      state.fleet,
+      state.market,
+      state.activeRoutes,
+      state.cash,
+    );
+
+    const availableShips = state.fleet.filter((s) => !s.assignedRouteId).length;
+    const profitableCount = this.opportunities.filter(
+      (o) => o.estProfit > 0 && !o.alreadyActive,
+    ).length;
+    this.finderSummary.setText(
+      `${profitableCount} profitable routes found \u2022 ${availableShips} idle ships \u2022 §${state.cash.toLocaleString("en-US")} cash \u2022 Enter to create, sorted by profit`,
+    );
+
+    // Show top 50 for performance — full list still in this.opportunities
+    const displayLimit = 50;
+    const displayed = this.opportunities.slice(0, displayLimit);
+
+    const rows = displayed.map((opp, idx) => ({
+      _index: idx,
+      origin: opp.originName,
+      destination: opp.destinationName,
+      cargo: humanizeCargo(opp.bestCargoType),
+      price: opp.destPrice,
+      trend: trendArrow(opp.destTrend),
+      dist: opp.distance.toFixed(1),
+      profit: opp.estProfit,
+      ship: opp.alreadyActive
+        ? `\u2713 ${opp.shipName}`
+        : opp.shipSource === "autoBuy"
+          ? `Buy ${opp.shipName}`
+          : opp.shipName,
+    }));
+
+    this.finderTable.setRows(rows);
+  }
+
+  private updateFinderPortraitByIndex(idx: number): void {
+    const opp = this.opportunities[idx];
+    if (!opp) return;
+
+    const state = gameStore.getState();
+    const dest = state.galaxy.planets.find(
+      (p) => p.id === opp.destinationPlanetId,
+    );
+    if (!dest) return;
+
+    const destIndex = state.galaxy.planets.indexOf(dest);
+    const shipInfo =
+      opp.shipSource === "autoBuy"
+        ? `Buy ${opp.shipName} (${formatCash(opp.shipCost)})`
+        : opp.shipSource === "owned"
+          ? opp.shipName
+          : "No ship available";
+
+    this.portrait.updatePortrait(
+      "planet",
+      destIndex,
+      `${opp.originName} → ${dest.name}`,
+      [
+        { label: "Type", value: dest.type },
+        { label: "Cargo", value: humanizeCargo(opp.bestCargoType) },
+        {
+          label: "Price",
+          value: `§${opp.destPrice.toFixed(0)} ${trendArrow(opp.destTrend)}`,
+        },
+        { label: "Dist", value: opp.distance.toFixed(1) },
+        { label: "Trips", value: opp.tripsPerTurn.toString() },
+        { label: "Revenue", value: formatCompact(opp.estRevenue) },
+        { label: "Fuel", value: formatCompact(opp.estFuelCost) },
+        { label: "Profit", value: formatCompact(opp.estProfit) },
+        { label: "Ship", value: shipInfo },
+      ],
+      { planetType: dest.type },
+    );
+  }
+
+  private createRouteFromOpportunityIndex(idx: number): void {
+    const opp = this.opportunities[idx];
+    if (!opp) return;
+
+    if (opp.alreadyActive) {
+      const m = new Modal(this, {
+        title: "Route Already Active",
+        body: `You already have an active route from ${opp.originName} to ${opp.destinationName}.`,
+        onOk: () => m.destroy(),
+      });
+      m.show();
+      return;
+    }
+
+    // Create with auto-ship assignment
+    const state = gameStore.getState();
+    const origin = state.galaxy.planets.find(
+      (p) => p.id === opp.originPlanetId,
+    );
+    const dest = state.galaxy.planets.find(
+      (p) => p.id === opp.destinationPlanetId,
+    );
+    if (!origin || !dest) return;
+
+    const distance = calculateDistance(origin, dest, state.galaxy.systems);
+    const route = createRoute(origin.id, dest.id, distance, opp.bestCargoType);
+
+    let updatedFleet = [...state.fleet];
+    let updatedRoutes = [...state.activeRoutes, route];
+    let updatedCash = state.cash;
+
+    // Find best available ship for this cargo
+    const isPassenger = opp.bestCargoType === "passengers";
+    const availableShip = updatedFleet
+      .filter((s) => !s.assignedRouteId)
+      .filter((s) =>
+        isPassenger ? s.passengerCapacity > 0 : s.cargoCapacity > 0,
+      )
+      .sort((a, b) =>
+        isPassenger
+          ? b.passengerCapacity - a.passengerCapacity
+          : b.cargoCapacity - a.cargoCapacity,
+      )[0];
+
+    let shipId: string | null = availableShip?.id ?? null;
+    let boughtShipName: string | null = null;
+
+    // Auto-buy if no owned ship available
+    if (!shipId && opp.shipSource === "autoBuy") {
+      const shipClasses = Object.keys(SHIP_TEMPLATES) as ShipClass[];
+      const compatible = shipClasses
+        .map((sc) => ({ class: sc, template: SHIP_TEMPLATES[sc] }))
+        .filter((e) =>
+          isPassenger
+            ? e.template.passengerCapacity > 0
+            : e.template.cargoCapacity > 0,
+        )
+        .filter((e) => e.template.purchaseCost <= updatedCash)
+        .sort((a, b) => a.template.purchaseCost - b.template.purchaseCost);
+
+      if (compatible.length > 0) {
+        const { ship, cost } = buyShip(compatible[0].class, updatedFleet);
+        updatedFleet = [...updatedFleet, ship];
+        updatedCash -= cost;
+        shipId = ship.id;
+        boughtShipName = ship.name;
+      }
+    }
+
+    if (shipId) {
+      const result = assignShipToRoute(
+        shipId,
+        route.id,
+        updatedFleet,
+        updatedRoutes,
+      );
+      updatedFleet = result.fleet;
+      updatedRoutes = result.routes;
+    }
+
+    gameStore.update({
+      fleet: updatedFleet,
+      activeRoutes: updatedRoutes,
+      cash: updatedCash,
+    });
+
+    const assignedName =
+      updatedFleet.find((s) => s.id === shipId)?.name ?? null;
+    const msg = boughtShipName
+      ? `Route created! Bought ${boughtShipName} and assigned to ${opp.originName} → ${opp.destinationName}.`
+      : assignedName
+        ? `Route created! ${assignedName} assigned to ${opp.originName} → ${opp.destinationName}.`
+        : `Route created: ${opp.originName} → ${opp.destinationName}. Assign a ship on the Active Routes tab.`;
+
+    const m = new Modal(this, {
+      title: "Route Created",
+      body: msg,
+      onOk: () => m.destroy(),
+    });
+    m.show();
+
+    this.refreshFinderTable();
+    this.refreshActiveTable();
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ACTIVE ROUTES methods (preserved from original)
+  // ════════════════════════════════════════════════════════════════
+
+  private refreshActiveTable(): void {
     const state = gameStore.getState();
 
     if (
@@ -309,9 +687,9 @@ export class RoutesScene extends Phaser.Scene {
     if (!route) {
       this.selectedRouteSummary?.setText("Pick a route to manage it");
       this.selectedRouteHint?.setText(
-        "Create a route, then assign a ship and fine-tune cargo from here. Enter on a selected route opens the next useful step.",
+        "Create a route from Route Finder, or use Create Route. Enter on a selected route opens the next useful step.",
       );
-      this.portrait?.updatePortrait("planet", 0, "Select a Route", [], {
+      this.portrait?.updatePortrait("planet", 0, "Route Command", [], {
         planetType: "terran",
       });
       return;
@@ -348,7 +726,7 @@ export class RoutesScene extends Phaser.Scene {
       );
     }
 
-    const routeTitle = `${origin?.name ?? "Origin"} → ${destination?.name ?? "Destination"}`;
+    const routeTitle = `${origin?.name ?? "Origin"} \u2192 ${destination?.name ?? "Destination"}`;
     this.selectedRouteSummary.setText(routeTitle);
 
     if (route.assignedShipIds.length === 0) {
@@ -371,7 +749,7 @@ export class RoutesScene extends Phaser.Scene {
       const profit = revenue != null && fuel != null ? revenue - fuel : null;
       const profitLabel =
         profit == null
-          ? "—"
+          ? "\u2014"
           : `${profit >= 0 ? "profit" : "loss"} ${formatCash(profit)}`;
       this.selectedRouteHint.setText(
         `Assigned: ${firstShip.name}. Cargo: ${route.cargoType ?? "None"}. Current estimate: ${profitLabel}. Enter adjusts cargo; Assign Ship adds another ship.`,
@@ -407,7 +785,8 @@ export class RoutesScene extends Phaser.Scene {
       confirmLabel: "Create Route",
       allowAutoBuy: true,
       onComplete: () => {
-        this.refreshTable();
+        this.refreshFinderTable();
+        this.refreshActiveTable();
       },
     });
   }
@@ -438,7 +817,8 @@ export class RoutesScene extends Phaser.Scene {
         gameStore.update({ fleet, activeRoutes: routes });
         this.selectedRouteId = null;
         modal.destroy();
-        this.refreshTable();
+        this.refreshFinderTable();
+        this.refreshActiveTable();
       },
       onCancel: () => {
         modal.destroy();
@@ -530,7 +910,8 @@ export class RoutesScene extends Phaser.Scene {
           });
 
           layer.destroy();
-          this.refreshTable();
+          this.refreshFinderTable();
+          this.refreshActiveTable();
         },
       }),
     );
@@ -635,7 +1016,8 @@ export class RoutesScene extends Phaser.Scene {
           gameStore.update({ activeRoutes: updatedRoutes });
 
           layer.destroy();
-          this.refreshTable();
+          this.refreshFinderTable();
+          this.refreshActiveTable();
         },
       }),
     );

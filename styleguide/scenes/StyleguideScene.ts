@@ -21,8 +21,44 @@ import {
   flashScreen,
   FloatingText,
   MilestoneOverlay,
+  StatRow,
+  InfoCard,
+  IconButton,
+  StatusBadge,
+  // Layout constants
+  SIDEBAR_WIDTH,
+  CONTENT_GAP,
+  HUD_TOP_BAR_HEIGHT,
+  HUD_BOTTOM_BAR_HEIGHT,
+  NAV_SIDEBAR_WIDTH,
+  CONTENT_TOP,
+  CONTENT_HEIGHT,
+  CONTENT_LEFT,
+  MAX_CONTENT_WIDTH,
+  SIDEBAR_LEFT,
+  MAIN_CONTENT_LEFT,
+  MAIN_CONTENT_WIDTH,
+  FULL_CONTENT_LEFT,
+  FULL_CONTENT_WIDTH,
+  // Depth layers
+  DEPTH_STARFIELD,
+  DEPTH_AMBIENT_MID,
+  DEPTH_CONTENT,
+  DEPTH_UI,
+  DEPTH_MODAL,
+  DEPTH_HUD,
 } from "@spacebiz/ui";
-import type { ThemeConfig, ColumnDef } from "@spacebiz/ui";
+import type { ThemeConfig, ColumnDef, BadgeVariant } from "@spacebiz/ui";
+import {
+  drawRexPortrait,
+  getMoodAccentColor,
+} from "../../src/ui/AdviserPortrait.ts";
+import { drawPortrait } from "../../src/ui/PortraitGenerator.ts";
+import type {
+  PortraitData,
+  AlienRole,
+} from "../../src/ui/PortraitGenerator.ts";
+import type { AdviserMood } from "../../src/data/types.ts";
 
 /**
  * Interactive style guide showcasing all @spacebiz/ui components.
@@ -62,6 +98,20 @@ export class StyleguideScene extends Phaser.Scene {
     y = this.addAmbientFxSection(y);
     y = this.addMilestoneSection(y);
     y = this.addModalSection(y);
+
+    // ── Game-specific & extended sections ──
+    y = this.addIconGallerySection(y);
+    y = this.addHudBarSection(y);
+    y = this.addAdviserPortraitSection(y);
+    y = this.addPortraitGallerySection(y);
+    y = this.addSpacingLayoutSection(y);
+    y = this.addDepthLayersSection(y);
+    y = this.addGlassEffectSection(y);
+    y = this.addAnimationTimingSection(y);
+    y = this.addStatRowSection(y);
+    y = this.addInfoCardSection(y);
+    y = this.addIconButtonSection(y);
+    y = this.addStatusBadgeSection(y);
     y += 60;
 
     this.maxScroll = Math.max(0, y - GAME_HEIGHT);
@@ -997,5 +1047,1061 @@ export class StyleguideScene extends Phaser.Scene {
     this.scrollContainer.add(btnInfo);
 
     return y + 80;
+  }
+
+  /* ── 14. Icon Gallery ─────────────────────────────────────── */
+
+  private addIconGallerySection(y: number): number {
+    y = this.addSubheading(y, "ICON GALLERY");
+
+    const icons = [
+      { key: "icon-map", label: "Map" },
+      { key: "icon-fleet", label: "Fleet" },
+      { key: "icon-routes", label: "Routes" },
+      { key: "icon-finance", label: "Finance" },
+      { key: "icon-market", label: "Market" },
+      { key: "icon-audio", label: "Audio" },
+      { key: "icon-end-turn", label: "End Turn" },
+      { key: "icon-adviser", label: "Adviser" },
+    ];
+
+    let x = 60;
+    for (const { key, label } of icons) {
+      // Icon against a subtle bg
+      const bg = this.add
+        .rectangle(x, y, 56, 56, this.theme.colors.panelBg, 0.5)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, this.theme.colors.panelBorder, 0.4);
+      this.scrollContainer.add(bg);
+
+      const img = this.add
+        .image(x + 28, y + 28, key)
+        .setOrigin(0.5)
+        .setTint(this.theme.colors.accent);
+      this.scrollContainer.add(img);
+
+      const lbl = new Label(this, {
+        x: x + 28,
+        y: y + 62,
+        text: label,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += 80;
+    }
+
+    // Hovered variants on second row
+    x = 60;
+    const hoverY = y + 90;
+    const hoverNote = new Label(this, {
+      x,
+      y: hoverY,
+      text: "Hover tint variants:",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    });
+    this.scrollContainer.add(hoverNote);
+
+    x = 250;
+    const tints = [
+      { label: "accent", color: this.theme.colors.accent },
+      { label: "text", color: this.theme.colors.text },
+      { label: "profit", color: this.theme.colors.profit },
+      { label: "warning", color: this.theme.colors.warning },
+      { label: "loss", color: this.theme.colors.loss },
+    ];
+    for (const { label, color } of tints) {
+      const img = this.add
+        .image(x + 14, hoverY + 8, "icon-map")
+        .setOrigin(0.5)
+        .setTint(color);
+      this.scrollContainer.add(img);
+
+      const lbl = new Label(this, {
+        x: x + 32,
+        y: hoverY + 2,
+        text: label,
+        style: "caption",
+        color,
+      });
+      this.scrollContainer.add(lbl);
+      x += 100;
+    }
+
+    return hoverY + 40;
+  }
+
+  /* ── 15. HUD Bar ──────────────────────────────────────────── */
+
+  private addHudBarSection(y: number): number {
+    y = this.addSubheading(y, "HUD BAR & DIVIDERS");
+
+    // Show nine-slice HUD bar texture
+    const barW = 600;
+    const bar = this.add
+      .nineslice(60, y, "hud-bar-bg", undefined, barW, 48, 10, 10, 10, 10)
+      .setOrigin(0, 0);
+    this.scrollContainer.add(bar);
+
+    const barLbl = new Label(this, {
+      x: 70 + barW / 2,
+      y: y + 14,
+      text: "hud-bar-bg (NineSlice)",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    }).setOrigin(0.5, 0);
+    this.scrollContainer.add(barLbl);
+
+    y += 60;
+
+    // Divider
+    const divW = 400;
+    const div = this.add
+      .nineslice(60, y, "divider-h", undefined, divW, 4, 2, 2, 0, 0)
+      .setOrigin(0, 0);
+    this.scrollContainer.add(div);
+
+    const divLbl = new Label(this, {
+      x: 60 + divW + 16,
+      y: y - 4,
+      text: "divider-h",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    });
+    this.scrollContainer.add(divLbl);
+
+    y += 24;
+
+    // Layout reference
+    const layoutInfo = [
+      `HUD_TOP_BAR_HEIGHT: ${HUD_TOP_BAR_HEIGHT}`,
+      `HUD_BOTTOM_BAR_HEIGHT: ${HUD_BOTTOM_BAR_HEIGHT}`,
+      `NAV_SIDEBAR_WIDTH: ${NAV_SIDEBAR_WIDTH}`,
+    ];
+    for (const info of layoutInfo) {
+      const lbl = new Label(this, {
+        x: 60,
+        y,
+        text: info,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      });
+      this.scrollContainer.add(lbl);
+      y += 18;
+    }
+
+    return y + 20;
+  }
+
+  /* ── 16. Adviser Portrait ─────────────────────────────────── */
+
+  private addAdviserPortraitSection(y: number): number {
+    y = this.addSubheading(y, "ADVISER PORTRAIT — REX K9-CORP");
+
+    const moods: AdviserMood[] = ["standby", "analyzing", "alert", "success"];
+    const portraitSize = 128;
+    let x = 60;
+
+    for (const mood of moods) {
+      // Portrait graphics
+      const g = this.add.graphics();
+      g.setPosition(x, y);
+      drawRexPortrait(g, portraitSize, portraitSize, mood);
+      this.scrollContainer.add(g);
+
+      // Accent border matching mood
+      const accentColor = getMoodAccentColor(mood);
+      const border = this.add
+        .rectangle(x, y, portraitSize, portraitSize)
+        .setOrigin(0, 0)
+        .setStrokeStyle(2, accentColor, 0.6);
+      border.isFilled = false;
+      this.scrollContainer.add(border);
+
+      // Mood label
+      const lbl = new Label(this, {
+        x: x + portraitSize / 2,
+        y: y + portraitSize + 6,
+        text: mood,
+        style: "caption",
+        color: accentColor,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      // Accent color hex
+      const hex = new Label(this, {
+        x: x + portraitSize / 2,
+        y: y + portraitSize + 22,
+        text: colorToString(accentColor),
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(hex);
+
+      x += portraitSize + 24;
+    }
+
+    // Description
+    const descX = x + 30;
+    const desc = new Label(this, {
+      x: descX,
+      y: y + 10,
+      text: "Rex — K9-Corp Advisor\n32×32 pixel grid\n4 mood states\nProcedural pixel art\nwith mood-specific\naccents and expressions",
+      style: "caption",
+      color: this.theme.colors.textDim,
+      maxWidth: 200,
+    });
+    this.scrollContainer.add(desc);
+
+    return y + portraitSize + 50;
+  }
+
+  /* ── 17. Portrait Gallery ─────────────────────────────────── */
+
+  private addPortraitGallerySection(y: number): number {
+    y = this.addSubheading(y, "PORTRAIT GALLERY — PROCEDURAL PIXEL ART");
+
+    const size = 96;
+    const gap = 16;
+
+    // ── Planet types ──
+    const planetsLabel = new Label(this, {
+      x: 60,
+      y,
+      text: "Planets",
+      style: "body",
+      color: this.theme.colors.text,
+    });
+    this.scrollContainer.add(planetsLabel);
+    y += 24;
+
+    const planetTypes: Array<{
+      label: string;
+      planetType: string;
+    }> = [
+      { label: "Terran", planetType: "terran" },
+      { label: "Mining", planetType: "mining" },
+      { label: "Agricultural", planetType: "agricultural" },
+      { label: "Industrial", planetType: "industrial" },
+      { label: "Hub Station", planetType: "hubStation" },
+      { label: "Resort", planetType: "resort" },
+      { label: "Research", planetType: "research" },
+    ];
+
+    let x = 60;
+    for (const { label, planetType } of planetTypes) {
+      const g = this.add.graphics();
+      g.setPosition(x, y);
+      drawPortrait(g, "planet", size, size, 42, {
+        planetType: planetType as "terran",
+      });
+      this.scrollContainer.add(g);
+
+      const border = this.add
+        .rectangle(x, y, size, size)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, this.theme.colors.panelBorder, 0.4);
+      border.isFilled = false;
+      this.scrollContainer.add(border);
+
+      const lbl = new Label(this, {
+        x: x + size / 2,
+        y: y + size + 4,
+        text: label,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += size + gap;
+    }
+
+    y += size + 34;
+
+    // ── Ships, Systems, Events ──
+    const otherLabel = new Label(this, {
+      x: 60,
+      y,
+      text: "Ships / Systems / Events",
+      style: "body",
+      color: this.theme.colors.text,
+    });
+    this.scrollContainer.add(otherLabel);
+    y += 24;
+
+    const otherTypes: Array<{
+      label: string;
+      type: "ship" | "system" | "event";
+      data?: PortraitData;
+    }> = [
+      {
+        label: "Ship (shuttle)",
+        type: "ship",
+        data: { shipClass: "cargoShuttle" },
+      },
+      {
+        label: "Ship (freighter)",
+        type: "ship",
+        data: { shipClass: "bulkFreighter" },
+      },
+      {
+        label: "Ship (hauler)",
+        type: "ship",
+        data: { shipClass: "mixedHauler" },
+      },
+      {
+        label: "System",
+        type: "system",
+        data: { starColor: 0xffd700, planetCount: 5 },
+      },
+      {
+        label: "Event (market)",
+        type: "event",
+        data: { eventCategory: "market" },
+      },
+      {
+        label: "Event (hazard)",
+        type: "event",
+        data: { eventCategory: "hazard" },
+      },
+    ];
+
+    x = 60;
+    for (const item of otherTypes) {
+      const g = this.add.graphics();
+      g.setPosition(x, y);
+      drawPortrait(g, item.type, size, size, 123, item.data);
+      this.scrollContainer.add(g);
+
+      const border = this.add
+        .rectangle(x, y, size, size)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, this.theme.colors.panelBorder, 0.4);
+      border.isFilled = false;
+      this.scrollContainer.add(border);
+
+      const lbl = new Label(this, {
+        x: x + size / 2,
+        y: y + size + 4,
+        text: item.label,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += size + gap;
+    }
+
+    y += size + 34;
+
+    // ── Aliens ──
+    const alienLabel = new Label(this, {
+      x: 60,
+      y,
+      text: "Aliens",
+      style: "body",
+      color: this.theme.colors.text,
+    });
+    this.scrollContainer.add(alienLabel);
+    y += 24;
+
+    const alienRoles: AlienRole[] = [
+      "broker",
+      "miner",
+      "researcher",
+      "concierge",
+      "enforcer",
+    ];
+
+    x = 60;
+    for (const role of alienRoles) {
+      const g = this.add.graphics();
+      g.setPosition(x, y);
+      drawPortrait(g, "alien", size, size, 77, { alienRole: role });
+      this.scrollContainer.add(g);
+
+      const border = this.add
+        .rectangle(x, y, size, size)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, this.theme.colors.panelBorder, 0.4);
+      border.isFilled = false;
+      this.scrollContainer.add(border);
+
+      const lbl = new Label(this, {
+        x: x + size / 2,
+        y: y + size + 4,
+        text: role,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += size + gap;
+    }
+
+    y += size + 34;
+
+    // ── Seed variation ──
+    const seedLabel = new Label(this, {
+      x: 60,
+      y,
+      text: "Seed variation (same type, different seeds)",
+      style: "body",
+      color: this.theme.colors.text,
+    });
+    this.scrollContainer.add(seedLabel);
+    y += 24;
+
+    x = 60;
+    for (let seed = 1; seed <= 8; seed++) {
+      const g = this.add.graphics();
+      g.setPosition(x, y);
+      drawPortrait(g, "planet", size, size, seed * 17, {
+        planetType: "terran",
+      });
+      this.scrollContainer.add(g);
+
+      const lbl = new Label(this, {
+        x: x + size / 2,
+        y: y + size + 4,
+        text: `seed ${seed * 17}`,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += size + gap;
+    }
+
+    return y + size + 34;
+  }
+
+  /* ── 18. Spacing & Layout Guide ───────────────────────────── */
+
+  private addSpacingLayoutSection(y: number): number {
+    y = this.addSubheading(y, "SPACING & LAYOUT TOKENS");
+
+    const spacing = this.theme.spacing;
+    const spacingTokens: Array<{ name: string; value: number }> = [
+      { name: "xs", value: spacing.xs },
+      { name: "sm", value: spacing.sm },
+      { name: "md", value: spacing.md },
+      { name: "lg", value: spacing.lg },
+      { name: "xl", value: spacing.xl },
+    ];
+
+    let x = 60;
+    for (const { name, value } of spacingTokens) {
+      // Visual size block
+      const block = this.add
+        .rectangle(x, y, value, value, this.theme.colors.accent, 0.5)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, this.theme.colors.accent, 0.8);
+      this.scrollContainer.add(block);
+
+      const lbl = new Label(this, {
+        x: x + Math.max(value, 20) / 2,
+        y: y + Math.max(value, 4) + 8,
+        text: `${name}\n${value}px`,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += Math.max(value, 30) + 30;
+    }
+
+    y += 70;
+
+    // Layout constants table
+    const layoutConstants: Array<{ name: string; value: number }> = [
+      { name: "GAME_WIDTH", value: GAME_WIDTH },
+      { name: "GAME_HEIGHT", value: GAME_HEIGHT },
+      { name: "MAX_CONTENT_WIDTH", value: MAX_CONTENT_WIDTH },
+      { name: "SIDEBAR_WIDTH", value: SIDEBAR_WIDTH },
+      { name: "CONTENT_GAP", value: CONTENT_GAP },
+      { name: "NAV_SIDEBAR_WIDTH", value: NAV_SIDEBAR_WIDTH },
+      { name: "CONTENT_TOP", value: CONTENT_TOP },
+      { name: "CONTENT_HEIGHT", value: CONTENT_HEIGHT },
+      { name: "CONTENT_LEFT", value: CONTENT_LEFT },
+      { name: "SIDEBAR_LEFT", value: SIDEBAR_LEFT },
+      { name: "MAIN_CONTENT_LEFT", value: MAIN_CONTENT_LEFT },
+      { name: "MAIN_CONTENT_WIDTH", value: MAIN_CONTENT_WIDTH },
+      { name: "FULL_CONTENT_LEFT", value: FULL_CONTENT_LEFT },
+      { name: "FULL_CONTENT_WIDTH", value: FULL_CONTENT_WIDTH },
+    ];
+
+    const colWidth = 260;
+    let col = 0;
+    const startY = y;
+    for (const { name, value } of layoutConstants) {
+      const cx = 60 + col * colWidth;
+      const lbl = new Label(this, {
+        x: cx,
+        y,
+        text: `${name}: ${value}`,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      });
+      this.scrollContainer.add(lbl);
+      y += 18;
+
+      // Wrap to next column after 7 items
+      if ((layoutConstants.indexOf({ name, value }) + 1) % 7 === 0) {
+        col++;
+        y = startY;
+      }
+    }
+
+    // Two-column layout — reset y to below longest column
+    y = startY + Math.ceil(layoutConstants.length / 2) * 18;
+
+    return y + 20;
+  }
+
+  /* ── 19. Depth Layers Reference ───────────────────────────── */
+
+  private addDepthLayersSection(y: number): number {
+    y = this.addSubheading(y, "DEPTH LAYERS");
+
+    const layers: Array<{ name: string; value: number; color: number }> = [
+      {
+        name: "DEPTH_STARFIELD",
+        value: DEPTH_STARFIELD,
+        color: 0x335577,
+      },
+      {
+        name: "DEPTH_AMBIENT_MID",
+        value: DEPTH_AMBIENT_MID,
+        color: 0x557799,
+      },
+      {
+        name: "DEPTH_CONTENT",
+        value: DEPTH_CONTENT,
+        color: this.theme.colors.text,
+      },
+      { name: "DEPTH_UI", value: DEPTH_UI, color: this.theme.colors.accent },
+      {
+        name: "DEPTH_MODAL",
+        value: DEPTH_MODAL,
+        color: this.theme.colors.warning,
+      },
+      { name: "DEPTH_HUD", value: DEPTH_HUD, color: this.theme.colors.profit },
+    ];
+
+    const barMaxW = 500;
+    const barH = 24;
+    const maxDepth = DEPTH_HUD;
+
+    for (const { name, value, color } of layers) {
+      // Depth bar (log-scale visual)
+      const normalised =
+        value <= 0
+          ? 20
+          : Math.max(
+              20,
+              (Math.log10(value + 1) / Math.log10(maxDepth + 1)) * barMaxW,
+            );
+      const bar = this.add
+        .rectangle(60, y, normalised, barH, color, 0.5)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, color, 0.7);
+      this.scrollContainer.add(bar);
+
+      const lbl = new Label(this, {
+        x: 70 + normalised,
+        y: y + 4,
+        text: `${name} = ${value}`,
+        style: "caption",
+        color,
+      });
+      this.scrollContainer.add(lbl);
+
+      y += barH + 8;
+    }
+
+    return y + 20;
+  }
+
+  /* ── 20. Glass Effect Showcase ────────────────────────────── */
+
+  private addGlassEffectSection(y: number): number {
+    y = this.addSubheading(y, "GLASS EFFECT & CHAMFER");
+
+    const { glass, chamfer, panel } = this.theme;
+
+    // Visual demo — panel with labelled effects
+    const demoPanel = new Panel(this, {
+      x: 60,
+      y,
+      width: 350,
+      height: 180,
+      title: "Glass Effect Demo",
+    });
+    this.scrollContainer.add(demoPanel);
+
+    // Annotate config values
+    const configLabels = [
+      `glass.bgAlpha: ${glass.bgAlpha}`,
+      `glass.topTint: ${colorToString(glass.topTint)}`,
+      `glass.bottomTint: ${colorToString(glass.bottomTint)}`,
+      `glass.innerBorderAlpha: ${glass.innerBorderAlpha}`,
+      `chamfer.size: ${chamfer.size}`,
+      `panel.borderWidth: ${panel.borderWidth}`,
+    ];
+
+    let configY = y + 10;
+    for (const text of configLabels) {
+      const lbl = new Label(this, {
+        x: 440,
+        y: configY,
+        text,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      });
+      this.scrollContainer.add(lbl);
+      configY += 18;
+    }
+
+    // Chamfer size comparison
+    const chamferSizes = [0, 4, 8, 12, 16];
+    let cx = 60;
+    const chamferY = y + 200;
+
+    const chamferTitle = new Label(this, {
+      x: 60,
+      y: chamferY - 20,
+      text: "Chamfer size comparison (visual approximation):",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    });
+    this.scrollContainer.add(chamferTitle);
+
+    for (const size of chamferSizes) {
+      const rect = this.add
+        .rectangle(cx, chamferY, 80, 60, this.theme.colors.panelBg, 0.6)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, this.theme.colors.panelBorder, 0.6);
+      this.scrollContainer.add(rect);
+
+      const lbl = new Label(this, {
+        x: cx + 40,
+        y: chamferY + 66,
+        text: `${size}px`,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      cx += 100;
+    }
+
+    return chamferY + 90;
+  }
+
+  /* ── 21. Animation Timing Guide ───────────────────────────── */
+
+  private addAnimationTimingSection(y: number): number {
+    y = this.addSubheading(y, "ANIMATION / AMBIENT TIMING");
+
+    const ambient = this.theme.ambient;
+    const timings: Array<{ name: string; value: number; unit?: string }> = [
+      {
+        name: "starTwinkleDurationMin",
+        value: ambient.starTwinkleDurationMin,
+        unit: "ms",
+      },
+      {
+        name: "starTwinkleDurationMax",
+        value: ambient.starTwinkleDurationMax,
+        unit: "ms",
+      },
+      {
+        name: "starShimmerDuration",
+        value: ambient.starShimmerDuration,
+        unit: "ms",
+      },
+      {
+        name: "routePulseDuration",
+        value: ambient.routePulseDuration,
+        unit: "ms",
+      },
+      {
+        name: "routePulseAlphaMin",
+        value: ambient.routePulseAlphaMin,
+      },
+      {
+        name: "routePulseAlphaMax",
+        value: ambient.routePulseAlphaMax,
+      },
+      {
+        name: "routeFlowDuration",
+        value: ambient.routeFlowDuration,
+        unit: "ms",
+      },
+      {
+        name: "panelIdlePulseDuration",
+        value: ambient.panelIdlePulseDuration,
+        unit: "ms",
+      },
+      {
+        name: "buttonIdleShimmerDuration",
+        value: ambient.buttonIdleShimmerDuration,
+        unit: "ms",
+      },
+      {
+        name: "orbitalRotationDuration",
+        value: ambient.orbitalRotationDuration,
+        unit: "ms",
+      },
+    ];
+
+    const colWidth = 360;
+    let col = 0;
+    const startY = y;
+    let currentY = y;
+    let maxY = y;
+
+    for (let i = 0; i < timings.length; i++) {
+      const { name, value, unit } = timings[i];
+      const cx = 60 + col * colWidth;
+      const display = unit ? `${value}${unit}` : `${value}`;
+
+      const lbl = new Label(this, {
+        x: cx,
+        y: currentY,
+        text: `${name}: ${display}`,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      });
+      this.scrollContainer.add(lbl);
+
+      currentY += 20;
+      if (currentY > maxY) maxY = currentY;
+
+      // Split into two columns
+      if (i === 4) {
+        col = 1;
+        currentY = startY;
+      }
+    }
+
+    return maxY + 20;
+  }
+
+  /* ── 22. StatRow Widget ───────────────────────────────────── */
+
+  private addStatRowSection(y: number): number {
+    y = this.addSubheading(y, "STAT ROW WIDGET");
+
+    const rows: Array<{
+      label: string;
+      value: string;
+      valueColor?: number;
+      compact?: boolean;
+    }> = [
+      { label: "Credits", value: "$12,450" },
+      {
+        label: "Fuel Level",
+        value: "85%",
+        valueColor: this.theme.colors.profit,
+      },
+      {
+        label: "Risk Factor",
+        value: "HIGH",
+        valueColor: this.theme.colors.loss,
+      },
+      { label: "Distance", value: "42 LY", compact: true },
+      {
+        label: "Profit Margin",
+        value: "+18.5%",
+        valueColor: this.theme.colors.profit,
+        compact: true,
+      },
+    ];
+
+    for (const cfg of rows) {
+      const row = new StatRow(this, {
+        x: 60,
+        y,
+        width: 400,
+        ...cfg,
+      });
+      // Re-parent into scroll container
+      this.children.remove(row);
+      this.scrollContainer.add(row);
+      y += row.rowHeight + 4;
+    }
+
+    const desc = new Label(this, {
+      x: 500,
+      y: y - 80,
+      text: "StatRow\n• Key→value with leader line\n• Optional color override\n• Compact mode for dense layouts\n• Used in InfoCard, HUD, and\n  detail panels",
+      style: "caption",
+      color: this.theme.colors.textDim,
+      maxWidth: 300,
+    });
+    this.scrollContainer.add(desc);
+
+    return y + 20;
+  }
+
+  /* ── 23. InfoCard Widget ──────────────────────────────────── */
+
+  private addInfoCardSection(y: number): number {
+    y = this.addSubheading(y, "INFO CARD WIDGET");
+
+    // Standard card
+    const card1 = new InfoCard(this, {
+      x: 60,
+      y,
+      width: 280,
+      title: "Solara Prime",
+      stats: [
+        { label: "Population", value: "2.4M" },
+        { label: "Economy", value: "Industrial" },
+        {
+          label: "Trade Volume",
+          value: "$450K",
+          valueColor: this.theme.colors.profit,
+        },
+        { label: "Tax Rate", value: "12%" },
+      ],
+      description:
+        "A thriving industrial world with significant mining operations and growing trade networks.",
+    });
+    this.children.remove(card1);
+    this.scrollContainer.add(card1);
+
+    // Compact card
+    const card2 = new InfoCard(this, {
+      x: 380,
+      y,
+      width: 240,
+      title: "Ship Status",
+      stats: [
+        { label: "Hull", value: "92%", valueColor: this.theme.colors.profit },
+        { label: "Fuel", value: "45%", valueColor: this.theme.colors.warning },
+        { label: "Cargo", value: "8/12" },
+        { label: "Speed", value: "3.2 LY/turn" },
+      ],
+      compact: true,
+    });
+    this.children.remove(card2);
+    this.scrollContainer.add(card2);
+
+    // Danger-themed card
+    const card3 = new InfoCard(this, {
+      x: 660,
+      y,
+      width: 260,
+      title: "⚠ Risk Alert",
+      stats: [
+        {
+          label: "Pirate Threat",
+          value: "HIGH",
+          valueColor: this.theme.colors.loss,
+        },
+        {
+          label: "Hull Damage",
+          value: "34%",
+          valueColor: this.theme.colors.loss,
+        },
+        {
+          label: "Escape Route",
+          value: "Available",
+          valueColor: this.theme.colors.profit,
+        },
+      ],
+      description: "Hostile territory ahead. Proceed with caution.",
+    });
+    this.children.remove(card3);
+    this.scrollContainer.add(card3);
+
+    const maxH = Math.max(card1.cardHeight, card2.cardHeight, card3.cardHeight);
+    return y + maxH + 20;
+  }
+
+  /* ── 24. IconButton Widget ────────────────────────────────── */
+
+  private addIconButtonSection(y: number): number {
+    y = this.addSubheading(y, "ICON BUTTON WIDGET");
+
+    const icons = [
+      { icon: "icon-map", label: "Map" },
+      { icon: "icon-fleet", label: "Fleet" },
+      { icon: "icon-routes", label: "Routes" },
+      { icon: "icon-finance", label: "Finance" },
+      { icon: "icon-market", label: "Market" },
+    ];
+
+    // Row 1: Icon-only buttons
+    let x = 60;
+    const row1Label = new Label(this, {
+      x,
+      y: y - 2,
+      text: "Icon-only:",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    });
+    this.scrollContainer.add(row1Label);
+    x = 160;
+
+    for (let i = 0; i < icons.length; i++) {
+      const btn = new IconButton(this, {
+        x,
+        y,
+        icon: icons[i].icon,
+        active: i === 0,
+        onClick: () => {
+          new FloatingText(
+            this,
+            x + 20,
+            y - 10 - this.scrollY,
+            icons[i].label,
+            this.theme.colors.accent,
+          );
+        },
+      });
+      this.children.remove(btn);
+      this.scrollContainer.add(btn);
+      x += 50;
+    }
+
+    y += 50;
+
+    // Row 2: Icon + label buttons
+    x = 60;
+    const row2Label = new Label(this, {
+      x,
+      y: y - 2,
+      text: "With labels:",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    });
+    this.scrollContainer.add(row2Label);
+    x = 160;
+
+    for (let i = 0; i < 3; i++) {
+      const btn = new IconButton(this, {
+        x,
+        y,
+        icon: icons[i].icon,
+        label: icons[i].label,
+        active: i === 1,
+        onClick: () => {},
+      });
+      this.children.remove(btn);
+      this.scrollContainer.add(btn);
+      x += 140;
+    }
+
+    y += 50;
+
+    // Row 3: Disabled
+    x = 60;
+    const row3Label = new Label(this, {
+      x,
+      y: y - 2,
+      text: "Disabled:",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    });
+    this.scrollContainer.add(row3Label);
+
+    const disabledBtn = new IconButton(this, {
+      x: 160,
+      y,
+      icon: "icon-end-turn",
+      label: "End Turn",
+      disabled: true,
+      onClick: () => {},
+    });
+    this.children.remove(disabledBtn);
+    this.scrollContainer.add(disabledBtn);
+
+    return y + 50;
+  }
+
+  /* ── 25. Status Badge Widget ──────────────────────────────── */
+
+  private addStatusBadgeSection(y: number): number {
+    y = this.addSubheading(y, "STATUS BADGE WIDGET");
+
+    const variants: Array<{
+      text: string;
+      variant: BadgeVariant;
+      pulse?: boolean;
+    }> = [
+      { text: "Online", variant: "success" },
+      { text: "In Transit", variant: "info" },
+      { text: "Low Fuel", variant: "warning" },
+      { text: "Critical", variant: "danger", pulse: true },
+      { text: "Idle", variant: "neutral" },
+    ];
+
+    let x = 60;
+    for (const cfg of variants) {
+      const badge = new StatusBadge(this, {
+        x,
+        y,
+        ...cfg,
+      });
+      this.children.remove(badge);
+      this.scrollContainer.add(badge);
+
+      const lbl = new Label(this, {
+        x: x + badge.badgeWidth / 2,
+        y: y + badge.badgeHeight + 6,
+        text: cfg.variant,
+        style: "caption",
+        color: this.theme.colors.textDim,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += badge.badgeWidth + 20;
+    }
+
+    y += 50;
+
+    // Contextual usage examples
+    const usageLabel = new Label(this, {
+      x: 60,
+      y,
+      text: "Contextual usage examples:",
+      style: "caption",
+      color: this.theme.colors.textDim,
+    });
+    this.scrollContainer.add(usageLabel);
+    y += 20;
+
+    const contextBadges: Array<{
+      text: string;
+      variant: BadgeVariant;
+    }> = [
+      { text: "Profit Streak", variant: "success" },
+      { text: "Market Crash", variant: "danger" },
+      { text: "Trade Route Active", variant: "info" },
+      { text: "Fuel Warning", variant: "warning" },
+      { text: "Docked", variant: "neutral" },
+      { text: "Bonus Active", variant: "success" },
+    ];
+
+    x = 60;
+    for (const cfg of contextBadges) {
+      const badge = new StatusBadge(this, { x, y, ...cfg });
+      this.children.remove(badge);
+      this.scrollContainer.add(badge);
+      x += badge.badgeWidth + 12;
+
+      if (x > GAME_WIDTH - 200) {
+        x = 60;
+        y += 30;
+      }
+    }
+
+    return y + 40;
   }
 }

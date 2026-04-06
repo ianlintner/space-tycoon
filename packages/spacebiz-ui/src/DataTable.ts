@@ -47,6 +47,8 @@ export class DataTable extends Phaser.GameObjects.Container {
   private hasKeyboardFocus = false;
   private readonly keyboardNavigationEnabled: boolean;
   private destroyed = false;
+  private scrollTrack: Phaser.GameObjects.Rectangle;
+  private scrollThumb: Phaser.GameObjects.Rectangle;
 
   constructor(scene: Phaser.Scene, config: DataTableConfig) {
     super(scene, config.x, config.y);
@@ -98,6 +100,34 @@ export class DataTable extends Phaser.GameObjects.Container {
     const mask = this.maskShape.createGeometryMask();
     this.bodyContainer.setMask(mask);
 
+    // Scroll indicator (visual-only, not interactive)
+    const trackHeight = config.height - this.headerHeight;
+    const scrollBarWidth = 4;
+    const scrollTheme = getTheme();
+    this.scrollTrack = scene.add
+      .rectangle(
+        config.width - scrollBarWidth,
+        this.headerHeight,
+        scrollBarWidth,
+        trackHeight,
+        scrollTheme.colors.panelBorder,
+      )
+      .setOrigin(0, 0)
+      .setAlpha(0);
+    this.add(this.scrollTrack);
+
+    this.scrollThumb = scene.add
+      .rectangle(
+        config.width - scrollBarWidth,
+        this.headerHeight,
+        scrollBarWidth,
+        40,
+        scrollTheme.colors.accent,
+      )
+      .setOrigin(0, 0)
+      .setAlpha(0);
+    this.add(this.scrollThumb);
+
     this.renderHeader();
 
     if (this.keyboardNavigationEnabled) {
@@ -121,6 +151,7 @@ export class DataTable extends Phaser.GameObjects.Container {
       this.maxScroll,
     );
     this.bodyContainer.y = this.headerHeight - this.scrollY;
+    this.updateScrollIndicator();
   }
 
   private renderHeader(): void {
@@ -380,6 +411,7 @@ export class DataTable extends Phaser.GameObjects.Container {
       0,
       yCursor - (this.tableConfig.height - this.headerHeight),
     );
+    this.updateScrollIndicator();
   }
 
   private selectRow(
@@ -463,6 +495,7 @@ export class DataTable extends Phaser.GameObjects.Container {
 
     this.scrollY = Phaser.Math.Clamp(this.scrollY, 0, this.maxScroll);
     this.bodyContainer.y = this.headerHeight - this.scrollY;
+    this.updateScrollIndicator();
   }
 
   private getRowTop(rowIndex: number): number {
@@ -554,6 +587,29 @@ export class DataTable extends Phaser.GameObjects.Container {
 
   getSelectedRowIndex(): number {
     return this.selectedRowIndex;
+  }
+
+  private updateScrollIndicator(): void {
+    if (this.maxScroll <= 0) {
+      this.scrollTrack.setAlpha(0);
+      this.scrollThumb.setAlpha(0);
+      return;
+    }
+
+    this.scrollTrack.setAlpha(0.3);
+
+    const trackHeight = this.tableConfig.height - this.headerHeight;
+    const thumbHeight = Math.max(
+      20,
+      (trackHeight / (trackHeight + this.maxScroll)) * trackHeight,
+    );
+    const thumbY =
+      this.headerHeight +
+      (this.scrollY / this.maxScroll) * (trackHeight - thumbHeight);
+
+    this.scrollThumb.setDisplaySize(4, thumbHeight);
+    this.scrollThumb.setY(thumbY);
+    this.scrollThumb.setAlpha(0.6);
   }
 
   private syncMaskPosition(): void {

@@ -72,3 +72,16 @@ export type { MilestoneType } from "./MilestoneOverlay.ts";
 
 // Scene utilities
 export { SceneUiDirector, SceneUiLayer } from "./SceneUiDirector.ts";
+
+// Composite widgets
+export { StatRow } from "./StatRow.ts";
+export type { StatRowConfig } from "./StatRow.ts";
+
+export { InfoCard } from "./InfoCard.ts";
+export type { InfoCardConfig } from "./InfoCard.ts";
+
+export { IconButton } from "./IconButton.ts";
+export type { IconButtonConfig } from "./IconButton.ts";
+
+export { StatusBadge } from "./StatusBadge.ts";
+export type { StatusBadgeConfig, BadgeVariant } from "./StatusBadge.ts";
