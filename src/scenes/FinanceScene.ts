@@ -5,18 +5,18 @@ import {
   LOAN_INTEREST_RATE_MIN,
   LOAN_INTEREST_RATE_MAX,
 } from "../data/constants.ts";
-import { getTheme, colorToString } from "../ui/Theme.ts";
-import { Button } from "../ui/Button.ts";
-import { TabGroup } from "../ui/TabGroup.ts";
-import { DataTable } from "../ui/DataTable.ts";
-import { Modal } from "../ui/Modal.ts";
-import { ScrollableList } from "../ui/ScrollableList.ts";
-import { Panel } from "../ui/Panel.ts";
-import { PortraitPanel } from "../ui/PortraitPanel.ts";
-import { SceneUiDirector } from "../ui/SceneUiDirector.ts";
-import { createStarfield } from "../ui/Starfield.ts";
-import { calculateShipValue } from "../game/fleet/FleetManager.ts";
 import {
+  getTheme,
+  colorToString,
+  Button,
+  TabGroup,
+  DataTable,
+  Modal,
+  ScrollableList,
+  Panel,
+  PortraitPanel,
+  SceneUiDirector,
+  createStarfield,
   GAME_WIDTH,
   GAME_HEIGHT,
   CONTENT_TOP,
@@ -25,7 +25,8 @@ import {
   SIDEBAR_WIDTH,
   MAIN_CONTENT_LEFT,
   MAIN_CONTENT_WIDTH,
-} from "../ui/Layout.ts";
+} from "../ui/index.ts";
+import { calculateShipValue } from "../game/fleet/FleetManager.ts";
 
 function formatCash(n: number): string {
   const sign = n < 0 ? "-" : "";
