@@ -2,19 +2,21 @@ import Phaser from "phaser";
 import { gameStore } from "../data/GameStore.ts";
 import { simulateTurn } from "../game/simulation/TurnSimulator.ts";
 import { SeededRNG } from "../utils/SeededRNG.ts";
-import { getTheme, colorToString } from "../ui/Theme.ts";
-import { Button } from "../ui/Button.ts";
-import { Label } from "../ui/Label.ts";
-import { Panel } from "../ui/Panel.ts";
-import { createStarfield } from "../ui/Starfield.ts";
+import {
+  getTheme,
+  colorToString,
+  Button,
+  Label,
+  Panel,
+  createStarfield,
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  CONTENT_TOP,
+  FloatingText,
+  MilestoneOverlay,
+  flashScreen,
+} from "../ui/index.ts";
 import type { GameHUDScene } from "./GameHUDScene.ts";
-import { GAME_WIDTH, GAME_HEIGHT, CONTENT_TOP } from "../ui/Layout.ts";
-import type { GameState, TurnResult } from "../data/types.ts";
-import { EventCategory } from "../data/types.ts";
-import { getAudioDirector } from "../audio/AudioDirector.ts";
-import { FloatingText } from "../ui/FloatingText.ts";
-import { MilestoneOverlay } from "../ui/MilestoneOverlay.ts";
-import { flashScreen } from "../ui/AmbientFX.ts";
 
 function formatCash(amount: number): string {
   return "\u00A7" + amount.toLocaleString();

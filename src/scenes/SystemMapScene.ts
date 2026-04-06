@@ -19,6 +19,8 @@ import {
   MAIN_CONTENT_LEFT,
   MAIN_CONTENT_WIDTH,
 } from "../ui/index.ts";
+import { getAudioDirector } from "../audio/AudioDirector.ts";
+import { SeededRNG } from "../utils/SeededRNG.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
 
