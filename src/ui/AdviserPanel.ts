@@ -11,10 +11,11 @@ export interface AdviserPanelConfig {
   compact?: boolean;
 }
 
-const PORTRAIT_SIZE = 64;
-const COMPACT_PORTRAIT = 40;
+const PORTRAIT_SIZE = 96;
+const COMPACT_PORTRAIT = 64;
 const TYPEWRITER_MS = 25; // ms per character
-const MSG_PADDING = 8;
+const MSG_PADDING = 12;
+const NAME_HEIGHT = 18;
 
 /**
  * Self-contained adviser panel showing Rex's portrait + message with
@@ -22,6 +23,7 @@ const MSG_PADDING = 8;
  */
 export class AdviserPanel extends Phaser.GameObjects.Container {
   private portraitGfx: Phaser.GameObjects.Graphics;
+  private nameLabel: Phaser.GameObjects.Text;
   private msgLabel: Phaser.GameObjects.Text;
   private bg: Phaser.GameObjects.NineSlice;
   private accentBar: Phaser.GameObjects.Rectangle;
@@ -43,20 +45,20 @@ export class AdviserPanel extends Phaser.GameObjects.Container {
     this.portraitSize = this.isCompact ? COMPACT_PORTRAIT : PORTRAIT_SIZE;
     const panelHeight = this.isCompact
       ? this.portraitSize + MSG_PADDING * 2
-      : this.portraitSize + MSG_PADDING * 3 + 20; // extra for nav
+      : this.portraitSize + MSG_PADDING * 3 + 24; // extra for nav
 
     // Drop shadow (offset dark rect behind everything)
     const shadow = scene.add
-      .rectangle(3, 3, config.width, panelHeight, theme.colors.modalOverlay)
+      .rectangle(4, 4, config.width, panelHeight, theme.colors.modalOverlay)
       .setOrigin(0, 0)
-      .setAlpha(0.45);
+      .setAlpha(0.5);
     this.add(shadow);
 
     // Solid dark backing for contrast (behind the nineslice)
     const solidBg = scene.add
       .rectangle(0, 0, config.width, panelHeight, theme.colors.background)
       .setOrigin(0, 0)
-      .setAlpha(0.92);
+      .setAlpha(0.94);
     this.add(solidBg);
 
     // Background
@@ -81,17 +83,29 @@ export class AdviserPanel extends Phaser.GameObjects.Container {
     const topHighlight = scene.add
       .rectangle(1, 0, config.width - 2, 1, 0xffffff)
       .setOrigin(0, 0)
-      .setAlpha(0.08);
+      .setAlpha(0.1);
     this.add(topHighlight);
 
-    // Accent bar left side (wider, brighter)
+    // Accent bar left side
     this.accentBar = scene.add
       .rectangle(0, 0, 4, panelHeight, theme.colors.accent)
       .setOrigin(0, 0)
-      .setAlpha(0.75);
+      .setAlpha(0.8);
     this.add(this.accentBar);
 
-    // Portrait
+    // Portrait with subtle border
+    const portraitBorder = scene.add
+      .rectangle(
+        MSG_PADDING - 2,
+        MSG_PADDING - 2,
+        this.portraitSize + 4,
+        this.portraitSize + 4,
+        theme.colors.panelBorder,
+      )
+      .setOrigin(0, 0)
+      .setAlpha(0.6);
+    this.add(portraitBorder);
+
     this.portraitGfx = scene.add.graphics();
     this.portraitGfx.setPosition(MSG_PADDING, MSG_PADDING);
     this.add(this.portraitGfx);
@@ -102,16 +116,38 @@ export class AdviserPanel extends Phaser.GameObjects.Container {
       "standby",
     );
 
-    // Message text
-    const textX = MSG_PADDING + this.portraitSize + MSG_PADDING;
+    // Text area to the right of portrait
+    const textX = MSG_PADDING + this.portraitSize + MSG_PADDING + 4;
     const textW = config.width - textX - MSG_PADDING;
+
+    // Name / title label
+    const nameText = this.isCompact ? "Rex" : "Rex — K9-Corp Adviser";
+    this.nameLabel = scene.add
+      .text(textX, MSG_PADDING, nameText, {
+        fontSize: `${this.isCompact ? theme.fonts.caption.size : 13}px`,
+        fontFamily: theme.fonts.caption.family,
+        color: colorToString(theme.colors.accent),
+      })
+      .setOrigin(0, 0);
+    this.add(this.nameLabel);
+
+    // Thin separator line below name
+    const separatorY = MSG_PADDING + NAME_HEIGHT - 2;
+    const separator = scene.add
+      .rectangle(textX, separatorY, textW, 1, theme.colors.accent)
+      .setOrigin(0, 0)
+      .setAlpha(0.25);
+    this.add(separator);
+
+    // Message text
+    const msgY = MSG_PADDING + NAME_HEIGHT + 2;
     this.msgLabel = scene.add
-      .text(textX, MSG_PADDING + 2, "", {
+      .text(textX, msgY, "", {
         fontSize: `${this.isCompact ? theme.fonts.caption.size : theme.fonts.body.size}px`,
         fontFamily: theme.fonts.body.family,
         color: colorToString(theme.colors.text),
         wordWrap: { width: textW },
-        lineSpacing: 2,
+        lineSpacing: 3,
       })
       .setOrigin(0, 0);
     this.add(this.msgLabel);

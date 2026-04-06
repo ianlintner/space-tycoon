@@ -494,9 +494,9 @@ export class GameHUDScene extends Phaser.Scene {
     this.endTurnButton.setVisible(state.phase === "planning");
 
     // ── Adviser Panel (compact, positioned above bottom bar) ──
-    const advPanelW = 320;
+    const advPanelW = 440;
     const advPanelX = NAV_SIDEBAR_WIDTH + 8;
-    const advPanelY = GAME_HEIGHT - HUD_BOTTOM_BAR_HEIGHT - 72;
+    const advPanelY = GAME_HEIGHT - HUD_BOTTOM_BAR_HEIGHT - 96;
     this.adviserPanel = new AdviserPanel(this, {
       x: advPanelX,
       y: advPanelY,
