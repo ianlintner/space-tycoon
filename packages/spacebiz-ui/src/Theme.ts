@@ -107,7 +107,7 @@ export const DEFAULT_THEME: ThemeConfig = {
     headerBg: 0x1a1a3a,
     rowEven: 0x111128,
     rowOdd: 0x1a1a45,
-    rowHover: 0x1a1a44,
+    rowHover: 0x252560,
     modalOverlay: 0x000000,
   },
   fonts: {

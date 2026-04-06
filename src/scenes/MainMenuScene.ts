@@ -106,7 +106,7 @@ export class MainMenuScene extends Phaser.Scene {
         GAME_HEIGHT * 0.42,
         220,
         GAME_HEIGHT * 1.2,
-        0x9ee7ff,
+        theme.colors.accent,
         0.08,
       )
       .setAngle(16)
@@ -121,15 +121,30 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Top and bottom readability scrims so the art stays visible while UI remains legible.
-    this.add.rectangle(0, 0, GAME_WIDTH, 220, 0x040813, 0.54).setOrigin(0, 0);
     this.add
-      .rectangle(0, GAME_HEIGHT - 270, GAME_WIDTH, 270, 0x040813, 0.78)
+      .rectangle(0, 0, GAME_WIDTH, 220, theme.colors.background, 0.54)
       .setOrigin(0, 0);
     this.add
-      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x02050d, 0.16)
+      .rectangle(
+        0,
+        GAME_HEIGHT - 270,
+        GAME_WIDTH,
+        270,
+        theme.colors.background,
+        0.78,
+      )
+      .setOrigin(0, 0);
+    this.add
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, theme.colors.background, 0.16)
       .setOrigin(0, 0);
 
-    const depthCircle = this.add.circle(cx, 150, 320, 0x111140, 0.14);
+    const depthCircle = this.add.circle(
+      cx,
+      150,
+      320,
+      theme.colors.panelBg,
+      0.14,
+    );
     addPulseTween(this, depthCircle, {
       minAlpha: 0.08,
       maxAlpha: 0.2,

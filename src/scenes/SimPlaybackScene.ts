@@ -262,6 +262,13 @@ export class SimPlaybackScene extends Phaser.Scene {
     this.children.remove(this.profitLabel);
     tickerPanel.add(this.profitLabel);
 
+    // Separator line between costs and profit
+    const tickerSep = this.add
+      .rectangle(tc.x, tc.y + 62, tc.width - 16, 1, theme.colors.panelBorder)
+      .setOrigin(0, 0)
+      .setAlpha(0.5);
+    tickerPanel.add(tickerSep);
+
     // Drive the ticker with a tween on a dummy progress value
     const totalRevenue = this.turnResult.revenue;
     const totalCosts =

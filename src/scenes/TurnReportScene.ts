@@ -22,20 +22,9 @@ import {
 } from "../ui/index.ts";
 import { autoSave } from "../game/SaveManager.ts";
 import { consumeMessages } from "../game/adviser/AdviserEngine.ts";
-import {
-  GAME_WIDTH,
-  GAME_HEIGHT,
-  CONTENT_TOP,
-  CONTENT_HEIGHT,
-  SIDEBAR_LEFT,
-  SIDEBAR_WIDTH,
-  MAIN_CONTENT_LEFT,
-  MAIN_CONTENT_WIDTH,
-} from "../ui/Layout.ts";
 import type { TurnResult } from "../data/types.ts";
 import type { GameHUDScene } from "./GameHUDScene.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
-import { MilestoneOverlay } from "../ui/MilestoneOverlay.ts";
 
 function formatCash(amount: number): string {
   const sign = amount < 0 ? "-" : "";
@@ -48,13 +37,14 @@ function getTurnGrade(
   netProfit: number,
   revenue: number,
 ): { grade: string; color: number } {
+  const theme = getTheme();
   const margin = revenue > 0 ? netProfit / revenue : netProfit >= 0 ? 1 : -1;
-  if (margin >= 0.4) return { grade: "S", color: 0xffdd00 };
-  if (margin >= 0.2) return { grade: "A", color: 0x00ff88 };
-  if (margin >= 0.05) return { grade: "B", color: 0x00ccff };
-  if (margin >= 0) return { grade: "C", color: 0x88cc88 };
-  if (margin >= -0.15) return { grade: "D", color: 0xff9900 };
-  return { grade: "F", color: 0xff4444 };
+  if (margin >= 0.4) return { grade: "S", color: theme.colors.accent };
+  if (margin >= 0.2) return { grade: "A", color: theme.colors.profit };
+  if (margin >= 0.05) return { grade: "B", color: theme.colors.accentHover };
+  if (margin >= 0) return { grade: "C", color: theme.colors.textDim };
+  if (margin >= -0.15) return { grade: "D", color: theme.colors.warning };
+  return { grade: "F", color: theme.colors.loss };
 }
 
 export class TurnReportScene extends Phaser.Scene {

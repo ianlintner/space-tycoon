@@ -42,7 +42,7 @@ export class TutorialOverlay extends Phaser.GameObjects.Container {
         0,
         scene.cameras.main.width * 2,
         scene.cameras.main.height * 2,
-        0x000000,
+        theme.colors.modalOverlay,
         0.55,
       )
       .setInteractive();

@@ -47,14 +47,14 @@ export class AdviserPanel extends Phaser.GameObjects.Container {
 
     // Drop shadow (offset dark rect behind everything)
     const shadow = scene.add
-      .rectangle(3, 3, config.width, panelHeight, 0x000000)
+      .rectangle(3, 3, config.width, panelHeight, theme.colors.modalOverlay)
       .setOrigin(0, 0)
       .setAlpha(0.45);
     this.add(shadow);
 
     // Solid dark backing for contrast (behind the nineslice)
     const solidBg = scene.add
-      .rectangle(0, 0, config.width, panelHeight, 0x0a0e14)
+      .rectangle(0, 0, config.width, panelHeight, theme.colors.background)
       .setOrigin(0, 0)
       .setAlpha(0.92);
     this.add(solidBg);

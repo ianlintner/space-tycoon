@@ -24,6 +24,8 @@ import {
 import { calculateShipValue } from "../game/fleet/FleetManager.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { buildRevealMessages } from "../game/adviser/AdviserEngine.ts";
+
+function formatCash(amount: number): string {
   const sign = amount < 0 ? "-" : "";
   const abs = Math.abs(Math.round(amount));
   return sign + "\u00A7" + abs.toLocaleString();

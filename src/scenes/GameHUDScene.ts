@@ -729,8 +729,9 @@ export class GameHUDScene extends Phaser.Scene {
     const audio = getAudioDirector();
     const settings = audio.getSettings();
 
+    const theme = getTheme();
     const overlay = this.add
-      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.35)
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, theme.colors.modalOverlay, 0.35)
       .setOrigin(0, 0)
       .setInteractive();
     overlay.on("pointerup", () => {
