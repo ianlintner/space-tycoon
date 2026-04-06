@@ -1,14 +1,26 @@
 import Phaser from "phaser";
 import { gameStore } from "../data/GameStore.ts";
-import { getTheme, colorToString } from "../ui/Theme.ts";
-import { Panel } from "../ui/Panel.ts";
-import { Button } from "../ui/Button.ts";
-import { DataTable } from "../ui/DataTable.ts";
-import { ScrollableList } from "../ui/ScrollableList.ts";
-import { PortraitPanel } from "../ui/PortraitPanel.ts";
-import { createStarfield } from "../ui/Starfield.ts";
+import {
+  getTheme,
+  colorToString,
+  Panel,
+  Button,
+  DataTable,
+  ScrollableList,
+  PortraitPanel,
+  createStarfield,
+  AdviserPanel,
+  MilestoneOverlay,
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  CONTENT_TOP,
+  CONTENT_HEIGHT,
+  SIDEBAR_LEFT,
+  SIDEBAR_WIDTH,
+  MAIN_CONTENT_LEFT,
+  MAIN_CONTENT_WIDTH,
+} from "../ui/index.ts";
 import { autoSave } from "../game/SaveManager.ts";
-import { AdviserPanel } from "../ui/AdviserPanel.ts";
 import { consumeMessages } from "../game/adviser/AdviserEngine.ts";
 import {
   GAME_WIDTH,
