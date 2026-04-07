@@ -86,6 +86,12 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
     scene.children.remove(this.nameLabel);
     this.add(this.nameLabel);
 
+    // Clip all content (stats, name, portrait) to panel bounds
+    const clipShape = scene.make.graphics({});
+    clipShape.fillStyle(0xffffff, 1);
+    clipShape.fillRect(config.x, config.y, this.panelWidth, panelHeight);
+    this.setMask(clipShape.createGeometryMask());
+
     scene.add.existing(this);
   }
 

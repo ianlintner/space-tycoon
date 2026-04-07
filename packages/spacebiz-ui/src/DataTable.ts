@@ -140,7 +140,46 @@ export class DataTable extends Phaser.GameObjects.Container {
     // Sync geometry mask position when inside a parent Container
     this.scene.events.on("preupdate", this.syncMaskPosition, this);
 
+    // Scene-level wheel handler as fallback for nested Container hierarchies
+    // where per-object wheel events may not propagate across stacked scenes.
+    this.scene.input.on("wheel", this.handleSceneWheel, this);
+
     scene.add.existing(this);
+  }
+
+  /** Check visibility through the entire parent Container chain. */
+  private isVisibleInWorld(): boolean {
+    let node: Phaser.GameObjects.Container | undefined = this;
+    while (node) {
+      if (!node.visible) return false;
+      node = node.parentContainer ?? undefined;
+    }
+    return true;
+  }
+
+  /** Scene-level wheel handler — checks world bounds before scrolling. */
+  private handleSceneWheel(
+    pointer: Phaser.Input.Pointer,
+    _gameObjects: Phaser.GameObjects.GameObject[],
+    _dx: number,
+    _dy: number,
+    dz: number,
+  ): void {
+    if (this.destroyed || !this.isVisibleInWorld()) return;
+
+    const matrix = this.getWorldTransformMatrix();
+    const wx = matrix.tx;
+    const wy = matrix.ty;
+
+    if (
+      pointer.worldX >= wx &&
+      pointer.worldX <= wx + this.tableConfig.width &&
+      pointer.worldY >= wy &&
+      pointer.worldY <= wy + this.tableConfig.height
+    ) {
+      this.focus();
+      this.handleWheel(dz);
+    }
   }
 
   /** Scroll handler shared by header, rows, and empty-space background */
@@ -622,6 +661,7 @@ export class DataTable extends Phaser.GameObjects.Container {
     if (this.destroyed) return;
     this.destroyed = true;
     this.scene.events.off("preupdate", this.syncMaskPosition, this);
+    this.scene.input.off("wheel", this.handleSceneWheel, this);
     if (this.keyboardNavigationEnabled) {
       this.scene.input.keyboard?.off("keydown", this.handleKeyDown, this);
     }
