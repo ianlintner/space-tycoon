@@ -184,6 +184,40 @@ export class RoutesScene extends Phaser.Scene {
     );
     finderContent.add(this.finderSummary);
 
+    // ── Cargo type filter buttons ──
+    const filterY = tabContentY + summaryHeight - 4;
+    const allCargoFilters: Array<{
+      label: string;
+      value: CargoTypeValue | null;
+    }> = [
+      { label: "All", value: null },
+      ...Object.values(CargoType).map((ct) => ({
+        label: humanizeCargo(ct as CargoTypeValue),
+        value: ct as CargoTypeValue,
+      })),
+    ];
+    const filterBtnWidth = 72;
+    const filterGap = 4;
+    this.filterButtons = [];
+    for (let i = 0; i < allCargoFilters.length; i++) {
+      const f = allCargoFilters[i];
+      const btn = new Button(this, {
+        x: contentInnerX + i * (filterBtnWidth + filterGap),
+        y: filterY,
+        width: filterBtnWidth,
+        height: 26,
+        label: f.label,
+        onClick: () => {
+          this.finderCargoFilter = f.value;
+          this.updateFilterButtonStyles();
+          this.refreshFinderTable();
+        },
+      });
+      this.filterButtons.push(btn);
+      finderContent.add(btn);
+    }
+    this.updateFilterButtonStyles();
+
     this.finderTable = new DataTable(this, {
       x: contentInnerX,
       y: tableTop,
