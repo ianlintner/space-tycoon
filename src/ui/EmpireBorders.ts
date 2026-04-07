@@ -267,15 +267,15 @@ function renderTerritory(
   const { boundary, color, centroid } = territory;
   if (boundary.length < 3) return;
 
-  // Subsample to ~80 control points then smooth for organic look
-  const smooth = subsampleAndSmooth(boundary, 80);
+  // Subsample to ~120 control points then smooth for organic look
+  const smooth = subsampleAndSmooth(boundary, 120);
   if (smooth.length < 3) return;
 
   const yo = cfg.yOffset;
 
   // ── Filled territory (very translucent) ──
   const fillGfx = scene.add.graphics();
-  fillGfx.fillStyle(color, 0.06);
+  fillGfx.fillStyle(color, 0.04);
   fillGfx.beginPath();
   fillGfx.moveTo(smooth[0].x, smooth[0].y + yo);
   for (let i = 1; i < smooth.length; i++) {
@@ -284,15 +284,15 @@ function renderTerritory(
   fillGfx.closePath();
   fillGfx.fillPath();
   addPulseTween(scene, fillGfx, {
-    minAlpha: 0.5,
+    minAlpha: 0.4,
     maxAlpha: 1.0,
     duration: 5000 + Math.random() * 2000,
     delay: Math.random() * 2000,
   });
 
-  // ── Outer glow edge (wider, very dim) ──
+  // ── Outer glow edge (wider, soft) ──
   const glowGfx = scene.add.graphics();
-  glowGfx.lineStyle(4, color, 0.12);
+  glowGfx.lineStyle(6, color, 0.08);
   glowGfx.beginPath();
   glowGfx.moveTo(smooth[0].x, smooth[0].y + yo);
   for (let i = 1; i < smooth.length; i++) {
@@ -303,7 +303,7 @@ function renderTerritory(
 
   // ── Sharp border edge ──
   const edgeGfx = scene.add.graphics();
-  edgeGfx.lineStyle(1.5, color, 0.45);
+  edgeGfx.lineStyle(1.5, color, 0.4);
   edgeGfx.beginPath();
   edgeGfx.moveTo(smooth[0].x, smooth[0].y + yo);
   for (let i = 1; i < smooth.length; i++) {
@@ -312,8 +312,8 @@ function renderTerritory(
   edgeGfx.closePath();
   edgeGfx.strokePath();
   addPulseTween(scene, edgeGfx, {
-    minAlpha: 0.3,
-    maxAlpha: 0.6,
+    minAlpha: 0.25,
+    maxAlpha: 0.55,
     duration: 3500 + Math.random() * 1500,
     delay: Math.random() * 1500,
   });

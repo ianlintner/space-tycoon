@@ -132,8 +132,8 @@ function generateSectorCenters(
 ): Array<{ x: number; y: number }> {
   const cx = (bounds.minX + bounds.maxX) / 2;
   const cy = (bounds.minY + bounds.maxY) / 2;
-  const radiusX = (bounds.maxX - bounds.minX) * 0.32;
-  const radiusY = (bounds.maxY - bounds.minY) * 0.3;
+  const radiusX = (bounds.maxX - bounds.minX) * 0.28;
+  const radiusY = (bounds.maxY - bounds.minY) * 0.26;
   const startAngle = rng.nextFloat(0, Math.PI * 2);
   const centers: Array<{ x: number; y: number }> = [];
 
@@ -165,9 +165,9 @@ function generateSystemPoints(
   bounds: Bounds,
 ): Array<{ x: number; y: number }> {
   const points: Array<{ x: number; y: number }> = [];
-  const localRadiusX = 220;
-  const localRadiusY = 180;
-  const minDist = 90;
+  const localRadiusX = 180;
+  const localRadiusY = 150;
+  const minDist = 70;
 
   for (let i = 0; i < count; i++) {
     let placed = false;

@@ -5,8 +5,9 @@ import {
   colorToString,
   Label,
   getLayout,
-  createStarfield,
   addPulseTween,
+  addTwinkleTween,
+  registerAmbientCleanup,
 } from "../ui/index.ts";
 import { drawEmpireBorders } from "../ui/EmpireBorders.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
@@ -51,14 +52,106 @@ export class GalaxyMapScene extends Phaser.Scene {
       if (sys.y > wMaxY) wMaxY = sys.y;
     }
 
-    // ── Starfield background (fixed to viewport so it always fills the screen) ──
-    createStarfield(this).setScrollFactor(0);
+    // ── Parallax starfield (3 depth layers) ──
+    // Stars are scattered across a large area centred on the galaxy.
+    // Each layer scrolls at a different rate to create depth.
+    const galCx = (wMinX + wMaxX) / 2;
+    const galCy = (wMinY + wMaxY) / 2 + L.contentTop;
+    const galW = wMaxX - wMinX;
+    const galH = wMaxY - wMinY;
+
+    const PARALLAX_LAYERS: Array<{
+      count: number;
+      scrollFactor: number;
+      minAlpha: number;
+      maxAlpha: number;
+      minScale: number;
+      maxScale: number;
+      depth: number;
+      tints: number[];
+    }> = [
+      {
+        // Far — tiny dim specks, barely move
+        count: 100,
+        scrollFactor: 0.05,
+        minAlpha: 0.08,
+        maxAlpha: 0.25,
+        minScale: 0.15,
+        maxScale: 0.35,
+        depth: -300,
+        tints: [0xffffff, 0xffffff, 0xffffff, 0xaaccff],
+      },
+      {
+        // Mid — moderate stars
+        count: 70,
+        scrollFactor: 0.15,
+        minAlpha: 0.12,
+        maxAlpha: 0.45,
+        minScale: 0.25,
+        maxScale: 0.55,
+        depth: -200,
+        tints: [0xffffff, 0xffffff, 0xaaccff, 0xffffcc],
+      },
+      {
+        // Near — brighter, move more with camera
+        count: 40,
+        scrollFactor: 0.3,
+        minAlpha: 0.2,
+        maxAlpha: 0.6,
+        minScale: 0.4,
+        maxScale: 0.8,
+        depth: -100,
+        tints: [0xffffff, 0xaaccff, 0xffffcc],
+      },
+    ];
+
+    const starTweens: Phaser.Tweens.Tween[] = [];
+    // Spread area: enough to cover viewport at any camera position and zoom
+    const spreadW = galW + 2400;
+    const spreadH = galH + 1600;
+
+    for (const layer of PARALLAX_LAYERS) {
+      for (let i = 0; i < layer.count; i++) {
+        const sx = galCx + (Math.random() - 0.5) * spreadW;
+        const sy = galCy + (Math.random() - 0.5) * spreadH;
+        const alpha =
+          layer.minAlpha + Math.random() * (layer.maxAlpha - layer.minAlpha);
+        const scale =
+          layer.minScale + Math.random() * (layer.maxScale - layer.minScale);
+        const tint =
+          layer.tints[Math.floor(Math.random() * layer.tints.length)];
+
+        const dot = this.add
+          .image(sx, sy, "glow-dot")
+          .setAlpha(alpha)
+          .setScale(scale)
+          .setTint(tint)
+          .setDepth(layer.depth)
+          .setScrollFactor(layer.scrollFactor);
+
+        // ~30% of stars twinkle
+        if (Math.random() > 0.7) {
+          const tw = addTwinkleTween(this, dot, {
+            minAlpha: Math.max(0.04, alpha * 0.3),
+            maxAlpha: Math.min(0.95, alpha * 1.7),
+            minDuration: 2000,
+            maxDuration: 6000,
+            delay: Math.random() * 5000,
+          });
+          starTweens.push(tw);
+        }
+      }
+    }
+
+    if (starTweens.length > 0) {
+      registerAmbientCleanup(this, starTweens);
+    }
 
     // ── Empire territory borders (Stellaris-inspired) ──
     drawEmpireBorders(this, systems, empires, {
       yOffset: L.contentTop,
       influence: 130,
-      gridStep: 14,
+      gridStep: 10,
     });
 
     // ── HUD overlay labels (fixed to camera via setScrollFactor) ──
@@ -158,14 +251,27 @@ export class GalaxyMapScene extends Phaser.Scene {
       const sysX = system.x;
       const sysY = system.y + L.contentTop;
       const planetCount = planetCountsBySystem.get(system.id) ?? 0;
-      const mainRadius = 4 + Math.min(4, planetCount);
+      // Stars with more planets are slightly larger (3-7px radius)
+      const mainRadius = 3 + Math.min(4, planetCount);
 
+      // Outer soft halo — large and dim for atmosphere
+      const outerHalo = this.add
+        .circle(sysX, sysY, mainRadius * 4, system.starColor)
+        .setAlpha(0.06);
+      addPulseTween(this, outerHalo, {
+        minAlpha: 0.03,
+        maxAlpha: 0.1,
+        duration: 4000 + Math.random() * 3000,
+        delay: Math.random() * 3000,
+      });
+
+      // Inner glow halo
       const halo = this.add
-        .circle(sysX, sysY, mainRadius * 2.5, system.starColor)
-        .setAlpha(0.18);
+        .circle(sysX, sysY, mainRadius * 2.2, system.starColor)
+        .setAlpha(0.2);
       addPulseTween(this, halo, {
-        minAlpha: 0.08,
-        maxAlpha: 0.3,
+        minAlpha: 0.1,
+        maxAlpha: 0.35,
         duration: 2500 + Math.random() * 2000,
         delay: Math.random() * 2000,
       });
@@ -215,9 +321,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     // and Phaser locks the camera. We handle clamping manually in pan.
     cam.setZoom(DEFAULT_ZOOM);
 
-    // Center camera on galaxy centroid
-    const galCx = (wMinX + wMaxX) / 2;
-    const galCy = (wMinY + wMaxY) / 2 + L.contentTop;
+    // Center camera on galaxy centroid (already computed for parallax above)
     cam.centerOn(galCx, galCy);
 
     // Mouse-wheel zoom (Phaser emits: pointer, currentlyOver, deltaX, deltaY, deltaZ)
