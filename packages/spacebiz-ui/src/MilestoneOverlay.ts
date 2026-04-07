@@ -51,8 +51,9 @@ export class MilestoneOverlay {
     const theme = getTheme();
     const colors = TYPE_COLORS[type];
     const cam = scene.cameras.main;
-    const GAME_WIDTH = cam.width;
-    const GAME_HEIGHT = cam.height;
+    // Account for camera zoom — scrollFactor(0) ignores scroll but not zoom
+    const GAME_WIDTH = cam.width / cam.zoom;
+    const GAME_HEIGHT = cam.height / cam.zoom;
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
 

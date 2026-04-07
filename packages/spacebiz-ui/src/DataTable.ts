@@ -147,32 +147,40 @@ export class DataTable extends Phaser.GameObjects.Container {
     return true;
   }
 
-  /** Scene-level wheel handler — checks world bounds before scrolling. */
-  private handleSceneWheel(
-    pointer: Phaser.Input.Pointer,
-    _gameObjects: Phaser.GameObjects.GameObject[],
-    _dx: number,
-    _dy: number,
-    dz: number,
-  ): void {
-    if (this.destroyed || !this.isVisibleInWorld()) return;
+  /**
+   * Attach a wheel listener directly to the game canvas element.
+   * This bypasses all Phaser scene-stacking and Container-nesting input
+   * issues, ensuring that DataTables inside TabGroup tabs (or any other
+   * nested Container hierarchy) reliably receive scroll-wheel events
+   * even when a HUD scene is rendered on top.
+   */
+  private setupCanvasWheelListener(): void {
+    const canvas = this.scene.game.canvas;
+    this.canvasWheelHandler = (e: WheelEvent) => {
+      if (this.destroyed || !this.isVisibleInWorld()) return;
+      if (this.maxScroll <= 0) return;
 
-    const matrix = this.getWorldTransformMatrix();
-    const wx = matrix.tx;
-    const wy = matrix.ty;
+      const rect = canvas.getBoundingClientRect();
+      const sx = this.scene.scale.width / rect.width;
+      const sy = this.scene.scale.height / rect.height;
+      const gameX = (e.clientX - rect.left) * sx;
+      const gameY = (e.clientY - rect.top) * sy;
 
-    if (
-      pointer.worldX >= wx &&
-      pointer.worldX <= wx + this.tableConfig.width &&
-      pointer.worldY >= wy &&
-      pointer.worldY <= wy + this.tableConfig.height
-    ) {
-      this.focus();
-      this.handleWheel(dz);
-    }
+      const matrix = this.getWorldTransformMatrix();
+      if (
+        gameX >= matrix.tx &&
+        gameX <= matrix.tx + this.tableConfig.width &&
+        gameY >= matrix.ty &&
+        gameY <= matrix.ty + this.tableConfig.height
+      ) {
+        this.focus();
+        this.handleWheel(e.deltaY);
+      }
+    };
+    canvas.addEventListener("wheel", this.canvasWheelHandler);
   }
 
-  /** Scroll handler shared by header, rows, and empty-space background */
+  /** Scroll handler shared by keyboard navigation and canvas wheel */
   private handleWheel(dz: number): void {
     this.scrollY = Phaser.Math.Clamp(
       this.scrollY + dz * 0.5,
@@ -235,17 +243,6 @@ export class DataTable extends Phaser.GameObjects.Container {
           this.focus();
           hitArea.setAlpha(0.75);
         });
-        hitArea.on(
-          "wheel",
-          (
-            _pointer: Phaser.Input.Pointer,
-            _dx: number,
-            _dy: number,
-            dz: number,
-          ) => {
-            this.handleWheel(dz);
-          },
-        );
         hitArea.on("pointerup", () => {
           hitArea.setAlpha(1);
           playUiSfx("ui_tab_switch");
@@ -403,17 +400,6 @@ export class DataTable extends Phaser.GameObjects.Container {
         this.focus();
         rowBg.setAlpha(0.72);
       });
-      rowBg.on(
-        "wheel",
-        (
-          _pointer: Phaser.Input.Pointer,
-          _dx: number,
-          _dy: number,
-          dz: number,
-        ) => {
-          this.handleWheel(dz);
-        },
-      );
       rowBg.on("pointerup", () => {
         rowBg.setAlpha(0.95);
         playUiSfx("ui_row_select");
@@ -595,6 +581,14 @@ export class DataTable extends Phaser.GameObjects.Container {
         this.tableConfig.onCancel?.();
         event.preventDefault();
         break;
+      case "PageUp":
+        this.scrollPage(-1);
+        event.preventDefault();
+        break;
+      case "PageDown":
+        this.scrollPage(1);
+        event.preventDefault();
+        break;
     }
   }
 
@@ -616,6 +610,12 @@ export class DataTable extends Phaser.GameObjects.Container {
 
   getSelectedRowIndex(): number {
     return this.selectedRowIndex;
+  }
+
+  /** Scroll by one visible page height in the given direction (-1 up, +1 down). */
+  private scrollPage(direction: number): void {
+    const pageSize = this.tableConfig.height - this.headerHeight;
+    this.handleWheel(direction * pageSize * 2); // ×2 because handleWheel applies 0.5 factor
   }
 
   private updateScrollIndicator(): void {
@@ -651,7 +651,13 @@ export class DataTable extends Phaser.GameObjects.Container {
     if (this.destroyed) return;
     this.destroyed = true;
     this.scene.events.off("preupdate", this.syncMaskPosition, this);
-    this.scene.input.off("wheel", this.handleSceneWheel, this);
+    if (this.canvasWheelHandler) {
+      this.scene.game.canvas.removeEventListener(
+        "wheel",
+        this.canvasWheelHandler,
+      );
+      this.canvasWheelHandler = null;
+    }
     if (this.keyboardNavigationEnabled) {
       this.scene.input.keyboard?.off("keydown", this.handleKeyDown, this);
     }

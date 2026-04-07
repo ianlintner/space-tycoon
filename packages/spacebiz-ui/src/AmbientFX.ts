@@ -156,8 +156,11 @@ export function flashScreen(
   duration = 600,
 ): void {
   const cam = scene.cameras.main;
+  // Account for camera zoom — scrollFactor(0) ignores scroll but not zoom
+  const w = cam.width / cam.zoom;
+  const h = cam.height / cam.zoom;
   const flash = scene.add
-    .rectangle(0, 0, cam.width, cam.height, color, 0)
+    .rectangle(0, 0, w, h, color, 0)
     .setOrigin(0, 0)
     .setDepth(950)
     .setScrollFactor(0);
