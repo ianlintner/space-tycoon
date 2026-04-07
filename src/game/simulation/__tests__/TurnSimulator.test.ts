@@ -210,12 +210,12 @@ describe("TurnSimulator", () => {
       // With default setup:
       // Ship: speed=4, cargoCapacity=80, fuelEfficiency=0.8
       // Route: distance=50, cargoType=Food
-      // Market: currentPrice=20, eventModifier=1.0
+      // Market: baseDemand=100, baseSupply=100, saturation=0 → price = BASE_CARGO_PRICES[Food] = 18
       const trips = calculateTripsPerTurn(50, 4);
       // trips = floor(100 / (50*2/4)) = floor(100/25) = 4
       expect(trips).toBe(4);
 
-      const expectedRevenue = 20 * 80 * trips; // price * capacity * trips
+      const expectedRevenue = 18 * 80 * trips; // price * capacity * trips
       const result = simulateTurn(state, rng);
 
       const turnResult = result.history[result.history.length - 1];

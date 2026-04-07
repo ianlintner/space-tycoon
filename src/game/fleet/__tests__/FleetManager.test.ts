@@ -70,7 +70,7 @@ describe("FleetManager", () => {
       const result = buyShip(ShipClass.MegaHauler, fleet);
 
       expect(result.ship.class).toBe(ShipClass.MegaHauler);
-      expect(result.ship.cargoCapacity).toBe(800);
+      expect(result.ship.cargoCapacity).toBe(400);
       expect(result.cost).toBe(500000);
     });
   });

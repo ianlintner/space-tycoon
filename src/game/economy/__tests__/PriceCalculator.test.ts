@@ -39,10 +39,10 @@ describe("PriceCalculator", () => {
       const highSatPrice = calculatePrice(entry, CargoType.Food);
       const neutralPrice = calculatePrice(neutralEntry, CargoType.Food);
 
-      // With saturation 0.8: factor = (1 - 0.8 * 0.6) = 0.52
-      // Price should be about 52% of neutral price
-      expect(highSatPrice).toBeLessThan(neutralPrice * 0.6);
-      expect(highSatPrice).toBeCloseTo(neutralPrice * 0.52, 1);
+      // With saturation 0.8: factor = (1 - 0.8 * 0.8) = 0.36
+      // Price should be about 36% of neutral price
+      expect(highSatPrice).toBeLessThan(neutralPrice * 0.4);
+      expect(highSatPrice).toBeCloseTo(neutralPrice * 0.36, 1);
     });
 
     it("rising trend increases price by ~15%", () => {
@@ -88,10 +88,10 @@ describe("PriceCalculator", () => {
       const basePrice = BASE_CARGO_PRICES[CargoType.Food];
 
       // demandMultiplier = 100/50 = 2.0
-      // saturationFactor = (1 - 0.5 * 0.6) = 0.7
+      // saturationFactor = (1 - 0.5 * 0.8) = 0.6
       // trendModifier = 1.15
       // eventModifier = 1.2
-      const expected = basePrice * 2.0 * 0.7 * 1.15 * 1.2;
+      const expected = basePrice * 2.0 * 0.6 * 1.15 * 1.2;
       expect(price).toBeCloseTo(expected, 1);
     });
 

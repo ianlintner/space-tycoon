@@ -66,8 +66,8 @@ describe("MarketUpdater", () => {
       const foodEntry = updated.planetMarkets["planet-1"][CargoType.Food];
       const techEntry = updated.planetMarkets["planet-1"][CargoType.Technology];
 
-      expect(foodEntry.saturation).toBeCloseTo(0.8 * 0.85, 4);
-      expect(techEntry.saturation).toBeCloseTo(1.0 * 0.85, 4);
+      expect(foodEntry.saturation).toBeCloseTo(0.8 * 0.92, 4);
+      expect(techEntry.saturation).toBeCloseTo(1.0 * 0.92, 4);
     });
 
     it("trends can shift from stable", () => {
