@@ -493,35 +493,61 @@ export class RoutesScene extends Phaser.Scene {
       state.cash,
     );
 
+    // Apply cargo type filter
+    const filtered = this.finderCargoFilter
+      ? this.opportunities.filter(
+          (o) => o.bestCargoType === this.finderCargoFilter,
+        )
+      : this.opportunities;
+
     const availableShips = state.fleet.filter((s) => !s.assignedRouteId).length;
-    const profitableCount = this.opportunities.filter(
+    const profitableCount = filtered.filter(
       (o) => o.estProfit > 0 && !o.alreadyActive,
     ).length;
+    const filterLabel = this.finderCargoFilter
+      ? humanizeCargo(this.finderCargoFilter)
+      : "all cargo";
     this.finderSummary.setText(
-      `${profitableCount} profitable routes found \u2022 ${availableShips} idle ships \u2022 §${state.cash.toLocaleString("en-US")} cash \u2022 Enter to create, sorted by profit`,
+      `${profitableCount} ${filterLabel} routes found \u2022 ${availableShips} idle ships \u2022 §${state.cash.toLocaleString("en-US")} cash \u2022 Enter to create`,
     );
 
     // Show top 50 for performance — full list still in this.opportunities
     const displayLimit = 50;
-    const displayed = this.opportunities.slice(0, displayLimit);
+    const displayed = filtered.slice(0, displayLimit);
 
-    const rows = displayed.map((opp, idx) => ({
-      _index: idx,
-      origin: opp.originName,
-      destination: opp.destinationName,
-      cargo: humanizeCargo(opp.bestCargoType),
-      price: opp.destPrice,
-      trend: trendArrow(opp.destTrend),
-      dist: opp.distance.toFixed(1),
-      profit: opp.estProfit,
-      ship: opp.alreadyActive
-        ? `\u2713 ${opp.shipName}`
-        : opp.shipSource === "autoBuy"
-          ? `Buy ${opp.shipName}`
-          : opp.shipName,
-    }));
+    const rows = displayed.map((opp) => {
+      // Map back to the original opportunities index for portrait/create
+      const origIdx = this.opportunities.indexOf(opp);
+      return {
+        _index: origIdx,
+        origin: opp.originName,
+        destination: opp.destinationName,
+        cargo: humanizeCargo(opp.bestCargoType),
+        price: opp.destPrice,
+        trend: trendArrow(opp.destTrend),
+        dist: opp.distance.toFixed(1),
+        profit: opp.estProfit,
+        ship: opp.alreadyActive
+          ? `\u2713 ${opp.shipName}`
+          : opp.shipSource === "autoBuy"
+            ? `Buy ${opp.shipName}`
+            : opp.shipName,
+      };
+    });
 
     this.finderTable.setRows(rows);
+  }
+
+  private updateFilterButtonStyles(): void {
+    const allCargoFilters: Array<CargoTypeValue | null> = [
+      null,
+      ...Object.values(CargoType).map((ct) => ct as CargoTypeValue),
+    ];
+    for (let i = 0; i < this.filterButtons.length; i++) {
+      const btn = this.filterButtons[i];
+      const isActive = allCargoFilters[i] === this.finderCargoFilter;
+      btn.setAlpha(isActive ? 1.0 : 0.5);
+    }
   }
 
   private updateFinderPortraitByIndex(idx: number): void {
