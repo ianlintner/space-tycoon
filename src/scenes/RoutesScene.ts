@@ -75,6 +75,8 @@ export class RoutesScene extends Phaser.Scene {
   private finderTable!: DataTable;
   private finderSummary!: Phaser.GameObjects.Text;
   private opportunities: RouteOpportunity[] = [];
+  private finderCargoFilter: CargoTypeValue | null = null;
+  private filterButtons: Button[] = [];
 
   // ── Sidebar mini-map ──
   private miniMap!: MiniMap;
