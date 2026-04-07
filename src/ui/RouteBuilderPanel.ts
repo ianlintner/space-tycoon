@@ -27,6 +27,7 @@ import { DEPTH_MODAL } from "./DepthLayers.ts";
 import type { SceneUiDirector } from "./SceneUiDirector.ts";
 import type { SceneUiLayer } from "./SceneUiDirector.ts";
 import { getTheme } from "./Theme.ts";
+import { getCargoIconKey, getCargoColor } from "./CargoIcons.ts";
 
 const CARGO_VALUES = Object.values(CargoType) as CargoTypeValue[];
 
