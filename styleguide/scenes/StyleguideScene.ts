@@ -1140,6 +1140,44 @@ export class StyleguideScene extends Phaser.Scene {
     return hoverY + 40;
   }
 
+  /* ── 14b. Cargo Icons ─────────────────────────────────────── */
+
+  private addCargoIconSection(y: number): number {
+    y = this.addSubheading(y, "CARGO ICONS");
+
+    let x = 60;
+    for (const ct of CARGO_TYPE_LIST) {
+      const color = getCargoColor(ct);
+      const label = getCargoLabel(ct);
+      const key = getCargoIconKey(ct);
+
+      const bg = this.add
+        .rectangle(x, y, 56, 56, this.theme.colors.panelBg, 0.5)
+        .setOrigin(0, 0)
+        .setStrokeStyle(1, this.theme.colors.panelBorder, 0.4);
+      this.scrollContainer.add(bg);
+
+      const img = this.add
+        .image(x + 28, y + 28, key)
+        .setOrigin(0.5)
+        .setTint(color);
+      this.scrollContainer.add(img);
+
+      const lbl = new Label(this, {
+        x: x + 28,
+        y: y + 62,
+        text: label,
+        style: "caption",
+        color,
+      }).setOrigin(0.5, 0);
+      this.scrollContainer.add(lbl);
+
+      x += 90;
+    }
+
+    return y + 90;
+  }
+
   /* ── 15. HUD Bar ──────────────────────────────────────────── */
 
   private addHudBarSection(y: number): number {
