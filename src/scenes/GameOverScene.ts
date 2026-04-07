@@ -20,6 +20,7 @@ import {
   calculateScore,
   saveHighScore,
   getHighScores,
+  rankCompanies,
 } from "../game/scoring/ScoreCalculator.ts";
 import { calculateShipValue } from "../game/fleet/FleetManager.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
@@ -107,6 +108,24 @@ export class GameOverScene extends Phaser.Scene {
     const cargoBonus = totalCargoDelivered * 0.5;
     const routeBonus = state.activeRoutes.length * 500;
 
+    // Empire bonus: count distinct empires the player trades with
+    const empireIds = new Set<string>();
+    for (const route of state.activeRoutes) {
+      for (const sys of state.galaxy.systems) {
+        if (
+          route.originPlanetId.startsWith(
+            `planet-${sys.id.replace("system-", "")}-`,
+          ) ||
+          route.destinationPlanetId.startsWith(
+            `planet-${sys.id.replace("system-", "")}-`,
+          )
+        ) {
+          empireIds.add(sys.empireId);
+        }
+      }
+    }
+    const empireBonus = empireIds.size * 1000;
+
     // -----------------------------------------------------------------------
     // Score breakdown panel (left side, glass panel)
     // -----------------------------------------------------------------------
@@ -142,6 +161,11 @@ export class GameOverScene extends Phaser.Scene {
       {
         label: "Route Bonus",
         value: `+${routeBonus.toLocaleString()}`,
+        color: theme.colors.accent,
+      },
+      {
+        label: "Empire Bonus",
+        value: `+${empireBonus.toLocaleString()}`,
         color: theme.colors.accent,
       },
     ];
@@ -285,6 +309,69 @@ export class GameOverScene extends Phaser.Scene {
       seed: hs.seed,
     }));
     hsTable.setRows(hsRows);
+
+    // -----------------------------------------------------------------------
+    // Company Rankings panel (full width below score + high score panels)
+    // -----------------------------------------------------------------------
+    const rankings = rankCompanies(state);
+    const rankPanelY = CONTENT_TOP + 380;
+    const rankPanelHeight = 160;
+    new Panel(this, {
+      x: FULL_CONTENT_LEFT,
+      y: rankPanelY,
+      width: hsPanelX + hsPanelWidth - FULL_CONTENT_LEFT,
+      height: rankPanelHeight,
+      title: "Company Rankings",
+    });
+
+    const rankTable = new DataTable(this, {
+      x: FULL_CONTENT_LEFT + 10,
+      y: rankPanelY + 40,
+      width: hsPanelX + hsPanelWidth - FULL_CONTENT_LEFT - 20,
+      height: rankPanelHeight - 50,
+      columns: [
+        { key: "rank", label: "#", width: 50, align: "center" },
+        {
+          key: "name",
+          label: "Company",
+          width: 250,
+          colorFn: (v) =>
+            typeof v === "string" && v.endsWith("(You)")
+              ? theme.colors.accent
+              : null,
+        },
+        {
+          key: "netWorth",
+          label: "Net Worth",
+          width: 150,
+          align: "right",
+          format: (v) => formatCash(v as number),
+          colorFn: (v) =>
+            (v as number) >= 0 ? theme.colors.profit : theme.colors.loss,
+        },
+        { key: "fleet", label: "Ships", width: 80, align: "right" },
+        { key: "routes", label: "Routes", width: 80, align: "right" },
+        {
+          key: "score",
+          label: "Score",
+          width: 150,
+          align: "right",
+          format: (v) => (v as number).toLocaleString(),
+          colorFn: () => theme.colors.accent,
+        },
+      ],
+    });
+
+    const rankRows = rankings.map((r, i) => ({
+      rank: i + 1,
+      name: r.isPlayer ? `${r.name} (You)` : r.name,
+      isPlayer: r.isPlayer,
+      netWorth: r.netWorth,
+      fleet: r.fleetSize,
+      routes: r.routeCount,
+      score: r.score,
+    }));
+    rankTable.setRows(rankRows);
 
     // -----------------------------------------------------------------------
     // Action buttons — centered horizontally below panels

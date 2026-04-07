@@ -1,4 +1,10 @@
-import { ShipClass, type ShipTemplate, PlanetType, CargoType } from "./types";
+import {
+  ShipClass,
+  type ShipTemplate,
+  PlanetType,
+  CargoType,
+  GameSize,
+} from "./types";
 
 export const STARTING_CASH = 200000;
 export const MAX_TURNS = 20;
@@ -14,6 +20,71 @@ export const OVERHAUL_COST_RATIO = 0.3;
 export const OVERHAUL_RESTORE_CONDITION = 90;
 export const BREAKDOWN_THRESHOLD = 50;
 export const TURN_DURATION = 100;
+
+// ── Game Size Presets ──────────────────────────────────────────
+
+export interface GameSizeConfig {
+  maxTurns: number;
+  empireCount: number;
+  systemsPerEmpireMin: number;
+  systemsPerEmpireMax: number;
+  planetsPerSystemMin: number;
+  planetsPerSystemMax: number;
+  aiCompanyCount: number;
+  startingCash: number;
+  startingShips: number;
+}
+
+export const GAME_SIZE_CONFIGS: Record<GameSize, GameSizeConfig> = {
+  [GameSize.Small]: {
+    maxTurns: 20,
+    empireCount: 3,
+    systemsPerEmpireMin: 3,
+    systemsPerEmpireMax: 4,
+    planetsPerSystemMin: 3,
+    planetsPerSystemMax: 5,
+    aiCompanyCount: 2,
+    startingCash: 200000,
+    startingShips: 2,
+  },
+  [GameSize.Medium]: {
+    maxTurns: 40,
+    empireCount: 5,
+    systemsPerEmpireMin: 4,
+    systemsPerEmpireMax: 6,
+    planetsPerSystemMin: 3,
+    planetsPerSystemMax: 6,
+    aiCompanyCount: 4,
+    startingCash: 250000,
+    startingShips: 2,
+  },
+  [GameSize.Large]: {
+    maxTurns: 60,
+    empireCount: 7,
+    systemsPerEmpireMin: 5,
+    systemsPerEmpireMax: 7,
+    planetsPerSystemMin: 3,
+    planetsPerSystemMax: 6,
+    aiCompanyCount: 6,
+    startingCash: 300000,
+    startingShips: 3,
+  },
+};
+
+// ── Empire Tariff Ranges ───────────────────────────────────────
+
+export const TARIFF_FRIENDLY_MIN = 0.05;
+export const TARIFF_FRIENDLY_MAX = 0.08;
+export const TARIFF_NEUTRAL_MIN = 0.1;
+export const TARIFF_NEUTRAL_MAX = 0.15;
+export const TARIFF_HOSTILE_MIN = 0.15;
+export const TARIFF_HOSTILE_MAX = 0.2;
+
+// ── AI Constants ───────────────────────────────────────────────
+
+export const AI_STARTING_CASH = 200000;
+export const AI_BUY_THRESHOLD_MULTIPLIER = 2; // buy when cash > 2× cheapest ship
+export const AI_MAX_ROUTES = 8; // cap routes to keep AI manageable
 
 export const SHIP_TEMPLATES: Record<ShipClass, ShipTemplate> = {
   [ShipClass.CargoShuttle]: {

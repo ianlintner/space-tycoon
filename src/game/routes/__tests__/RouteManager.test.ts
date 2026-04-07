@@ -43,6 +43,7 @@ function makeSystem(overrides: Partial<StarSystem> = {}): StarSystem {
     id: "system-1",
     name: "Test System",
     sectorId: "sector-1",
+    empireId: "empire-1",
     x: 0,
     y: 0,
     starColor: 0xffffff,

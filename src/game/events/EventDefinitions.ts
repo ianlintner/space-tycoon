@@ -313,6 +313,75 @@ const historicalDiscovery: EventTemplate = {
 };
 
 // ---------------------------------------------------------------------------
+// Empire Events (5)
+// ---------------------------------------------------------------------------
+
+const empireTradePact: EventTemplate = {
+  id: "empire_trade_pact",
+  name: "Empire Trade Pact",
+  description:
+    "A neighboring empire has signed a trade agreement, reducing tariffs on cross-border routes by 50% for 3 turns.",
+  category: EventCategory.Empire,
+  duration: 3,
+  effects: [{ type: "modifyPrice", value: -0.5 }],
+  weight: 6,
+  headwindWeight: 0,
+  tailwindWeight: 6,
+};
+
+const borderDispute: EventTemplate = {
+  id: "border_dispute",
+  name: "Border Dispute",
+  description:
+    "Tensions between empires have doubled tariff costs on all cross-border routes for 2 turns.",
+  category: EventCategory.Empire,
+  duration: 2,
+  effects: [{ type: "modifyPrice", value: 1.0 }],
+  weight: 7,
+  headwindWeight: 6,
+  tailwindWeight: 0,
+};
+
+const empireEmbargo: EventTemplate = {
+  id: "empire_embargo",
+  name: "Empire Embargo",
+  description:
+    "A hostile empire has imposed an embargo, blocking all routes crossing into their territory for 2 turns.",
+  category: EventCategory.Empire,
+  duration: 2,
+  effects: [{ type: "blockRoute", value: 1 }],
+  weight: 4,
+  headwindWeight: 8,
+  tailwindWeight: 0,
+};
+
+const empireSubsidy: EventTemplate = {
+  id: "empire_subsidy",
+  name: "Empire Subsidy",
+  description:
+    "Your home empire is subsidizing freight operations — receive a $15,000 government bonus!",
+  category: EventCategory.Empire,
+  duration: 1,
+  effects: [{ type: "modifyCash", value: 15000 }],
+  weight: 5,
+  headwindWeight: 0,
+  tailwindWeight: 6,
+};
+
+const pirateCorridors: EventTemplate = {
+  id: "pirate_corridors",
+  name: "Pirate Corridors",
+  description:
+    "Pirates have established smuggling corridors in the border regions, reducing ship speed by 25% on cross-border routes.",
+  category: EventCategory.Empire,
+  duration: 2,
+  effects: [{ type: "modifySpeed", value: -0.25 }],
+  weight: 6,
+  headwindWeight: 4,
+  tailwindWeight: 0,
+};
+
+// ---------------------------------------------------------------------------
 // All templates exported as an array
 // ---------------------------------------------------------------------------
 
@@ -341,4 +410,10 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   scientificBreakthrough,
   holovidPremiere,
   historicalDiscovery,
+  // Empire
+  empireTradePact,
+  borderDispute,
+  empireEmbargo,
+  empireSubsidy,
+  pirateCorridors,
 ];

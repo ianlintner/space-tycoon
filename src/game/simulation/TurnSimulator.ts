@@ -17,6 +17,7 @@ import {
   calculateShipValue,
 } from "../fleet/FleetManager.ts";
 import { calculateTripsPerTurn } from "../routes/RouteManager.ts";
+import { calculateTariff } from "../routes/TariffCalculator.ts";
 import {
   selectEvents,
   applyEventEffects,
@@ -24,6 +25,7 @@ import {
 } from "../events/EventEngine.ts";
 import { updateStorytellerState } from "../events/Storyteller.ts";
 import { generateTurnMessages } from "../adviser/AdviserEngine.ts";
+import { simulateAITurns } from "../ai/AISimulator.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 
 // ---------------------------------------------------------------------------
@@ -286,6 +288,23 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     });
   }
 
+  // ----- Step 2b: Calculate tariff costs for player routes -----
+  let totalTariffCosts = 0;
+  for (const rp of routePerformances) {
+    if (rp.revenue <= 0) continue;
+    const route = nextState.activeRoutes.find((r) => r.id === rp.routeId);
+    if (!route) continue;
+    const tariff = calculateTariff(
+      route,
+      rp.revenue,
+      nextState.playerEmpireId,
+      nextState.galaxy.systems,
+      nextState.galaxy.empires,
+    );
+    totalTariffCosts += tariff;
+  }
+  totalTariffCosts = Math.round(totalTariffCosts * 100) / 100;
+
   // ----- Step 3: Update saturation at destination planets -----
   nextState = updateSaturation(nextState, deliveriesByPlanet);
 
@@ -299,6 +318,14 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   // ----- Step 6: Age fleet -----
   const agedFleet = ageFleet(nextState.fleet, rng);
   nextState = { ...nextState, fleet: agedFleet };
+
+  // ----- Step 6b: Simulate AI company turns -----
+  const aiResult = simulateAITurns(nextState, rng);
+  nextState = {
+    ...nextState,
+    aiCompanies: aiResult.aiCompanies,
+    market: aiResult.marketUpdate,
+  };
 
   // ----- Step 7: Market evolution -----
   const updatedMarket = updateMarket(nextState.market, rng);
@@ -328,7 +355,11 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
 
   // ----- Step 9: Calculate net profit and update cash -----
   const netProfit =
-    totalRevenue - totalFuelCosts - maintenanceCosts - totalInterest;
+    totalRevenue -
+    totalFuelCosts -
+    maintenanceCosts -
+    totalInterest -
+    totalTariffCosts;
   const newCash = nextState.cash + netProfit;
   nextState = { ...nextState, cash: Math.round(newCash * 100) / 100 };
 
@@ -348,6 +379,7 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     fuelCosts: Math.round(totalFuelCosts * 100) / 100,
     maintenanceCosts: Math.round(maintenanceCosts * 100) / 100,
     loanPayments: totalInterest,
+    tariffCosts: totalTariffCosts,
     otherCosts: 0,
     netProfit: Math.round(netProfit * 100) / 100,
     cashAtEnd: nextState.cash,
@@ -355,6 +387,7 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     passengersTransported: totalPassengers,
     eventsOccurred: newEvents.map((e) => e.name),
     routePerformance: routePerformances,
+    aiSummaries: aiResult.summaries,
   };
 
   nextState = {

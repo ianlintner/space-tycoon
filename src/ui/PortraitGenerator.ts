@@ -494,6 +494,7 @@ function renderEventPortrait(
     hazard: [0x300d10, 0x48161a, 0xff6b3d],
     opportunity: [0x2c2408, 0x4b3d10, 0xffd36c],
     flavor: [0x1b1038, 0x2a1751, 0xb37dff],
+    empire: [0x0d1b30, 0x162d4b, 0x3d9eff],
   };
   const [top, bottom, accent] = palettes[category];
 

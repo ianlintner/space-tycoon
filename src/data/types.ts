@@ -40,8 +40,31 @@ export const EventCategory = {
   Hazard: "hazard",
   Opportunity: "opportunity",
   Flavor: "flavor",
+  Empire: "empire",
 } as const;
 export type EventCategory = (typeof EventCategory)[keyof typeof EventCategory];
+
+export const GameSize = {
+  Small: "small",
+  Medium: "medium",
+  Large: "large",
+} as const;
+export type GameSize = (typeof GameSize)[keyof typeof GameSize];
+
+export const EmpireDisposition = {
+  Friendly: "friendly",
+  Neutral: "neutral",
+  Hostile: "hostile",
+} as const;
+export type EmpireDisposition =
+  (typeof EmpireDisposition)[keyof typeof EmpireDisposition];
+
+export const AIPersonality = {
+  AggressiveExpander: "aggressiveExpander",
+  SteadyHauler: "steadyHauler",
+  CherryPicker: "cherryPicker",
+} as const;
+export type AIPersonality = (typeof AIPersonality)[keyof typeof AIPersonality];
 
 export interface Sector {
   id: string;
@@ -51,10 +74,20 @@ export interface Sector {
   color: number;
 }
 
+export interface Empire {
+  id: string;
+  name: string;
+  color: number;
+  tariffRate: number;
+  disposition: EmpireDisposition;
+  homeSystemId: string;
+}
+
 export interface StarSystem {
   id: string;
   name: string;
   sectorId: string;
+  empireId: string;
   x: number;
   y: number;
   starColor: number;
@@ -169,6 +202,7 @@ export interface TurnResult {
   fuelCosts: number;
   maintenanceCosts: number;
   loanPayments: number;
+  tariffCosts: number;
   otherCosts: number;
   netProfit: number;
   cashAtEnd: number;
@@ -176,6 +210,18 @@ export interface TurnResult {
   passengersTransported: number;
   eventsOccurred: string[];
   routePerformance: RoutePerformance[];
+  aiSummaries: AITurnSummary[];
+}
+
+export interface AITurnSummary {
+  companyId: string;
+  companyName: string;
+  revenue: number;
+  netProfit: number;
+  cashAtEnd: number;
+  routeCount: number;
+  fleetSize: number;
+  bankrupt: boolean;
 }
 
 export interface RoutePerformance {
@@ -238,23 +284,40 @@ export interface AdviserState {
   statsAdviserHindered: number;
 }
 
+export interface AICompany {
+  id: string;
+  name: string;
+  empireId: string;
+  cash: number;
+  fleet: Ship[];
+  activeRoutes: ActiveRoute[];
+  reputation: number;
+  totalCargoDelivered: number;
+  personality: AIPersonality;
+  bankrupt: boolean;
+}
+
 export interface GameState {
   seed: number;
   turn: number;
   maxTurns: number;
   phase: GamePhase;
+  gameSize: GameSize;
   cash: number;
   loans: Loan[];
   reputation: number;
   companyName: string;
+  playerEmpireId: string;
   galaxy: {
     sectors: Sector[];
+    empires: Empire[];
     systems: StarSystem[];
     planets: Planet[];
   };
   fleet: Ship[];
   activeRoutes: ActiveRoute[];
   market: MarketState;
+  aiCompanies: AICompany[];
   activeEvents: GameEvent[];
   history: TurnResult[];
   storyteller: StorytellerState;

@@ -1,15 +1,22 @@
 import { SeededRNG } from "../utils/SeededRNG.ts";
 import { generateGalaxy } from "../generation/GalaxyGenerator.ts";
 import { initializeMarkets } from "../generation/MarketInitializer.ts";
-import { ShipClass } from "../data/types.ts";
+import { ShipClass, GameSize, AIPersonality } from "../data/types.ts";
 import type {
   GameState,
   Ship,
   StarSystem,
   StorytellerState,
+  AICompany,
+  ActiveRoute,
+  GameSize as GameSizeT,
 } from "../data/types.ts";
 import { initAdviserState } from "./adviser/AdviserEngine.ts";
-import { SHIP_TEMPLATES, STARTING_CASH, MAX_TURNS } from "../data/constants.ts";
+import {
+  SHIP_TEMPLATES,
+  GAME_SIZE_CONFIGS,
+  AI_STARTING_CASH,
+} from "../data/constants.ts";
 
 export interface NewGameResult {
   state: GameState;
@@ -43,21 +50,21 @@ function selectStartingSystems(
     return [...systems];
   }
 
-  // Try to pick systems from different sectors
-  const sectorIds = [...new Set(systems.map((s) => s.sectorId))];
+  // Try to pick systems from different empires
+  const empireIds = [...new Set(systems.map((s) => s.empireId))];
   const selected: StarSystem[] = [];
 
-  if (sectorIds.length >= 3) {
-    // Pick one system from each of 3 different sectors
-    const shuffledSectors = rng.shuffle([...sectorIds]);
+  if (empireIds.length >= 3) {
+    // Pick one system from each of 3 different empires
+    const shuffledEmpires = rng.shuffle([...empireIds]);
     for (let i = 0; i < 3; i++) {
-      const sectorSystems = systems.filter(
-        (s) => s.sectorId === shuffledSectors[i],
+      const empireSystems = systems.filter(
+        (s) => s.empireId === shuffledEmpires[i],
       );
-      selected.push(rng.pick(sectorSystems));
+      selected.push(rng.pick(empireSystems));
     }
   } else {
-    // Not enough sectors, pick diverse systems
+    // Not enough empires, pick diverse systems
     const shuffled = rng.shuffle([...systems]);
     for (let i = 0; i < 3 && i < shuffled.length; i++) {
       selected.push(shuffled[i]);
@@ -67,14 +74,109 @@ function selectStartingSystems(
   return selected;
 }
 
+// ── AI Company Names ─────────────────────────────────────────
+
+const AI_COMPANY_NAME_PREFIXES = [
+  "Nova",
+  "Stellar",
+  "Deep",
+  "Cosmic",
+  "Astral",
+  "Quantum",
+  "Nebula",
+  "Void",
+  "Apex",
+  "Prime",
+];
+
+const AI_COMPANY_NAME_SUFFIXES = [
+  "Freight Lines",
+  "Logistics",
+  "Haulers",
+  "Transport Co.",
+  "Shipping Corp",
+  "Cargo Ltd.",
+  "Express",
+  "Trading Guild",
+  "Fleet Services",
+  "Star Carriers",
+];
+
+const AI_PERSONALITIES: (typeof AIPersonality)[keyof typeof AIPersonality][] = [
+  AIPersonality.AggressiveExpander,
+  AIPersonality.SteadyHauler,
+  AIPersonality.CherryPicker,
+];
+
+function createAICompanies(
+  empireIds: string[],
+  count: number,
+  playerEmpireId: string,
+  rng: SeededRNG,
+): AICompany[] {
+  const companies: AICompany[] = [];
+  const usedNames = new Set<string>();
+
+  // Allocate 1 AI per empire (excluding player's empire first)
+  const availableEmpires = empireIds.filter((id) => id !== playerEmpireId);
+  // If we need more AI than non-player empires, allow player empire too
+  const empireQueue = [...availableEmpires];
+  while (empireQueue.length < count) {
+    // Round-robin fill — add all empires again
+    for (const eid of empireIds) {
+      if (empireQueue.length >= count) break;
+      empireQueue.push(eid);
+    }
+  }
+
+  for (let i = 0; i < count; i++) {
+    let name: string;
+    do {
+      const prefix = rng.pick(AI_COMPANY_NAME_PREFIXES);
+      const suffix = rng.pick(AI_COMPANY_NAME_SUFFIXES);
+      name = `${prefix} ${suffix}`;
+    } while (usedNames.has(name));
+    usedNames.add(name);
+
+    const empireId = empireQueue[i];
+    const personality = AI_PERSONALITIES[i % AI_PERSONALITIES.length];
+
+    // Create starting fleet for AI (same as player)
+    const aiFleet: Ship[] = [
+      createShipFromTemplate(ShipClass.CargoShuttle, `ai-${i}-ship-0`),
+      createShipFromTemplate(ShipClass.PassengerShuttle, `ai-${i}-ship-1`),
+    ];
+
+    const company: AICompany = {
+      id: `ai-${i}`,
+      name,
+      empireId,
+      cash: AI_STARTING_CASH,
+      fleet: aiFleet,
+      activeRoutes: [] as ActiveRoute[],
+      reputation: 50,
+      totalCargoDelivered: 0,
+      personality,
+      bankrupt: false,
+    };
+
+    companies.push(company);
+  }
+
+  return companies;
+}
+
 export function createNewGame(
   seed: number,
   companyName: string = "Star Freight Corp",
+  gameSize: GameSizeT = GameSize.Small,
 ): NewGameResult {
   const rng = new SeededRNG(seed);
 
-  // Generate galaxy
-  const galaxyData = generateGalaxy(seed);
+  const config = GAME_SIZE_CONFIGS[gameSize];
+
+  // Generate galaxy with empires
+  const galaxyData = generateGalaxy(seed, gameSize);
 
   // Initialize markets (use a new RNG derived from the seed so market
   // generation doesn't depend on galaxy generation RNG state)
@@ -82,10 +184,16 @@ export function createNewGame(
   const market = initializeMarkets(galaxyData, marketRng);
 
   // Create starting fleet
-  const fleet: Ship[] = [
-    createShipFromTemplate(ShipClass.CargoShuttle, "ship-0"),
-    createShipFromTemplate(ShipClass.PassengerShuttle, "ship-1"),
-  ];
+  const startingShips: Ship[] = [];
+  for (let i = 0; i < config.startingShips; i++) {
+    const shipClass =
+      i === 0
+        ? ShipClass.CargoShuttle
+        : i === 1
+          ? ShipClass.PassengerShuttle
+          : ShipClass.MixedHauler;
+    startingShips.push(createShipFromTemplate(shipClass, `ship-${i}`));
+  }
 
   // Initialize storyteller
   const storyteller: StorytellerState = {
@@ -98,23 +206,42 @@ export function createNewGame(
   // Select starting system options
   const startingSystemOptions = selectStartingSystems(galaxyData.systems, rng);
 
+  // Default player empire to that of first starting system option
+  const playerEmpireId =
+    startingSystemOptions.length > 0
+      ? startingSystemOptions[0].empireId
+      : (galaxyData.empires[0]?.id ?? "");
+
+  // Create AI companies
+  const empireIds = galaxyData.empires.map((e) => e.id);
+  const aiCompanies = createAICompanies(
+    empireIds,
+    config.aiCompanyCount,
+    playerEmpireId,
+    rng,
+  );
+
   const state: GameState = {
     seed,
     turn: 1,
-    maxTurns: MAX_TURNS,
+    maxTurns: config.maxTurns,
     phase: "planning",
-    cash: STARTING_CASH,
+    gameSize,
+    cash: config.startingCash,
     loans: [],
     reputation: 50,
     companyName,
+    playerEmpireId,
     galaxy: {
       sectors: galaxyData.sectors,
+      empires: galaxyData.empires,
       systems: galaxyData.systems,
       planets: galaxyData.planets,
     },
-    fleet,
+    fleet: startingShips,
     activeRoutes: [],
     market,
+    aiCompanies,
     activeEvents: [],
     history: [],
     storyteller,

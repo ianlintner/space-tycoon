@@ -20,7 +20,7 @@ export class GalaxyMapScene extends Phaser.Scene {
   create(): void {
     const theme = getTheme();
     const state = gameStore.getState();
-    const { sectors, systems, planets } = state.galaxy;
+    const { sectors, systems, planets, empires } = state.galaxy;
     const routes = state.activeRoutes;
 
     // Starfield background
@@ -52,7 +52,7 @@ export class GalaxyMapScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setAlpha(0.85);
 
-    // Sector visuals: replace giant opaque circles with subtler influence fields
+    // Sector visuals: empire-tinted influence fields
     // centered from actual system positions so clusters read naturally.
     const systemsBySector = new Map<string, typeof systems>();
     for (const sector of sectors) {
@@ -62,9 +62,31 @@ export class GalaxyMapScene extends Phaser.Scene {
       );
     }
 
+    // Build empire lookup for coloring
+    const empireMap = new Map<string, (typeof empires)[0]>();
+    for (const empire of empires) {
+      empireMap.set(empire.id, empire);
+    }
+
     for (const sector of sectors) {
       const inSector = systemsBySector.get(sector.id) ?? [];
       if (inSector.length === 0) continue;
+
+      // Find the empire that owns most systems in this sector
+      const empireCounts = new Map<string, number>();
+      for (const s of inSector) {
+        empireCounts.set(s.empireId, (empireCounts.get(s.empireId) ?? 0) + 1);
+      }
+      let dominantEmpireId = "";
+      let maxCount = 0;
+      for (const [eId, count] of empireCounts) {
+        if (count > maxCount) {
+          maxCount = count;
+          dominantEmpireId = eId;
+        }
+      }
+      const empire = empireMap.get(dominantEmpireId);
+      const empireColor = empire?.color ?? sector.color;
 
       let sumX = 0;
       let sumY = 0;
@@ -89,7 +111,7 @@ export class GalaxyMapScene extends Phaser.Scene {
           centroidX,
           centroidY + CONTENT_TOP,
           influenceRadius,
-          sector.color,
+          empireColor,
           0.035,
         )
         .setOrigin(0.5, 0.5);
@@ -101,18 +123,20 @@ export class GalaxyMapScene extends Phaser.Scene {
       });
 
       const edge = this.add.graphics();
-      edge.lineStyle(1, sector.color, 0.18);
+      edge.lineStyle(1, empireColor, 0.18);
       edge.strokeCircle(
         centroidX,
         centroidY + CONTENT_TOP,
         Math.max(36, influenceRadius - 4),
       );
 
+      // Empire name label (replacing sector name)
+      const displayName = empire ? empire.name : sector.name;
       this.add
         .text(
           centroidX,
           centroidY + CONTENT_TOP - influenceRadius - 14,
-          sector.name,
+          displayName,
           {
             fontSize: `${theme.fonts.caption.size}px`,
             fontFamily: theme.fonts.caption.family,

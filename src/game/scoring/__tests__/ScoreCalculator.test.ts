@@ -83,6 +83,7 @@ function makeTurnResult(overrides: Partial<TurnResult> = {}): TurnResult {
     fuelCosts: 1000,
     maintenanceCosts: 2000,
     loanPayments: 0,
+    tariffCosts: 0,
     otherCosts: 0,
     netProfit: 2000,
     cashAtEnd: 202000,
@@ -98,6 +99,7 @@ function makeTurnResult(overrides: Partial<TurnResult> = {}): TurnResult {
     passengersTransported: 0,
     eventsOccurred: [],
     routePerformance: [],
+    aiSummaries: [],
     ...overrides,
   };
 }
@@ -128,13 +130,17 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
     loans: [],
     reputation: 50,
     companyName: "Test Corp",
+    gameSize: "small",
+    playerEmpireId: "",
     galaxy: {
       sectors: [{ id: "sec-1", name: "Sector 1", x: 0, y: 0, color: 0xffffff }],
+      empires: [],
       systems: [
         {
           id: "sys-1",
           name: "Alpha",
           sectorId: "sec-1",
+          empireId: "emp-1",
           x: 100,
           y: 100,
           starColor: 0xffcc00,
@@ -168,6 +174,7 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
       fuelTrend: "stable",
       planetMarkets,
     },
+    aiCompanies: [],
     activeEvents: [],
     history: [],
     storyteller: {

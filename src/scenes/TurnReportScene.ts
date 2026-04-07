@@ -80,6 +80,7 @@ export class TurnReportScene extends Phaser.Scene {
       lastTurn.fuelCosts +
       lastTurn.maintenanceCosts +
       lastTurn.loanPayments +
+      lastTurn.tariffCosts +
       lastTurn.otherCosts;
     const netColor =
       lastTurn.netProfit >= 0 ? theme.colors.profit : theme.colors.loss;
@@ -140,6 +141,15 @@ export class TurnReportScene extends Phaser.Scene {
         color: theme.colors.loss,
       },
     ];
+
+    // Add tariff row if any tariffs were paid
+    if (lastTurn.tariffCosts > 0) {
+      plRows.push({
+        label: "Border Tariffs",
+        value: formatCash(-lastTurn.tariffCosts),
+        color: theme.colors.loss,
+      });
+    }
 
     let rowY = plContent.y + 4;
     for (let i = 0; i < plRows.length; i++) {
@@ -425,9 +435,77 @@ export class TurnReportScene extends Phaser.Scene {
     routeTable.setRows(routeRows);
 
     // -----------------------------------------------------------------------
+    // AI Rivals Summary (below route performance)
+    // -----------------------------------------------------------------------
+    const aiSummaries = lastTurn.aiSummaries ?? [];
+    let aiPanelHeight = 0;
+    if (aiSummaries.length > 0) {
+      aiPanelHeight = 110;
+      new Panel(this, {
+        x: MAIN_CONTENT_LEFT,
+        y: CONTENT_TOP + 400,
+        width: MAIN_CONTENT_WIDTH,
+        height: aiPanelHeight,
+        title: "Rival Companies",
+      });
+
+      const aiTable = new DataTable(this, {
+        x: MAIN_CONTENT_LEFT + 10,
+        y: CONTENT_TOP + 440,
+        width: MAIN_CONTENT_WIDTH - 20,
+        height: aiPanelHeight - 50,
+        columns: [
+          { key: "name", label: "Company", width: 200 },
+          {
+            key: "revenue",
+            label: "Revenue",
+            width: 120,
+            align: "right",
+            format: (v) => formatCash(v as number),
+          },
+          {
+            key: "cash",
+            label: "Cash",
+            width: 120,
+            align: "right",
+            format: (v) => formatCash(v as number),
+          },
+          {
+            key: "fleet",
+            label: "Ships",
+            width: 80,
+            align: "right",
+          },
+          {
+            key: "routes",
+            label: "Routes",
+            width: 80,
+            align: "right",
+          },
+          {
+            key: "status",
+            label: "Status",
+            width: 100,
+          },
+        ],
+      });
+
+      const aiRows = aiSummaries.map((s) => ({
+        name: s.companyName,
+        revenue: s.revenue,
+        cash: s.cashAtEnd,
+        fleet: s.fleetSize,
+        routes: s.routeCount,
+        status: s.bankrupt ? "BANKRUPT" : "Active",
+      }));
+      aiTable.setRows(aiRows);
+    }
+
+    // -----------------------------------------------------------------------
     // Bottom row: News Digest (left) + Market Changes (right)
     // -----------------------------------------------------------------------
-    const bottomY = CONTENT_TOP + 400;
+    const bottomY =
+      CONTENT_TOP + 400 + aiPanelHeight + (aiPanelHeight > 0 ? 10 : 0);
     const halfWidth = MAIN_CONTENT_WIDTH / 2 - 5;
 
     // News Digest (bottom-left)

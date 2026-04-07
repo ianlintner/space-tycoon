@@ -24,10 +24,13 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
     loans: [],
     reputation: 55,
     companyName: "Test Corp",
-    galaxy: { sectors: [], systems: [], planets: [] },
+    gameSize: "small",
+    playerEmpireId: "",
+    galaxy: { sectors: [], empires: [], systems: [], planets: [] },
     fleet: [],
     activeRoutes: [],
     market: { fuelPrice: 12, fuelTrend: "stable", planetMarkets: {} },
+    aiCompanies: [],
     activeEvents: [],
     history: [],
     storyteller: {
@@ -110,11 +113,13 @@ describe("SaveManager", () => {
           sectors: [
             { id: "s1", name: "Alpha", x: 100, y: 200, color: 0xff0000 },
           ],
+          empires: [],
           systems: [
             {
               id: "sys1",
               name: "Sol",
               sectorId: "s1",
+              empireId: "emp-1",
               x: 120,
               y: 220,
               starColor: 0xffff00,

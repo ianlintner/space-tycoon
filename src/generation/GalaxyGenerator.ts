@@ -1,15 +1,28 @@
 import { SeededRNG } from "../utils/SeededRNG.ts";
 import { NameGenerator } from "./NameGenerator.ts";
-import { PlanetType } from "../data/types.ts";
+import { PlanetType, EmpireDisposition } from "../data/types.ts";
 import type {
   Sector,
+  Empire,
   StarSystem,
   Planet,
+  GameSize,
   PlanetType as PlanetTypeT,
+  EmpireDisposition as EmpireDispositionT,
 } from "../data/types.ts";
+import {
+  GAME_SIZE_CONFIGS,
+  TARIFF_FRIENDLY_MIN,
+  TARIFF_FRIENDLY_MAX,
+  TARIFF_NEUTRAL_MIN,
+  TARIFF_NEUTRAL_MAX,
+  TARIFF_HOSTILE_MIN,
+  TARIFF_HOSTILE_MAX,
+} from "../data/constants.ts";
 
 export interface GalaxyData {
   sectors: Sector[];
+  empires: Empire[];
   systems: StarSystem[];
   planets: Planet[];
 }
@@ -63,6 +76,42 @@ function weightedPick(
 const SECTOR_COLORS = [0x4488cc, 0xcc6644, 0x66cc88, 0xbb88cc, 0xcccc44];
 const STAR_COLORS = [
   0xffffee, 0xffcc88, 0xff8866, 0x88aaff, 0xffffff, 0xffaa44,
+];
+
+const EMPIRE_COLORS = [
+  0x4488cc, 0xcc6644, 0x66cc88, 0xbb88cc, 0xcccc44, 0xcc4466, 0x44cccc,
+];
+
+const EMPIRE_NAME_PREFIXES = [
+  "Terran",
+  "Kral",
+  "Voss",
+  "Althari",
+  "Nexari",
+  "Dravian",
+  "Solari",
+  "Rekthan",
+  "Omathi",
+  "Zenthari",
+];
+
+const EMPIRE_NAME_SUFFIXES = [
+  "Federation",
+  "Dominion",
+  "Republic",
+  "Collective",
+  "Sovereignty",
+  "Commonwealth",
+  "Hegemony",
+  "Alliance",
+  "Imperium",
+  "Confederacy",
+];
+
+const DISPOSITIONS: EmpireDispositionT[] = [
+  EmpireDisposition.Friendly,
+  EmpireDisposition.Neutral,
+  EmpireDisposition.Hostile,
 ];
 
 interface Bounds {
@@ -168,15 +217,21 @@ function generateSystemPoints(
   return points;
 }
 
-export function generateGalaxy(seed: number): GalaxyData {
+export function generateGalaxy(
+  seed: number,
+  gameSize: GameSize = "small",
+): GalaxyData {
   const rng = new SeededRNG(seed);
   const nameGen = new NameGenerator(rng);
 
+  const config = GAME_SIZE_CONFIGS[gameSize];
+
   const sectors: Sector[] = [];
+  const empires: Empire[] = [];
   const systems: StarSystem[] = [];
   const planets: Planet[] = [];
 
-  const numSectors = rng.nextInt(2, 3);
+  const numSectors = config.empireCount;
   const mapBounds: Bounds = {
     minX: 80,
     maxX: 980,
@@ -185,7 +240,10 @@ export function generateGalaxy(seed: number): GalaxyData {
   };
   const sectorCenters = generateSectorCenters(rng, numSectors, mapBounds);
 
-  // Position sectors across the coordinate space
+  // Shuffle dispositions — first empire always friendly (player home candidate)
+  const usedPrefixes = new Set<number>();
+
+  // Position sectors and empires across the coordinate space
   for (let si = 0; si < numSectors; si++) {
     const sectorX = sectorCenters[si].x;
     const sectorY = sectorCenters[si].y;
@@ -198,7 +256,46 @@ export function generateGalaxy(seed: number): GalaxyData {
     };
     sectors.push(sector);
 
-    const numSystems = rng.nextInt(4, 6);
+    // Generate empire for this sector
+    let prefixIdx: number;
+    do {
+      prefixIdx = rng.nextInt(0, EMPIRE_NAME_PREFIXES.length - 1);
+    } while (
+      usedPrefixes.has(prefixIdx) &&
+      usedPrefixes.size < EMPIRE_NAME_PREFIXES.length
+    );
+    usedPrefixes.add(prefixIdx);
+
+    const suffixIdx = rng.nextInt(0, EMPIRE_NAME_SUFFIXES.length - 1);
+    const empireName = `${EMPIRE_NAME_PREFIXES[prefixIdx]} ${EMPIRE_NAME_SUFFIXES[suffixIdx]}`;
+
+    // Assign disposition — distribute evenly
+    const disposition = DISPOSITIONS[si % DISPOSITIONS.length];
+
+    let tariffMin: number;
+    let tariffMax: number;
+    switch (disposition) {
+      case EmpireDisposition.Friendly:
+        tariffMin = TARIFF_FRIENDLY_MIN;
+        tariffMax = TARIFF_FRIENDLY_MAX;
+        break;
+      case EmpireDisposition.Hostile:
+        tariffMin = TARIFF_HOSTILE_MIN;
+        tariffMax = TARIFF_HOSTILE_MAX;
+        break;
+      default:
+        tariffMin = TARIFF_NEUTRAL_MIN;
+        tariffMax = TARIFF_NEUTRAL_MAX;
+        break;
+    }
+    const tariffRate = rng.nextFloat(tariffMin, tariffMax);
+
+    const empireId = `empire-${si}`;
+
+    const numSystems = rng.nextInt(
+      config.systemsPerEmpireMin,
+      config.systemsPerEmpireMax,
+    );
     const systemPoints = generateSystemPoints(
       rng,
       numSystems,
@@ -206,6 +303,9 @@ export function generateGalaxy(seed: number): GalaxyData {
       sectorY,
       mapBounds,
     );
+
+    let homeSystemId = "";
+
     for (let syi = 0; syi < numSystems; syi++) {
       const systemX = systemPoints[syi].x;
       const systemY = systemPoints[syi].y;
@@ -213,13 +313,19 @@ export function generateGalaxy(seed: number): GalaxyData {
         id: `system-${si}-${syi}`,
         name: nameGen.generateSystemName(),
         sectorId: sector.id,
+        empireId,
         x: systemX,
         y: systemY,
         starColor: rng.pick(STAR_COLORS),
       };
       systems.push(system);
 
-      const numPlanets = rng.nextInt(3, 6);
+      if (syi === 0) homeSystemId = system.id;
+
+      const numPlanets = rng.nextInt(
+        config.planetsPerSystemMin,
+        config.planetsPerSystemMax,
+      );
       for (let pi = 0; pi < numPlanets; pi++) {
         // Orbital position determines zone
         const orbitalFraction = numPlanets > 1 ? pi / (numPlanets - 1) : 0.5;
@@ -253,12 +359,22 @@ export function generateGalaxy(seed: number): GalaxyData {
         planets.push(planet);
       }
     }
+
+    const empire: Empire = {
+      id: empireId,
+      name: empireName,
+      color: EMPIRE_COLORS[si % EMPIRE_COLORS.length],
+      tariffRate: Math.round(tariffRate * 1000) / 1000,
+      disposition,
+      homeSystemId,
+    };
+    empires.push(empire);
   }
 
   // Ensure at least 1 of each planet type exists
   ensureAllPlanetTypes(rng, planets);
 
-  return { sectors, systems, planets };
+  return { sectors, empires, systems, planets };
 }
 
 function generatePopulation(rng: SeededRNG, type: PlanetTypeT): number {
