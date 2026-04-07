@@ -22,6 +22,7 @@ import {
 import { calculateShipValue } from "../game/fleet/FleetManager.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { buildRevealMessages } from "../game/adviser/AdviserEngine.ts";
+import { CARGO_DIVERSITY_BONUS } from "../data/constants.ts";
 
 function formatCash(amount: number): string {
   const sign = amount < 0 ? "-" : "";
@@ -98,12 +99,16 @@ export class GameOverScene extends Phaser.Scene {
 
     const allCargoTypes: CargoTypeT[] = Object.values(CargoType);
     let totalCargoDelivered = 0;
+    const cargoTypeTotals = new Set<CargoTypeT>();
     for (const turnResult of state.history) {
       for (const ct of allCargoTypes) {
-        totalCargoDelivered += turnResult.cargoDelivered[ct] ?? 0;
+        const amount = turnResult.cargoDelivered[ct] ?? 0;
+        totalCargoDelivered += amount;
+        if (amount > 0) cargoTypeTotals.add(ct);
       }
     }
     const cargoBonus = totalCargoDelivered * 0.5;
+    const diversityBonus = cargoTypeTotals.size * CARGO_DIVERSITY_BONUS;
     const routeBonus = state.activeRoutes.length * 500;
 
     // Empire bonus: count distinct empires the player trades with
@@ -154,6 +159,11 @@ export class GameOverScene extends Phaser.Scene {
       {
         label: "Cargo Bonus",
         value: `+${Math.round(cargoBonus).toLocaleString()}`,
+        color: theme.colors.accent,
+      },
+      {
+        label: `Diversity Bonus (${cargoTypeTotals.size} types)`,
+        value: `+${diversityBonus.toLocaleString()}`,
         color: theme.colors.accent,
       },
       {
