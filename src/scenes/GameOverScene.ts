@@ -418,5 +418,14 @@ export class GameOverScene extends Phaser.Scene {
         this.scene.start("MainMenuScene");
       },
     });
+
+    // Restart scene on resize so layout recalculates
+    const onResize = () => {
+      this.scene.restart();
+    };
+    this.scale.on("resize", onResize);
+    this.events.once("shutdown", () => {
+      this.scale.off("resize", onResize);
+    });
   }
 }

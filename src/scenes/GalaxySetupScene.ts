@@ -34,6 +34,11 @@ export class GalaxySetupScene extends Phaser.Scene {
   private startingOptions: StarSystem[] = [];
   private currentState!: GameState;
   private portraitPanel!: PortraitPanel;
+  /** Layout values needed by buildSystemCards, set in create() */
+  private configX = 0;
+  private configW = 0;
+  private cardsTopY = 0;
+  private cardsBottomY = 0;
 
   constructor() {
     super({ key: "GalaxySetupScene" });
@@ -198,6 +203,12 @@ export class GalaxySetupScene extends Phaser.Scene {
       style: "body",
     });
 
+    // Store layout for buildSystemCards
+    this.configX = configX;
+    this.configW = configW;
+    this.cardsTopY = rowY + 30;
+    this.cardsBottomY = configY + configH - 90;
+
     // Generate initial game data and build cards
     this.regenerate();
 
@@ -215,6 +226,15 @@ export class GalaxySetupScene extends Phaser.Scene {
         gameStore.setState(this.currentState);
         this.scene.start("GameHUDScene");
       },
+    });
+
+    // Restart scene on resize so layout recalculates
+    const onResize = () => {
+      this.scene.restart();
+    };
+    this.scale.on("resize", onResize);
+    this.events.once("shutdown", () => {
+      this.scale.off("resize", onResize);
     });
   }
 
@@ -249,20 +269,14 @@ export class GalaxySetupScene extends Phaser.Scene {
     if (this.startingOptions.length === 0) return;
 
     const theme = getTheme();
-    const L = getLayout();
-    const contentLeft = Math.floor((L.gameWidth - L.maxContentWidth) / 2);
-    const portraitW = 260;
-    const configGap = 20;
-    const configX = contentLeft + portraitW + configGap;
-    const configW = L.maxContentWidth - portraitW - configGap;
 
     const cardW = 200;
-    const cardH = 200;
     const gap = 16;
     const count = this.startingOptions.length;
     const totalW = cardW * count + gap * (count - 1);
-    const startX = configX + (configW - totalW) / 2;
-    const cardsY = 280;
+    const startX = this.configX + (this.configW - totalW) / 2;
+    const cardsY = this.cardsTopY;
+    const cardH = Math.max(140, this.cardsBottomY - cardsY);
     const planets = this.currentState.galaxy.planets;
 
     this.startingOptions.forEach((system, index) => {
@@ -294,20 +308,27 @@ export class GalaxySetupScene extends Phaser.Scene {
 
       // Planet type list
       let listY = infoY + 28;
-      const maxPlanetsShown = Math.floor(
-        (cardH - (listY - cardsY) - theme.spacing.sm) / 20,
-      );
+      const lineH = 18;
+      const availH = cardH - (listY - cardsY) - theme.spacing.sm;
+      const maxPlanetsShown = Math.floor(availH / lineH);
       const planetsToShow = systemPlanets.slice(0, maxPlanetsShown);
+      const nameMaxW = cardW - theme.spacing.md * 2 - theme.spacing.sm;
       for (const planet of planetsToShow) {
+        // Truncate long names so they don't word-wrap
+        let displayName = `${planet.name} (${planet.type})`;
+        const approxCharW = 6.5; // caption font ~6.5px per char
+        const maxChars = Math.floor(nameMaxW / approxCharW);
+        if (displayName.length > maxChars) {
+          displayName = displayName.slice(0, maxChars - 1) + "\u2026";
+        }
         const pLabel = new Label(this, {
           x: infoX + theme.spacing.sm,
           y: listY,
-          text: `${planet.name} (${planet.type})`,
+          text: displayName,
           style: "caption",
-          maxWidth: cardW - theme.spacing.md * 2 - theme.spacing.sm,
         });
         this.cardObjects.push(pLabel);
-        listY += 20;
+        listY += lineH;
       }
       if (systemPlanets.length > maxPlanetsShown) {
         const moreLabel = new Label(this, {

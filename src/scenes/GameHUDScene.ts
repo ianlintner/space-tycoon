@@ -30,6 +30,7 @@ export class GameHUDScene extends Phaser.Scene {
   private bottomTurnInfoLabel!: Label;
   private endTurnButton!: Button;
   private activeContentScene = "GalaxyMapScene";
+  private activeContentData?: object;
   private previousCash = 0;
   private navIndicators = new Map<string, Phaser.GameObjects.Rectangle>();
   private navBackgrounds = new Map<string, Phaser.GameObjects.Rectangle>();
@@ -67,6 +68,11 @@ export class GameHUDScene extends Phaser.Scene {
 
   constructor() {
     super({ key: "GameHUDScene" });
+  }
+
+  init(data?: { restoreScene?: string; restoreData?: object }): void {
+    this.activeContentScene = data?.restoreScene ?? "GalaxyMapScene";
+    this.activeContentData = data?.restoreData;
   }
 
   create(): void {
@@ -514,14 +520,33 @@ export class GameHUDScene extends Phaser.Scene {
     // ── State Subscription ───────────────────────────────────
     gameStore.on("stateChanged", this.stateListener);
 
+    // ── Resize handler: restart HUD and content scenes on layout change ──
+    const onResize = () => {
+      for (const key of this.contentSceneKeys) {
+        if (this.scene.isActive(key) || this.scene.isPaused(key)) {
+          this.scene.stop(key);
+        }
+      }
+      for (const key of this.overlaySceneKeys) {
+        if (this.scene.isActive(key)) {
+          this.scene.stop(key);
+        }
+      }
+      this.scene.restart({
+        restoreScene: this.activeContentScene,
+        restoreData: this.activeContentData,
+      });
+    };
+    this.scale.on("resize", onResize);
+
     this.events.once("shutdown", () => {
+      this.scale.off("resize", onResize);
       gameStore.off("stateChanged", this.stateListener);
       this.destroyAudioPanel();
     });
 
-    // Launch default content scene and ensure HUD renders on top
-    this.scene.launch("GalaxyMapScene");
-    this.activeContentScene = "GalaxyMapScene";
+    // Launch content scene (restored on resize, default GalaxyMapScene)
+    this.scene.launch(this.activeContentScene, this.activeContentData);
     this.scene.bringToTop();
   }
 
@@ -694,6 +719,7 @@ export class GameHUDScene extends Phaser.Scene {
     this.scene.launch(sceneName, data);
 
     this.activeContentScene = sceneName;
+    this.activeContentData = data;
     this.updateNavVisualState(sceneName, theme);
     this.scene.bringToTop();
   }
