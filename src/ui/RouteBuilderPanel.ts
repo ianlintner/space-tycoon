@@ -125,6 +125,7 @@ class RouteBuilderPanel {
   private profitValue!: Label;
   private statusValue!: Label;
   private hintValue!: Label;
+  private cargoIcon!: Phaser.GameObjects.Image;
   private fieldLabels = new Map<FieldKey, Label>();
   private fieldValues = new Map<FieldKey, Label>();
   private miniMap: MiniMap | null = null;
@@ -199,6 +200,17 @@ class RouteBuilderPanel {
     this.destinationValue = this.fieldValues.get("destination")!;
     this.cargoValue = this.fieldValues.get("cargo")!;
     this.shipValue = this.fieldValues.get("ship")!;
+
+    // Cargo icon placed just before the cargo value text
+    const cargoRow = this.cargoValue;
+    const initialCargo = this.getSelectedCargo();
+    this.cargoIcon = scene.add
+      .image(cargoRow.x - 22, cargoRow.y + 8, getCargoIconKey(initialCargo))
+      .setTint(getCargoColor(initialCargo))
+      .setOrigin(0.5, 0.5)
+      .setDepth(DEPTH_MODAL)
+      .setScale(0.75);
+    layer.track(this.cargoIcon);
 
     this.autoBuyButton = new Button(scene, {
       x: this.panelX + content.x,
@@ -527,6 +539,9 @@ class RouteBuilderPanel {
     this.originValue.setText(origin?.name ?? "—");
     this.destinationValue.setText(destination?.name ?? "—");
     this.cargoValue.setText(humanizeCargoType(cargo));
+    this.cargoIcon
+      .setTexture(getCargoIconKey(cargo))
+      .setTint(getCargoColor(cargo));
     this.shipValue.setText(shipLabel);
     this.autoBuyButton.setLabel(
       `Auto-buy if needed: ${this.autoBuy ? "ON" : "OFF"}`,
