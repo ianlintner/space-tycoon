@@ -315,7 +315,8 @@ describe("ScoreCalculator", () => {
 
       // Total cargo: 200 + 100 + 50 + 100 = 450
       // Bonus: 450 * 0.5 = 225
-      expect(scoreWithHistory - scoreNoHistory).toBe(225);
+      // Diversity: 3 distinct types (Food, Technology, Passengers) * 2000 = 6000
+      expect(scoreWithHistory - scoreNoHistory).toBe(225 + 6000);
     });
 
     it("adds route count * 500 to score", () => {
