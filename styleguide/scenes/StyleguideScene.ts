@@ -50,6 +50,12 @@ import {
 } from "@spacebiz/ui";
 import type { ThemeConfig, ColumnDef, BadgeVariant } from "@spacebiz/ui";
 import {
+  CARGO_TYPE_LIST,
+  getCargoIconKey,
+  getCargoColor,
+  getCargoLabel,
+} from "@spacebiz/ui";
+import {
   drawRexPortrait,
   getMoodAccentColor,
 } from "../../src/ui/AdviserPortrait.ts";
@@ -101,6 +107,7 @@ export class StyleguideScene extends Phaser.Scene {
 
     // ── Game-specific & extended sections ──
     y = this.addIconGallerySection(y);
+    y = this.addCargoIconSection(y);
     y = this.addHudBarSection(y);
     y = this.addAdviserPortraitSection(y);
     y = this.addPortraitGallerySection(y);

@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { ThemeConfig } from "@spacebiz/ui";
-import { getTheme, lerpColor } from "@spacebiz/ui";
+import { getTheme, lerpColor, generateCargoIcons } from "@spacebiz/ui";
 
 /**
  * Generates all procedural canvas textures that the @spacebiz/ui
@@ -21,6 +21,7 @@ export class StyleguideBootScene extends Phaser.Scene {
     this.generateGlowDot();
     this.generatePixelWhite();
     this.generateNavIcons();
+    generateCargoIcons(this.textures);
     this.scene.start("StyleguideScene");
   }
 
