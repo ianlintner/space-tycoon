@@ -80,16 +80,16 @@ describe("NewGameSetup", () => {
     const result = createNewGame(42);
     const { galaxy } = result.state;
 
-    // 4 sectors (small map = 4 empires)
-    expect(galaxy.sectors.length).toBe(4);
+    // 8 sectors (small map = 8 empires)
+    expect(galaxy.sectors.length).toBe(8);
 
-    // 4-5 systems per sector
+    // 6-8 systems per sector
     for (const sector of galaxy.sectors) {
       const systemsInSector = galaxy.systems.filter(
         (s) => s.sectorId === sector.id,
       );
-      expect(systemsInSector.length).toBeGreaterThanOrEqual(4);
-      expect(systemsInSector.length).toBeLessThanOrEqual(5);
+      expect(systemsInSector.length).toBeGreaterThanOrEqual(6);
+      expect(systemsInSector.length).toBeLessThanOrEqual(8);
     }
 
     // 1-3 planets per system

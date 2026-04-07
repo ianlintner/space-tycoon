@@ -24,21 +24,21 @@ describe("GalaxyGenerator", () => {
     }
   });
 
-  it("generates 4 sectors (small map)", () => {
+  it("generates 8 sectors (small map)", () => {
     for (const seed of [1, 42, 100, 999, 7777]) {
       const galaxy = generateGalaxy(seed);
-      expect(galaxy.sectors.length).toBe(4);
+      expect(galaxy.sectors.length).toBe(8);
     }
   });
 
-  it("generates 4-5 systems per sector (small map)", () => {
+  it("generates 6-8 systems per sector (small map)", () => {
     const galaxy = generateGalaxy(42);
     for (const sector of galaxy.sectors) {
       const systemsInSector = galaxy.systems.filter(
         (s) => s.sectorId === sector.id,
       );
-      expect(systemsInSector.length).toBeGreaterThanOrEqual(4);
-      expect(systemsInSector.length).toBeLessThanOrEqual(5);
+      expect(systemsInSector.length).toBeGreaterThanOrEqual(6);
+      expect(systemsInSector.length).toBeLessThanOrEqual(8);
     }
   });
 
@@ -70,11 +70,11 @@ describe("GalaxyGenerator", () => {
     }
   });
 
-  it("total planets in expected range (16-60)", () => {
+  it("total planets in expected range (48-192)", () => {
     for (const seed of [1, 42, 100, 999, 7777]) {
       const galaxy = generateGalaxy(seed);
-      expect(galaxy.planets.length).toBeGreaterThanOrEqual(16);
-      expect(galaxy.planets.length).toBeLessThanOrEqual(60);
+      expect(galaxy.planets.length).toBeGreaterThanOrEqual(48);
+      expect(galaxy.planets.length).toBeLessThanOrEqual(192);
     }
   });
 
