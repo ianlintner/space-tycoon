@@ -17,7 +17,9 @@ import {
   createRoute,
   estimateRouteFuelCost,
   estimateRouteRevenue,
+  addCargoLock,
 } from "../game/routes/RouteManager.ts";
+import { validateRouteCreation } from "../game/empire/EmpireAccessManager.ts";
 import { getLayout } from "./Layout.ts";
 import { Button } from "./Button.ts";
 import { Label } from "./Label.ts";
@@ -758,6 +760,18 @@ class RouteBuilderPanel {
     }
 
     const cargo = this.getSelectedCargo();
+
+    // Validate route creation (slots, empire access, trade policies, cargo locks)
+    const validationError = validateRouteCreation(
+      origin.id,
+      destination.id,
+      cargo,
+      latestState,
+    );
+    if (validationError) {
+      return;
+    }
+
     const distance = calculateDistance(
       origin,
       destination,
@@ -820,9 +834,21 @@ class RouteBuilderPanel {
         updatedFleet.find((ship) => ship.id === assignedShipId)?.name ?? null;
     }
 
+    // Track inter-empire cargo lock
+    const updatedLocks = addCargoLock(
+      origin.id,
+      destination.id,
+      cargo,
+      route.id,
+      latestState.galaxy.systems,
+      latestState.galaxy.planets,
+      latestState.interEmpireCargoLocks,
+    );
+
     gameStore.update({
       fleet: updatedFleet,
       activeRoutes: updatedRoutes,
+      interEmpireCargoLocks: updatedLocks,
       cash: updatedCash,
     });
 

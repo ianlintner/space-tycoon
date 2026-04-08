@@ -32,11 +32,16 @@ import {
   estimateRouteRevenue,
   estimateRouteFuelCost,
   scanAllRouteOpportunities,
+  addCargoLock,
+  removeCargoLocks,
+  getAvailableRouteSlots,
+  getUsedRouteSlots,
 } from "../game/routes/RouteManager.ts";
 import type { RouteOpportunity } from "../game/routes/RouteManager.ts";
 import { buyShip } from "../game/fleet/FleetManager.ts";
 import { SHIP_TEMPLATES } from "../data/constants.ts";
 import type { ShipClass } from "../data/types.ts";
+import { validateRouteCreation } from "../game/empire/EmpireAccessManager.ts";
 
 function formatCash(n: number): string {
   const sign = n < 0 ? "-" : "";
@@ -546,6 +551,7 @@ export class RoutesScene extends Phaser.Scene {
       state.market,
       state.activeRoutes,
       state.cash,
+      state,
     );
 
     // Apply cargo type filter
@@ -562,8 +568,10 @@ export class RoutesScene extends Phaser.Scene {
     const filterLabel = this.finderCargoFilter
       ? humanizeCargo(this.finderCargoFilter)
       : "all cargo";
+    const slotsUsed = getUsedRouteSlots(state);
+    const slotsTotal = getAvailableRouteSlots(state);
     this.finderSummary.setText(
-      `${profitableCount} ${filterLabel} routes found \u2022 ${availableShips} idle ships \u2022 §${state.cash.toLocaleString("en-US")} cash \u2022 Enter to create`,
+      `${profitableCount} ${filterLabel} routes found \u2022 Slots ${slotsUsed}/${slotsTotal} \u2022 ${availableShips} idle ships \u2022 §${state.cash.toLocaleString("en-US")} cash \u2022 Enter to create`,
     );
 
     // Show top 50 for performance — full list still in this.opportunities
@@ -676,6 +684,24 @@ export class RoutesScene extends Phaser.Scene {
 
     // Create with auto-ship assignment
     const state = gameStore.getState();
+
+    // Validate route creation (slots, empire access, trade policies, cargo locks)
+    const validationError = validateRouteCreation(
+      opp.originPlanetId,
+      opp.destinationPlanetId,
+      opp.bestCargoType,
+      state,
+    );
+    if (validationError) {
+      const m = new Modal(this, {
+        title: "Cannot Create Route",
+        body: validationError,
+        onOk: () => m.destroy(),
+      });
+      m.show();
+      return;
+    }
+
     const origin = state.galaxy.planets.find(
       (p) => p.id === opp.originPlanetId,
     );
@@ -703,6 +729,17 @@ export class RoutesScene extends Phaser.Scene {
     let updatedFleet = [...state.fleet];
     let updatedRoutes = [...state.activeRoutes, route];
     let updatedCash = state.cash - licenseFee;
+
+    // Track inter-empire cargo lock
+    let updatedLocks = addCargoLock(
+      origin.id,
+      dest.id,
+      opp.bestCargoType,
+      route.id,
+      state.galaxy.systems,
+      state.galaxy.planets,
+      state.interEmpireCargoLocks,
+    );
 
     // Find best available ship for this cargo
     const isPassenger = opp.bestCargoType === "passengers";
@@ -756,6 +793,7 @@ export class RoutesScene extends Phaser.Scene {
     gameStore.update({
       fleet: updatedFleet,
       activeRoutes: updatedRoutes,
+      interEmpireCargoLocks: updatedLocks,
       cash: updatedCash,
     });
 
@@ -1026,7 +1064,15 @@ export class RoutesScene extends Phaser.Scene {
           freshState.fleet,
           freshState.activeRoutes,
         );
-        gameStore.update({ fleet, activeRoutes: routes });
+        const updatedLocks = removeCargoLocks(
+          this.selectedRouteId!,
+          freshState.interEmpireCargoLocks,
+        );
+        gameStore.update({
+          fleet,
+          activeRoutes: routes,
+          interEmpireCargoLocks: updatedLocks,
+        });
         this.selectedRouteId = null;
         modal.destroy();
         this.refreshFinderTable();

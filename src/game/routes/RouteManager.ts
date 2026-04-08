@@ -6,6 +6,8 @@ import type {
   MarketState,
   CargoType,
   CargoMarketEntry,
+  GameState,
+  InterEmpireCargoLock,
 } from "../../data/types.ts";
 import { CargoType as CargoTypeEnum } from "../../data/types.ts";
 import {
@@ -16,6 +18,13 @@ import {
   LICENSE_FEE_ROUTE_ESCALATION,
 } from "../../data/constants.ts";
 import type { ShipClass } from "../../data/types.ts";
+import { getTechRouteSlotBonus } from "../tech/TechEffects.ts";
+import {
+  isEmpireAccessible,
+  getEmpireForPlanet,
+  checkTradePolicyViolation,
+  checkCargoLockViolation,
+} from "../empire/EmpireAccessManager.ts";
 
 /**
  * Calculate distance between two planets.
@@ -75,6 +84,66 @@ export function calculateLicenseFee(
   const distMult = Math.max(1.0, distance / LICENSE_FEE_DISTANCE_DIVISOR);
   const routeMult = 1.0 + existingRouteCount * LICENSE_FEE_ROUTE_ESCALATION;
   return Math.round(BASE_LICENSE_FEE * distMult * routeMult);
+}
+
+// ── Route Slot Helpers ─────────────────────────────────────────────────
+
+/**
+ * Total route slots available (base + tech bonus).
+ */
+export function getAvailableRouteSlots(state: GameState): number {
+  return state.routeSlots + getTechRouteSlotBonus(state);
+}
+
+/**
+ * Number of route slots currently in use.
+ */
+export function getUsedRouteSlots(state: GameState): number {
+  return state.activeRoutes.length;
+}
+
+/**
+ * Number of free route slots remaining.
+ */
+export function getFreeRouteSlots(state: GameState): number {
+  return Math.max(0, getAvailableRouteSlots(state) - getUsedRouteSlots(state));
+}
+
+// ── Inter-Empire Cargo Lock Tracking ──────────────────────────────────
+
+/**
+ * Add a cargo lock entry when creating an inter-empire route.
+ * Returns the updated locks array (or same array if intra-empire).
+ */
+export function addCargoLock(
+  originPlanetId: string,
+  destPlanetId: string,
+  cargoType: CargoType,
+  routeId: string,
+  systems: StarSystem[],
+  planets: Array<{ id: string; systemId: string }>,
+  locks: InterEmpireCargoLock[],
+): InterEmpireCargoLock[] {
+  const originEmpireId = getEmpireForPlanet(originPlanetId, systems, planets);
+  const destEmpireId = getEmpireForPlanet(destPlanetId, systems, planets);
+
+  if (!originEmpireId || !destEmpireId) return locks;
+  if (originEmpireId === destEmpireId) return locks;
+
+  return [
+    ...locks,
+    { originEmpireId, destinationEmpireId: destEmpireId, cargoType, routeId },
+  ];
+}
+
+/**
+ * Remove all cargo lock entries for a given route.
+ */
+export function removeCargoLocks(
+  routeId: string,
+  locks: InterEmpireCargoLock[],
+): InterEmpireCargoLock[] {
+  return locks.filter((l) => l.routeId !== routeId);
 }
 
 /**
@@ -240,6 +309,8 @@ export interface RouteOpportunity {
  * Scan all origin→destination pairs and rank by estimated profit.
  * For each pair, shows ALL profitable cargo types so players can discover
  * passenger routes, food runs, etc. alongside high-value luxury hauls.
+ *
+ * Filters by empire access, trade policies, cargo locks, and route slots.
  */
 export function scanAllRouteOpportunities(
   planets: Planet[],
@@ -248,6 +319,7 @@ export function scanAllRouteOpportunities(
   market: MarketState,
   activeRoutes: ActiveRoute[],
   cash: number,
+  state?: GameState,
 ): RouteOpportunity[] {
   const cargoTypes = Object.values(CargoTypeEnum) as CargoType[];
   const availableShips = fleet.filter((s) => !s.assignedRouteId);
@@ -263,6 +335,15 @@ export function scanAllRouteOpportunities(
     for (const dest of planets) {
       if (origin.id === dest.id) continue;
 
+      // Filter by empire access if state provided
+      if (state) {
+        const originEmpireId = getEmpireForPlanet(origin.id, systems, planets);
+        const destEmpireId = getEmpireForPlanet(dest.id, systems, planets);
+        if (originEmpireId && !isEmpireAccessible(originEmpireId, state))
+          continue;
+        if (destEmpireId && !isEmpireAccessible(destEmpireId, state)) continue;
+      }
+
       const distance = calculateDistance(origin, dest, systems);
       if (distance < 1) continue; // skip trivially close planets
       const destMarket = market.planetMarkets[dest.id];
@@ -273,6 +354,33 @@ export function scanAllRouteOpportunities(
 
       // Emit an entry for EACH profitable cargo type on this pair
       for (const cargoType of cargoTypes) {
+        // Filter by trade policies and cargo locks if state provided
+        if (state) {
+          const oEid = getEmpireForPlanet(origin.id, systems, planets);
+          const dEid = getEmpireForPlanet(dest.id, systems, planets);
+          if (oEid && dEid && oEid !== dEid) {
+            if (
+              checkTradePolicyViolation(
+                oEid,
+                dEid,
+                cargoType,
+                state.empireTradePolicies,
+              )
+            )
+              continue;
+            if (
+              checkCargoLockViolation(
+                oEid,
+                dEid,
+                cargoType,
+                state.interEmpireCargoLocks,
+                state,
+              )
+            )
+              continue;
+          }
+        }
+
         const destEntry = destMarket[cargoType];
         const price = destEntry.currentPrice;
         const isPassenger = cargoType === "passengers";
