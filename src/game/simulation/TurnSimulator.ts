@@ -22,10 +22,19 @@ import {
   selectEvents,
   applyEventEffects,
   tickEvents,
+  isRouteGrounded,
+  calculateMothballFee,
 } from "../events/EventEngine.ts";
 import { updateStorytellerState } from "../events/Storyteller.ts";
 import { generateTurnMessages } from "../adviser/AdviserEngine.ts";
 import { simulateAITurns } from "../ai/AISimulator.ts";
+import { processContracts } from "../contracts/ContractManager.ts";
+import { calculateRPPerTurn, processResearch } from "../tech/TechTree.ts";
+import {
+  getMaintenanceMultiplier,
+  getFuelMultiplier,
+  getRevenueMultiplier,
+} from "../tech/TechEffects.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 
 // ---------------------------------------------------------------------------
@@ -218,6 +227,7 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   let totalRevenue = 0;
   let totalFuelCosts = 0;
   let totalPassengers = 0;
+  let totalMothballFees = 0;
   const cargoDelivered: Record<CargoTypeT, number> = {
     [CargoType.Passengers]: 0,
     [CargoType.RawMaterials]: 0,
@@ -232,7 +242,42 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   // Track deliveries per planet per cargo type for saturation
   const deliveriesByPlanet = new Map<string, Map<CargoTypeT, number>>();
 
+  // Tech multipliers applied to all routes
+  const revenueMultiplier = getRevenueMultiplier(nextState);
+  const fuelMultiplier = getFuelMultiplier(nextState);
+
   for (const route of nextState.activeRoutes) {
+    // Check if route is grounded by events (embargo, blockade, etc.)
+    const grounded = isRouteGrounded(
+      route,
+      nextState.activeEvents,
+      nextState.galaxy.systems,
+      nextState.galaxy.planets,
+    );
+
+    if (grounded) {
+      // Grounded routes generate no revenue; charge mothball fee instead
+      const mothballFee = calculateMothballFee(
+        route,
+        nextState.fleet,
+        nextState.activeEvents,
+        nextState.galaxy.systems,
+        nextState.galaxy.planets,
+        nextState,
+      );
+      totalMothballFees += mothballFee;
+      routePerformances.push({
+        routeId: route.id,
+        trips: 0,
+        revenue: 0,
+        fuelCost: 0,
+        cargoMoved: 0,
+        passengersMoved: 0,
+        breakdowns: 0,
+      });
+      continue;
+    }
+
     let routeRevenue = 0;
     let routeFuelCost = 0;
     let routeCargoMoved = 0;
@@ -252,6 +297,10 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
       routeTrips += result.trips;
       routeBreakdowns += result.breakdowns;
     }
+
+    // Apply tech multipliers
+    routeRevenue *= revenueMultiplier;
+    routeFuelCost *= fuelMultiplier;
 
     totalRevenue += routeRevenue;
     totalFuelCosts += routeFuelCost;
@@ -309,7 +358,9 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   nextState = updateSaturation(nextState, deliveriesByPlanet);
 
   // ----- Step 4: Calculate maintenance costs -----
-  const maintenanceCosts = calculateMaintenanceCosts(nextState.fleet);
+  const maintenanceCosts =
+    calculateMaintenanceCosts(nextState.fleet) *
+    getMaintenanceMultiplier(nextState);
 
   // ----- Step 5: Process loans -----
   const { updatedLoans, totalInterest } = processLoans(nextState.loans);
@@ -353,13 +404,21 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     activeEvents: [...tickedEvents, ...newEvents],
   };
 
+  // ----- Step 8b: Process contracts -----
+  nextState = processContracts(nextState);
+
+  // ----- Step 8c: Research point accumulation & tech completion -----
+  const rpThisTurn = calculateRPPerTurn(nextState);
+  nextState = processResearch(nextState, rpThisTurn);
+
   // ----- Step 9: Calculate net profit and update cash -----
   const netProfit =
     totalRevenue -
     totalFuelCosts -
     maintenanceCosts -
     totalInterest -
-    totalTariffCosts;
+    totalTariffCosts -
+    totalMothballFees;
   const newCash = nextState.cash + netProfit;
   nextState = { ...nextState, cash: Math.round(newCash * 100) / 100 };
 
@@ -380,7 +439,7 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     maintenanceCosts: Math.round(maintenanceCosts * 100) / 100,
     loanPayments: totalInterest,
     tariffCosts: totalTariffCosts,
-    otherCosts: 0,
+    otherCosts: totalMothballFees,
     netProfit: Math.round(netProfit * 100) / 100,
     cashAtEnd: nextState.cash,
     cargoDelivered,

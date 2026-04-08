@@ -14,6 +14,8 @@ import {
   BREAKDOWN_THRESHOLD,
   AI_BUY_THRESHOLD_MULTIPLIER,
   AI_MAX_ROUTES,
+  AI_PERSONALITY_SLOTS,
+  AI_SLOT_GROWTH_INTERVAL,
 } from "../../data/constants.ts";
 import {
   calculateTripsPerTurn,
@@ -264,6 +266,22 @@ function applyAISaturation(
 }
 
 // ---------------------------------------------------------------------------
+// AI slot calculation
+// ---------------------------------------------------------------------------
+
+function getAISlotLimit(
+  personality: (typeof AIPersonality)[keyof typeof AIPersonality],
+  turn: number,
+): number {
+  const config = AI_PERSONALITY_SLOTS[personality] ?? {
+    baseSlots: 4,
+    maxSlots: AI_MAX_ROUTES,
+  };
+  const growth = Math.floor(turn / AI_SLOT_GROWTH_INTERVAL);
+  return Math.min(config.baseSlots + growth, config.maxSlots);
+}
+
+// ---------------------------------------------------------------------------
 // AI decision-making
 // ---------------------------------------------------------------------------
 
@@ -331,7 +349,8 @@ function makeAIDecisions(
   }
 
   // ── Open routes ──
-  if (currentRoutes.length < AI_MAX_ROUTES) {
+  const aiSlotLimit = getAISlotLimit(company.personality, state.turn);
+  if (currentRoutes.length < aiSlotLimit) {
     const newIdleShips = currentFleet.filter((s) => !s.assignedRouteId);
     if (newIdleShips.length > 0) {
       const routeResult = openAIRoute(

@@ -6,10 +6,15 @@ import type {
   Planet,
   ActiveRoute,
   EventEffect,
+  Empire,
+  Ship,
 } from "../../data/types.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 import { EVENT_TEMPLATES } from "./EventDefinitions.ts";
 import type { EventTemplate } from "./EventDefinitions.ts";
+import { MOTHBALL_FEE_RATIO } from "../../data/constants.ts";
+import { getEmpireForPlanet } from "../empire/EmpireAccessManager.ts";
+import { hasTechEffect } from "../tech/TechEffects.ts";
 
 // ---------------------------------------------------------------------------
 // Galaxy shape expected by selectEvents (avoids importing full GameState)
@@ -17,6 +22,7 @@ import type { EventTemplate } from "./EventDefinitions.ts";
 export interface GalaxyInfo {
   systems: StarSystem[];
   planets: Planet[];
+  empires?: Empire[];
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +73,46 @@ function pickTarget(
   template: EventTemplate,
   galaxy: GalaxyInfo,
   activeRoutes: ActiveRoute[],
-): { targetId: string; targetName: string } {
+): {
+  targetId: string;
+  targetName: string;
+  empireId?: string;
+  empireId2?: string;
+} {
+  const empires = galaxy.empires ?? [];
+
+  // Empire-pair events: Trade Embargo, Tariff War
+  const needsEmpirePair = template.effects.some(
+    (e) => e.type === "groundEmpireRoutes" || e.type === "modifyTariff",
+  );
+  if (needsEmpirePair && empires.length >= 2) {
+    const idxA = rng.nextInt(0, empires.length - 1);
+    let idxB = rng.nextInt(0, empires.length - 2);
+    if (idxB >= idxA) idxB++;
+    const empA = empires[idxA];
+    const empB = empires[idxB];
+    return {
+      targetId: empA.id,
+      targetName: `${empA.name} and ${empB.name}`,
+      empireId: empA.id,
+      empireId2: empB.id,
+    };
+  }
+
+  // Single-empire events: Import Crackdown, Free Trade Summit, Smuggling Opportunity
+  const needsEmpire = template.effects.some(
+    (e) => e.type === "blockImport" || e.type === "removeBans",
+  );
+  const isSmuggling = template.id === "smuggling_opportunity";
+  if ((needsEmpire || isSmuggling) && empires.length > 0) {
+    const emp = rng.pick(empires);
+    return {
+      targetId: emp.id,
+      targetName: emp.name,
+      empireId: emp.id,
+    };
+  }
+
   // Events that block a route need a route target
   const needsRoute = template.effects.some((e) => e.type === "blockRoute");
   if (needsRoute && activeRoutes.length > 0) {
@@ -113,7 +158,7 @@ function instantiateEvent(
   galaxy: GalaxyInfo,
   activeRoutes: ActiveRoute[],
 ): GameEvent {
-  const { targetId, targetName } = pickTarget(
+  const { targetId, targetName, empireId, empireId2 } = pickTarget(
     rng,
     template,
     galaxy,
@@ -123,6 +168,8 @@ function instantiateEvent(
   const effects: EventEffect[] = template.effects.map((e) => ({
     ...e,
     targetId: e.targetId ?? targetId,
+    empireId: e.empireId ?? empireId,
+    empireId2: e.empireId2 ?? empireId2,
   }));
 
   const description = template.description.replace(/\{target\}/g, targetName);
@@ -305,10 +352,180 @@ export function applyEventEffects(
         // Blocking is checked by simulation reading activeEvents
         break;
       }
+
+      case "groundEmpireRoutes": {
+        // Grounding is checked by isRouteGrounded / simulation layer
+        break;
+      }
+
+      case "blockImport": {
+        // Checked by simulation layer; temporarily adds import restriction
+        break;
+      }
+
+      case "removeBans": {
+        // Checked by simulation layer; temporarily lifts trade bans for empireId
+        break;
+      }
+
+      case "modifyTariff": {
+        // Tariff modifier is read by TariffCalculator from activeEvents
+        break;
+      }
     }
   }
 
   return nextState;
+}
+
+// ---------------------------------------------------------------------------
+// Route Grounding Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if a route is grounded by any active event.
+ * Routes can be grounded by:
+ *  - "blockRoute" effect targeting the route ID
+ *  - "groundEmpireRoutes" effect targeting an empire pair that the route crosses
+ */
+export function isRouteGrounded(
+  route: ActiveRoute,
+  activeEvents: GameEvent[],
+  systems: StarSystem[],
+  planets: { id: string; systemId: string }[],
+): boolean {
+  for (const event of activeEvents) {
+    for (const effect of event.effects) {
+      if (effect.type === "blockRoute" && effect.targetId === route.id) {
+        return true;
+      }
+      if (
+        effect.type === "groundEmpireRoutes" &&
+        effect.empireId &&
+        effect.empireId2
+      ) {
+        const originEmpire = getEmpireForPlanet(
+          route.originPlanetId,
+          systems,
+          planets,
+        );
+        const destEmpire = getEmpireForPlanet(
+          route.destinationPlanetId,
+          systems,
+          planets,
+        );
+        if (originEmpire && destEmpire) {
+          const pair = [effect.empireId, effect.empireId2];
+          if (
+            pair.includes(originEmpire) &&
+            pair.includes(destEmpire) &&
+            originEmpire !== destEmpire
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Mothball Fee Calculation
+// ---------------------------------------------------------------------------
+
+/**
+ * Calculate the mothball fee for a grounded route.
+ * Fee = baseMaintenance of assigned ship × MOTHBALL_FEE_RATIO per turn.
+ * Returns 0 if no ship is assigned or route is not grounded.
+ */
+export function calculateMothballFee(
+  route: ActiveRoute,
+  fleet: Ship[],
+  activeEvents: GameEvent[],
+  systems: StarSystem[],
+  planets: { id: string; systemId: string }[],
+  state?: GameState,
+): number {
+  if (!isRouteGrounded(route, activeEvents, systems, planets)) return 0;
+  if (route.assignedShipIds.length === 0) return 0;
+
+  // If the player has the "addEmbargoImmunity" tech, no mothball fee
+  if (state && hasTechEffect(state, "addEmbargoImmunity")) return 0;
+
+  let totalFee = 0;
+  for (const shipId of route.assignedShipIds) {
+    const ship = fleet.find((s) => s.id === shipId);
+    if (ship) {
+      totalFee += ship.maintenanceCost * MOTHBALL_FEE_RATIO;
+    }
+  }
+
+  // Tech "addMothballRefund" reduces mothball fee (value is a negative multiplier)
+  // This tech is handled in simulation where the refund is applied
+
+  return Math.round(totalFee);
+}
+
+/**
+ * Check if an import is temporarily blocked by an active Import Crackdown event.
+ */
+export function isImportBlockedByEvent(
+  destEmpireId: string,
+  activeEvents: GameEvent[],
+): boolean {
+  for (const event of activeEvents) {
+    for (const effect of event.effects) {
+      if (effect.type === "blockImport" && effect.empireId === destEmpireId) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if trade bans are temporarily lifted for an empire by a Free Trade Summit event.
+ */
+export function areBansLiftedByEvent(
+  empireId: string,
+  activeEvents: GameEvent[],
+): boolean {
+  for (const event of activeEvents) {
+    for (const effect of event.effects) {
+      if (effect.type === "removeBans" && effect.empireId === empireId) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Get the total event-driven tariff modifier for a pair of empires.
+ * Returns the additional tariff multiplier (e.g. 1.0 = doubled tariffs).
+ */
+export function getEventTariffModifier(
+  empireA: string,
+  empireB: string,
+  activeEvents: GameEvent[],
+): number {
+  let modifier = 0;
+  for (const event of activeEvents) {
+    for (const effect of event.effects) {
+      if (
+        effect.type === "modifyTariff" &&
+        effect.empireId &&
+        effect.empireId2
+      ) {
+        const pair = [effect.empireId, effect.empireId2];
+        if (pair.includes(empireA) && pair.includes(empireB)) {
+          modifier += effect.value;
+        }
+      }
+    }
+  }
+  return modifier;
 }
 
 // ---------------------------------------------------------------------------

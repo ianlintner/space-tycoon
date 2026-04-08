@@ -222,10 +222,16 @@ export interface EventEffect {
     | "modifyDemand"
     | "modifyCash"
     | "modifyReputation"
-    | "blockPassengers";
+    | "blockPassengers"
+    | "groundEmpireRoutes"
+    | "blockImport"
+    | "removeBans"
+    | "modifyTariff";
   targetId?: string;
   cargoType?: CargoType;
   value: number;
+  empireId?: string;
+  empireId2?: string;
 }
 
 export interface EventChoice {

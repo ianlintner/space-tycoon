@@ -1,4 +1,4 @@
-import { CargoType } from "../../data/types.ts";
+import { CargoType, ContractStatus } from "../../data/types.ts";
 import type {
   GameState,
   CargoType as CargoTypeT,
@@ -77,13 +77,30 @@ export function calculateScore(state: GameState): number {
   const empiresTraded = countEmpiresTraded(state);
   const empireBonus = empiresTraded * 1000;
 
+  // Phase 3: Empires unlocked bonus
+  const empiresUnlocked = state.unlockedEmpireIds.length;
+  const empireUnlockBonus = empiresUnlocked * 1500;
+
+  // Phase 3: Contracts completed bonus
+  const contractsCompleted = state.contracts.filter(
+    (c) => c.status === ContractStatus.Completed,
+  ).length;
+  const contractBonus = contractsCompleted * 750;
+
+  // Phase 3: Techs researched bonus
+  const techsResearched = state.tech.completedTechIds.length;
+  const techBonus = techsResearched * 500;
+
   const score =
     netWorth +
     reputationBonus +
     cargoBonus +
     routeBonus +
     empireBonus +
-    diversityBonus;
+    diversityBonus +
+    empireUnlockBonus +
+    contractBonus +
+    techBonus;
   return Math.round(score);
 }
 

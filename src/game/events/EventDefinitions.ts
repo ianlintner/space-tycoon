@@ -382,6 +382,89 @@ const pirateCorridors: EventTemplate = {
 };
 
 // ---------------------------------------------------------------------------
+// Phase 3 — Empire Trade Policy Events (5)
+// ---------------------------------------------------------------------------
+
+const tradeEmbargo: EventTemplate = {
+  id: "trade_embargo",
+  name: "Trade Embargo",
+  description:
+    "A diplomatic crisis between {target} has grounded all routes between the two empires!",
+  category: EventCategory.Empire,
+  duration: 3,
+  effects: [{ type: "groundEmpireRoutes", value: 1 }],
+  weight: 4,
+  headwindWeight: 8,
+  tailwindWeight: 0,
+};
+
+const importCrackdown: EventTemplate = {
+  id: "import_crackdown",
+  name: "Import Crackdown",
+  description:
+    "The {target} empire has enacted emergency import restrictions. Certain goods are temporarily banned!",
+  category: EventCategory.Empire,
+  duration: 4,
+  effects: [{ type: "blockImport", value: 1 }],
+  weight: 5,
+  headwindWeight: 6,
+  tailwindWeight: 0,
+};
+
+const freeTradeSummit: EventTemplate = {
+  id: "free_trade_summit",
+  name: "Free Trade Summit",
+  description:
+    "A historic trade summit has convinced {target} to temporarily lift all trade bans!",
+  category: EventCategory.Empire,
+  duration: 2,
+  effects: [{ type: "removeBans", value: 1 }],
+  weight: 4,
+  headwindWeight: 0,
+  tailwindWeight: 8,
+};
+
+const tariffWar: EventTemplate = {
+  id: "tariff_war",
+  name: "Tariff War",
+  description:
+    "A tariff war has erupted between {target}! Cross-border tariffs doubled for both empires.",
+  category: EventCategory.Empire,
+  duration: 4,
+  effects: [{ type: "modifyTariff", value: 1.0 }],
+  weight: 5,
+  headwindWeight: 6,
+  tailwindWeight: 0,
+};
+
+const smugglingOpportunity: EventTemplate = {
+  id: "smuggling_opportunity",
+  name: "Smuggling Opportunity",
+  description:
+    "Black market contacts in {target} are offering 3× price for banned imports. Risky but lucrative!",
+  category: EventCategory.Empire,
+  duration: 1,
+  effects: [],
+  weight: 3,
+  headwindWeight: 0,
+  tailwindWeight: 4,
+  requiresChoice: true,
+  choices: [
+    {
+      label: "Attempt smuggling run",
+      effects: [
+        { type: "modifyCash", value: 25000 },
+        { type: "modifyReputation", value: -10 },
+      ],
+    },
+    {
+      label: "Play it safe",
+      effects: [],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // All templates exported as an array
 // ---------------------------------------------------------------------------
 
@@ -416,4 +499,10 @@ export const EVENT_TEMPLATES: EventTemplate[] = [
   empireEmbargo,
   empireSubsidy,
   pirateCorridors,
+  // Phase 3 — Empire Trade Policy Events
+  tradeEmbargo,
+  importCrackdown,
+  freeTradeSummit,
+  tariffWar,
+  smugglingOpportunity,
 ];
