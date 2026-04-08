@@ -196,19 +196,18 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Bottom command dock keeps the center of the art clear.
     const panelW = 760;
-    const panelH = 182;
+    const panelH = 260;
     const panelX = cx - panelW / 2;
     const panelY = L.gameHeight - panelH - 22;
     const btnWidth = 220;
     const btnHeight = 52;
     const btnGap = 18;
-    const btnY = panelY + panelH - btnHeight - 28;
     const totalBtns = 3;
-    const btnStartX =
-      panelX + panelW - btnWidth * totalBtns - btnGap * (totalBtns - 1) - 28;
+    const totalBtnWidth = btnWidth * totalBtns + btnGap * (totalBtns - 1);
+    const btnStartX = panelX + (panelW - totalBtnWidth) / 2;
+    const btnY = panelY + panelH - btnHeight - 28;
     const textLeftX = panelX + 28;
-    const textRightLimit = btnStartX - 24;
-    const textColumnWidth = Math.max(220, textRightLimit - textLeftX);
+    const textColumnWidth = panelW - 56;
     new Panel(this, {
       x: panelX,
       y: panelY,

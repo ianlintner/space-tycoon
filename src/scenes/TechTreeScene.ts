@@ -189,12 +189,14 @@ export class TechTreeScene extends Phaser.Scene {
       68,
       (panelH - (treeTop - panelY) - 60) / branchCount,
     );
-    const nodeWidth = Math.min(140, (treeWidth - 120) / tiersCount - 12);
+    const labelColumnWidth = 90;
+    const nodeAreaWidth = treeWidth - labelColumnWidth;
+    const nodeGapX = 8;
+    const nodeWidth = Math.max(
+      60,
+      (nodeAreaWidth - nodeGapX * (tiersCount - 1)) / tiersCount,
+    );
     const nodeHeight = rowHeight - 12;
-    const labelColumnWidth = 110;
-    const nodeGapX =
-      (treeWidth - labelColumnWidth - nodeWidth * tiersCount) /
-      (tiersCount - 1 + 2);
 
     for (let bIdx = 0; bIdx < branchCount; bIdx++) {
       const branch = BRANCH_ORDER[bIdx];
