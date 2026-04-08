@@ -126,7 +126,7 @@ export class TechTreeScene extends Phaser.Scene {
     const rpPerTurn = calculateRPPerTurn(state);
     const currentResearch = getCurrentResearch(state.tech);
 
-    this.rpSummary = this.add.text(
+    this.add.text(
       panelX + 16,
       panelY + 44,
       `Total RP: ${state.tech.researchPoints} \u2022 +${rpPerTurn} RP/turn \u2022 Techs: ${state.tech.completedTechIds.length}/20`,
@@ -139,7 +139,7 @@ export class TechTreeScene extends Phaser.Scene {
 
     // Current research display
     const researchY = panelY + 64;
-    this.currentResearchLabel = this.add.text(
+    this.add.text(
       panelX + 16,
       researchY,
       currentResearch
