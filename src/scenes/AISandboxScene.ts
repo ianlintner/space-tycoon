@@ -74,6 +74,7 @@ export class AISandboxScene extends Phaser.Scene {
   private pauseBtn!: Button;
   private stepBtn!: Button;
   private speedBtn!: Button;
+  private summaryBtn!: Button;
 
   // State for step mode
   private stepResolve: (() => void) | null = null;
@@ -333,6 +334,17 @@ export class AISandboxScene extends Phaser.Scene {
       label: "Back",
       onClick: () => this.exitToMenu(),
     });
+    btnX += btnW + 10;
+
+    this.summaryBtn = new Button(this, {
+      x: btnX,
+      y: btnY,
+      width: btnW,
+      height: btnH,
+      label: "Summary",
+      disabled: true,
+      onClick: () => this.viewSummary(),
+    });
 
     // ── Start simulation ─────────────────────────────────────
     this.startSimulation(data);
@@ -379,6 +391,7 @@ export class AISandboxScene extends Phaser.Scene {
       );
       this.pauseBtn.setDisabled(true);
       this.stepBtn.setDisabled(true);
+      this.summaryBtn.setDisabled(false);
 
       // Add final summary to feed
       const th = getTheme();
@@ -543,6 +556,12 @@ export class AISandboxScene extends Phaser.Scene {
   private exitToMenu(): void {
     this.cleanup();
     this.scene.start("MainMenuScene");
+  }
+
+  private viewSummary(): void {
+    if (!this.result) return;
+    this.cleanup();
+    this.scene.start("SimSummaryScene", { result: this.result });
   }
 
   private cleanup(): void {
