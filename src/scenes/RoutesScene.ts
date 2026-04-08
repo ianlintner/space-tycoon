@@ -189,27 +189,38 @@ export class RoutesScene extends Phaser.Scene {
 
     // ── Cargo type filter buttons ──
     const filterY = tabContentY + summaryHeight - 4;
+    const filterShortLabels: Record<string, string> = {
+      passengers: "Pax",
+      rawMaterials: "Raw",
+      food: "Food",
+      technology: "Tech",
+      luxury: "Lux",
+      hazmat: "Haz",
+      medical: "Med",
+    };
     const allCargoFilters: Array<{
       label: string;
       value: CargoTypeValue | null;
     }> = [
       { label: "All", value: null },
       ...Object.values(CargoType).map((ct) => ({
-        label: humanizeCargo(ct as CargoTypeValue),
+        label: filterShortLabels[ct] ?? humanizeCargo(ct as CargoTypeValue),
         value: ct as CargoTypeValue,
       })),
     ];
-    const filterBtnWidth = 72;
-    const filterGap = 4;
+    const filterBtnPadX = 8;
     this.filterButtons = [];
+    let filterX = contentInnerX;
     for (let i = 0; i < allCargoFilters.length; i++) {
       const f = allCargoFilters[i];
       const btn = new Button(this, {
-        x: contentInnerX + i * (filterBtnWidth + filterGap),
+        x: filterX,
         y: filterY,
-        width: filterBtnWidth,
+        autoWidth: true,
+        paddingX: filterBtnPadX,
         height: 26,
         label: f.label,
+        fontSize: 11,
         onClick: () => {
           this.finderCargoFilter = f.value;
           this.updateFilterButtonStyles();
@@ -218,6 +229,7 @@ export class RoutesScene extends Phaser.Scene {
       });
       this.filterButtons.push(btn);
       finderContent.add(btn);
+      filterX += btn.width + 4;
     }
     this.updateFilterButtonStyles();
 
@@ -227,12 +239,12 @@ export class RoutesScene extends Phaser.Scene {
       width: contentInnerW,
       height: tableHeight,
       columns: [
-        { key: "origin", label: "From", width: 110, sortable: true },
-        { key: "destination", label: "To", width: 110, sortable: true },
+        { key: "origin", label: "From", width: 120, sortable: true },
+        { key: "destination", label: "To", width: 120, sortable: true },
         {
           key: "cargo",
           label: "Cargo",
-          width: 75,
+          width: 130,
           sortable: true,
           format: (v) => getCargoLabel(v as string),
           iconFn: (v) => getCargoIconKey(v as string),
@@ -241,7 +253,7 @@ export class RoutesScene extends Phaser.Scene {
         {
           key: "price",
           label: "Price",
-          width: 65,
+          width: 80,
           align: "right",
           sortable: true,
           format: (v) => `§${(v as number).toFixed(0)}`,
@@ -261,14 +273,14 @@ export class RoutesScene extends Phaser.Scene {
         {
           key: "dist",
           label: "Dist",
-          width: 50,
+          width: 55,
           align: "right",
           sortable: true,
         },
         {
           key: "profit",
           label: "Profit/Turn",
-          width: 100,
+          width: 110,
           align: "right",
           sortable: true,
           format: (v) => formatCompact(v as number),
@@ -280,7 +292,7 @@ export class RoutesScene extends Phaser.Scene {
         {
           key: "ship",
           label: "Ship",
-          width: 110,
+          width: 130,
           sortable: true,
         },
       ],
@@ -547,7 +559,7 @@ export class RoutesScene extends Phaser.Scene {
         _index: origIdx,
         origin: opp.originName,
         destination: opp.destinationName,
-        cargo: humanizeCargo(opp.bestCargoType),
+        cargo: opp.bestCargoType,
         price: opp.destPrice,
         trend: trendArrow(opp.destTrend),
         dist: opp.distance.toFixed(1),
