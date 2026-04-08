@@ -274,6 +274,9 @@ export class AdviserPanel extends Phaser.GameObjects.Container {
     if (this.currentIndex < this.messages.length - 1) {
       this.currentIndex++;
       this.displayCurrent();
+    } else {
+      // Last message — dismiss the panel
+      this.clear();
     }
   }
 

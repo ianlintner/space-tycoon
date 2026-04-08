@@ -628,29 +628,12 @@ export class TurnReportScene extends Phaser.Scene {
     }
 
     // -----------------------------------------------------------------------
-    // Adviser panel — Rex's commentary on the turn
+    // Continue button — centered above bottom HUD bar
     // -----------------------------------------------------------------------
-    const adviserMsgs = state.adviser?.pendingMessages ?? [];
-    if (adviserMsgs.length > 0) {
-      const advPanel = new AdviserPanel(this, {
-        x: L.mainContentLeft,
-        y: L.contentTop + L.contentHeight - 160,
-        width: L.mainContentWidth,
-      });
-      advPanel.setDepth(150);
-      advPanel.showMessages(adviserMsgs);
-
-      // Consume messages from state so they aren't shown again
-      const { adviser: updatedAdviser } = consumeMessages(state.adviser);
-      gameStore.update({ adviser: updatedAdviser });
-    }
-
-    // -----------------------------------------------------------------------
-    // Continue button — centered at bottom
-    // -----------------------------------------------------------------------
+    const btnY = L.contentTop + L.contentHeight - 50;
     new Button(this, {
       x: L.gameWidth / 2 - 80,
-      y: L.gameHeight - 60,
+      y: btnY,
       width: 160,
       height: 40,
       label: state.gameOver ? "View Results" : "Continue",
@@ -665,5 +648,23 @@ export class TurnReportScene extends Phaser.Scene {
         }
       },
     });
+
+    // -----------------------------------------------------------------------
+    // Adviser panel — Rex's commentary on the turn (above continue button)
+    // -----------------------------------------------------------------------
+    const adviserMsgs = state.adviser?.pendingMessages ?? [];
+    if (adviserMsgs.length > 0) {
+      const advPanel = new AdviserPanel(this, {
+        x: L.mainContentLeft,
+        y: btnY - 10,
+        width: L.mainContentWidth,
+      });
+      advPanel.setDepth(150);
+      advPanel.showMessages(adviserMsgs);
+
+      // Consume messages from state so they aren't shown again
+      const { adviser: updatedAdviser } = consumeMessages(state.adviser);
+      gameStore.update({ adviser: updatedAdviser });
+    }
   }
 }

@@ -71,14 +71,24 @@ export class SimPlaybackScene extends Phaser.Scene {
     const galW = wMaxX - wMinX;
     const galH = wMaxY - wMinY;
 
-    // Zoom camera to fit the galaxy with some padding
+    // Set camera viewport to visible content area (clear of HUD chrome)
     const cam = this.cameras.main;
-    const zoomX = L.gameWidth / (galW + 200);
-    const zoomY =
-      (L.gameHeight - L.contentTop - L.hudBottomBarHeight) / (galH + 200);
+    const vpX = L.navSidebarWidth;
+    const vpY = L.contentTop;
+    const vpW = L.gameWidth - L.navSidebarWidth;
+    const vpH = L.gameHeight - L.contentTop - L.hudBottomBarHeight;
+    cam.setViewport(vpX, vpY, vpW, vpH);
+
+    // Zoom camera to fit the galaxy within the viewport
+    const zoomX = vpW / (galW + 200);
+    const zoomY = vpH / (galH + 200);
     const fitZoom = Math.min(zoomX, zoomY, 1);
     cam.setZoom(fitZoom);
     cam.centerOn(galCx, galCy);
+
+    // Effective coordinate space for scrollFactor(0) elements within viewport
+    const sfW = vpW / fitZoom;
+    const sfH = vpH / fitZoom;
 
     // Starfield background — scale & reposition to cover the full galaxy area
     const starfield = createStarfield(this);
@@ -244,8 +254,8 @@ export class SimPlaybackScene extends Phaser.Scene {
     // Step 3: Revenue / Cost ticker (top-right) — Panel component
     // -----------------------------------------------------------------------
     const tickerPanel = new Panel(this, {
-      x: L.gameWidth - 230,
-      y: L.contentTop + 10,
+      x: sfW - 230,
+      y: 10,
       width: 220,
       height: 130,
       showGlow: false,
@@ -350,11 +360,11 @@ export class SimPlaybackScene extends Phaser.Scene {
     // -----------------------------------------------------------------------
     // Step 5: Speed control buttons — centered horizontally
     // -----------------------------------------------------------------------
-    const btnY = L.gameHeight - 50;
+    const btnY = sfH - 50;
     const btnWidth = 80;
     const btnHeight = 32;
     const totalBtnWidth = btnWidth * 4 + 30;
-    const startX = L.gameWidth / 2 - totalBtnWidth / 2;
+    const startX = sfW / 2 - totalBtnWidth / 2;
 
     const btn1x = new Button(this, {
       x: startX,
@@ -417,7 +427,8 @@ export class SimPlaybackScene extends Phaser.Scene {
     category?: string,
   ): void {
     const theme = getTheme();
-    const L = getLayout();
+    const cam = this.cameras.main;
+    const sfW = cam.width / cam.zoom;
     const popupY = 200 + index * 70;
 
     const isHazard = category === EventCategory.Hazard;
@@ -443,7 +454,7 @@ export class SimPlaybackScene extends Phaser.Scene {
       audio.sfx("ui_click_secondary");
     }
 
-    const container = this.add.container(L.gameWidth + 310, popupY);
+    const container = this.add.container(sfW + 310, popupY);
     container.setScrollFactor(0);
 
     // Glass-styled background rectangle using theme colors
@@ -477,7 +488,7 @@ export class SimPlaybackScene extends Phaser.Scene {
     // Slide in from the right edge
     this.tweens.add({
       targets: container,
-      x: L.gameWidth - 320,
+      x: sfW - 320,
       duration: 400,
       ease: "Back.easeOut",
     });
