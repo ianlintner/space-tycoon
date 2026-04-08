@@ -481,8 +481,8 @@ export class TechTreeScene extends Phaser.Scene {
           "",
           "Progress will carry over to the new technology.",
         ].join("\n"),
-        confirmLabel: "Switch",
-        onConfirm: () => this.applyResearch(tech.id),
+        okText: "Switch",
+        onOk: () => this.applyResearch(tech.id),
       });
     } else {
       this.applyResearch(tech.id);
