@@ -185,6 +185,17 @@ function makeMinimalGameState(): GameState {
     gameOver: false,
     gameOverReason: null,
     adviser: initAdviserState(),
+    routeSlots: 4,
+    unlockedEmpireIds: [],
+    contracts: [],
+    tech: {
+      researchPoints: 0,
+      completedTechIds: [],
+      currentResearchId: null,
+      researchProgress: 0,
+    },
+    empireTradePolicies: {},
+    interEmpireCargoLocks: [],
   };
 }
 

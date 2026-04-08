@@ -16,13 +16,18 @@ import type {
   ActiveRoute,
   GameSize as GameSizeT,
   GalaxyShape as GalaxyShapeT,
+  TechState,
 } from "../data/types.ts";
 import { initAdviserState } from "./adviser/AdviserEngine.ts";
 import {
   SHIP_TEMPLATES,
   GAME_SIZE_CONFIGS,
   AI_STARTING_CASH,
+  BASE_ROUTE_SLOTS,
+  HOME_EMPIRE_BONUS_SLOTS,
 } from "../data/constants.ts";
+import { findAdjacentEmpires } from "./empire/EmpireAccessManager.ts";
+import { generateEmpireTradePolicies } from "./empire/EmpirePolicyGenerator.ts";
 
 export interface NewGameResult {
   state: GameState;
@@ -228,6 +233,31 @@ export function createNewGame(
     rng,
   );
 
+  // Phase 3: Empire access — home + N adjacent empires
+  const adjacentEmpires = findAdjacentEmpires(
+    playerEmpireId,
+    galaxyData.empires,
+    galaxyData.systems,
+  );
+  const unlockedEmpireIds = [playerEmpireId, ...adjacentEmpires];
+
+  // Phase 3: Generate trade policies
+  const policyRng = new SeededRNG(seed + 2);
+  const empireTradePolicies = generateEmpireTradePolicies(
+    galaxyData.empires,
+    galaxyData.systems,
+    galaxyData.planets,
+    policyRng,
+  );
+
+  // Phase 3: Initial tech state
+  const tech: TechState = {
+    researchPoints: 0,
+    completedTechIds: [],
+    currentResearchId: null,
+    researchProgress: 0,
+  };
+
   const state: GameState = {
     seed,
     turn: 1,
@@ -257,6 +287,12 @@ export function createNewGame(
     gameOver: false,
     gameOverReason: null,
     adviser: initAdviserState(),
+    routeSlots: BASE_ROUTE_SLOTS + HOME_EMPIRE_BONUS_SLOTS,
+    unlockedEmpireIds,
+    contracts: [],
+    tech,
+    empireTradePolicies,
+    interEmpireCargoLocks: [],
   };
 
   return { state, startingSystemOptions };

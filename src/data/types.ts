@@ -74,6 +74,43 @@ export const AIPersonality = {
 } as const;
 export type AIPersonality = (typeof AIPersonality)[keyof typeof AIPersonality];
 
+export const ContractType = {
+  EmpireUnlock: "empireUnlock",
+  PassengerFerry: "passengerFerry",
+  EmergencySupply: "emergencySupply",
+  TradeAlliance: "tradeAlliance",
+  ResearchCourier: "researchCourier",
+} as const;
+export type ContractType = (typeof ContractType)[keyof typeof ContractType];
+
+export const ContractStatus = {
+  Available: "available",
+  Active: "active",
+  Completed: "completed",
+  Failed: "failed",
+  Expired: "expired",
+} as const;
+export type ContractStatus =
+  (typeof ContractStatus)[keyof typeof ContractStatus];
+
+export const TradePolicyType = {
+  OpenTrade: "openTrade",
+  ImportBan: "importBan",
+  ExportBan: "exportBan",
+  Protectionist: "protectionist",
+} as const;
+export type TradePolicyType =
+  (typeof TradePolicyType)[keyof typeof TradePolicyType];
+
+export const TechBranch = {
+  Logistics: "logistics",
+  Diplomacy: "diplomacy",
+  Engineering: "engineering",
+  Intelligence: "intelligence",
+  Crisis: "crisis",
+} as const;
+export type TechBranch = (typeof TechBranch)[keyof typeof TechBranch];
+
 export interface Sector {
   id: string;
   name: string;
@@ -305,6 +342,92 @@ export interface AICompany {
   bankrupt: boolean;
 }
 
+// ── Contract types ─────────────────────────────────────────
+
+export interface Contract {
+  id: string;
+  type: ContractType;
+  targetEmpireId: string | null;
+  originPlanetId: string;
+  destinationPlanetId: string;
+  cargoType: CargoType;
+  durationTurns: number;
+  turnsRemaining: number;
+  rewardCash: number;
+  rewardReputation: number;
+  rewardResearchPoints: number;
+  rewardTariffReduction: {
+    empireA: string;
+    empireB: string;
+    reduction: number;
+  } | null;
+  depositPaid: number;
+  status: ContractStatus;
+  linkedRouteId: string | null;
+  turnsWithoutShip: number;
+}
+
+// ── Empire trade policy types ──────────────────────────────
+
+export interface EmpireTradePolicyEntry {
+  policy: TradePolicyType;
+  bannedImports: CargoType[];
+  bannedExports: CargoType[];
+  tariffSurcharge: number;
+}
+
+export interface InterEmpireCargoLock {
+  originEmpireId: string;
+  destinationEmpireId: string;
+  cargoType: CargoType;
+  routeId: string;
+}
+
+// ── Tech tree types ────────────────────────────────────────
+
+export interface TechEffect {
+  type:
+    | "addRouteSlots"
+    | "modifyLicenseFee"
+    | "modifyTariff"
+    | "modifyMaintenance"
+    | "modifyFuel"
+    | "modifyConditionDecay"
+    | "modifyRevenue"
+    | "addTripsPerTurn"
+    | "addCargoTypesPerPair"
+    | "modifySaturation"
+    | "modifyEventDuration"
+    | "modifyEventCash"
+    | "addAutoRepair"
+    | "modifyOverhaulCost"
+    | "addEmbargoImmunity"
+    | "addMothballRefund"
+    | "addBreakdownRevenue"
+    | "addMarketForecast"
+    | "addSaturationDisplay"
+    | "addMarketReset";
+  value: number;
+  target?: "friendly" | "neutral" | "hostile" | "all";
+}
+
+export interface Technology {
+  id: string;
+  name: string;
+  branch: TechBranch;
+  tier: 1 | 2 | 3 | 4;
+  rpCost: number;
+  description: string;
+  effects: TechEffect[];
+}
+
+export interface TechState {
+  researchPoints: number;
+  completedTechIds: string[];
+  currentResearchId: string | null;
+  researchProgress: number;
+}
+
 export interface GameState {
   seed: number;
   turn: number;
@@ -334,4 +457,12 @@ export interface GameState {
   score: number;
   gameOver: boolean;
   gameOverReason: string | null;
+
+  // Phase 3: Strategic Depth
+  routeSlots: number;
+  unlockedEmpireIds: string[];
+  contracts: Contract[];
+  tech: TechState;
+  empireTradePolicies: Record<string, EmpireTradePolicyEntry>;
+  interEmpireCargoLocks: InterEmpireCargoLock[];
 }

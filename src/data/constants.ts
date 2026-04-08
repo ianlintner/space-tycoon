@@ -4,6 +4,8 @@ import {
   PlanetType,
   CargoType,
   GameSize,
+  TechBranch,
+  type Technology,
 } from "./types";
 
 export const STARTING_CASH = 200000;
@@ -33,6 +35,42 @@ export const LICENSE_FEE_ROUTE_ESCALATION = 0.25;
 export const FLEET_OVERHEAD_THRESHOLD = 4;
 /** Per-ship overhead rate above the threshold */
 export const FLEET_OVERHEAD_PER_SHIP = 0.05;
+
+// ── Route Slots ────────────────────────────────────────────────
+
+export const BASE_ROUTE_SLOTS = 3;
+export const HOME_EMPIRE_BONUS_SLOTS = 1;
+export const SLOT_PER_EMPIRE_UNLOCK = 1;
+
+// ── Empire Access ──────────────────────────────────────────────
+
+export const STARTING_ADJACENT_EMPIRES = 2;
+
+// ── Contracts ──────────────────────────────────────────────────
+
+export const MAX_AVAILABLE_CONTRACTS = 4;
+export const CONTRACT_FAILURE_REP_PENALTY = -7;
+export const CONTRACT_FAILURE_COOLDOWN_TURNS = 3;
+export const CONTRACT_UNASSIGNED_SHIP_LIMIT = 2;
+
+// ── Tech Tree ──────────────────────────────────────────────────
+
+export const BASE_RP_PER_TURN = 1;
+export const RP_DIVERSITY_THRESHOLD = 4;
+export const RP_RESEARCH_PLANET_BONUS = 0.5;
+
+// ── Mothball ───────────────────────────────────────────────────
+
+export const MOTHBALL_FEE_RATIO = 0.5;
+
+// ── Inter-empire Trade ─────────────────────────────────────────
+
+export const BASE_CARGO_TYPES_PER_PAIR = 1;
+
+// ── AI Slot Progression ────────────────────────────────────────
+
+export const AI_SLOT_GROWTH_INTERVAL = 10;
+export const AI_EMPIRE_UNLOCK_INTERVAL = 12;
 
 // ── Game Size Presets ──────────────────────────────────────────
 
@@ -258,3 +296,238 @@ export const BASE_CARGO_PRICES: Record<CargoType, number> = {
 
 /** Bonus points per distinct cargo type delivered across all turns */
 export const CARGO_DIVERSITY_BONUS = 2000;
+
+// ── Tech Tree Data ─────────────────────────────────────────────
+
+export const TECH_TREE: Technology[] = [
+  // Branch 1: Logistics Network
+  {
+    id: "logistics_1",
+    name: "Efficient Scheduling",
+    branch: TechBranch.Logistics,
+    tier: 1,
+    rpCost: 8,
+    description: "+1 route slot",
+    effects: [{ type: "addRouteSlots", value: 1 }],
+  },
+  {
+    id: "logistics_2",
+    name: "Regional Hub Protocols",
+    branch: TechBranch.Logistics,
+    tier: 2,
+    rpCost: 16,
+    description: "+1 route slot, −10% license fees",
+    effects: [
+      { type: "addRouteSlots", value: 1 },
+      { type: "modifyLicenseFee", value: -0.1 },
+    ],
+  },
+  {
+    id: "logistics_3",
+    name: "Galactic Freight Network",
+    branch: TechBranch.Logistics,
+    tier: 3,
+    rpCost: 30,
+    description: "+1 route slot, intra-empire routes get +1 trip/turn",
+    effects: [
+      { type: "addRouteSlots", value: 1 },
+      { type: "addTripsPerTurn", value: 1 },
+    ],
+  },
+  {
+    id: "logistics_4",
+    name: "Omnipresent Logistics",
+    branch: TechBranch.Logistics,
+    tier: 4,
+    rpCost: 50,
+    description: "+1 route slot, all routes get +10% revenue",
+    effects: [
+      { type: "addRouteSlots", value: 1 },
+      { type: "modifyRevenue", value: 0.1 },
+    ],
+  },
+
+  // Branch 2: Diplomacy & Trade
+  {
+    id: "diplomacy_1",
+    name: "Cultural Exchange",
+    branch: TechBranch.Diplomacy,
+    tier: 1,
+    rpCost: 8,
+    description: "−20% tariffs on friendly empires",
+    effects: [{ type: "modifyTariff", value: -0.2, target: "friendly" }],
+  },
+  {
+    id: "diplomacy_2",
+    name: "Trade Envoys",
+    branch: TechBranch.Diplomacy,
+    tier: 2,
+    rpCost: 16,
+    description: "Can run 2 cargo types per empire pair (up from 1)",
+    effects: [{ type: "addCargoTypesPerPair", value: 1 }],
+  },
+  {
+    id: "diplomacy_3",
+    name: "Diplomatic Immunity",
+    branch: TechBranch.Diplomacy,
+    tier: 3,
+    rpCost: 30,
+    description:
+      "−20% tariffs on neutral empires, immune to 1 embargo per game",
+    effects: [
+      { type: "modifyTariff", value: -0.2, target: "neutral" },
+      { type: "addEmbargoImmunity", value: 1 },
+    ],
+  },
+  {
+    id: "diplomacy_4",
+    name: "Galactic Trade Authority",
+    branch: TechBranch.Diplomacy,
+    tier: 4,
+    rpCost: 50,
+    description:
+      "−20% tariffs on hostile empires, 2nd cargo type per pair for all empires",
+    effects: [
+      { type: "modifyTariff", value: -0.2, target: "hostile" },
+      { type: "addCargoTypesPerPair", value: 1 },
+    ],
+  },
+
+  // Branch 3: Fleet Engineering
+  {
+    id: "engineering_1",
+    name: "Improved Maintenance",
+    branch: TechBranch.Engineering,
+    tier: 1,
+    rpCost: 8,
+    description: "−15% maintenance costs",
+    effects: [{ type: "modifyMaintenance", value: -0.15 }],
+  },
+  {
+    id: "engineering_2",
+    name: "Fuel Injection Systems",
+    branch: TechBranch.Engineering,
+    tier: 2,
+    rpCost: 16,
+    description: "−15% fuel costs",
+    effects: [{ type: "modifyFuel", value: -0.15 }],
+  },
+  {
+    id: "engineering_3",
+    name: "Hull Reinforcement",
+    branch: TechBranch.Engineering,
+    tier: 3,
+    rpCost: 30,
+    description: "Ship condition decays 30% slower",
+    effects: [{ type: "modifyConditionDecay", value: -0.3 }],
+  },
+  {
+    id: "engineering_4",
+    name: "Autonomous Repair Drones",
+    branch: TechBranch.Engineering,
+    tier: 4,
+    rpCost: 50,
+    description:
+      "Ships auto-repair +3 condition/turn (up to 80), overhaul cost −30%",
+    effects: [
+      { type: "addAutoRepair", value: 3 },
+      { type: "modifyOverhaulCost", value: -0.3 },
+    ],
+  },
+
+  // Branch 4: Market Intelligence
+  {
+    id: "intelligence_1",
+    name: "Market Forecasting",
+    branch: TechBranch.Intelligence,
+    tier: 1,
+    rpCost: 8,
+    description: "Trend predictions shown 2 turns ahead in UI",
+    effects: [{ type: "addMarketForecast", value: 2 }],
+  },
+  {
+    id: "intelligence_2",
+    name: "Supply Chain Analytics",
+    branch: TechBranch.Intelligence,
+    tier: 2,
+    rpCost: 16,
+    description:
+      "Saturation shown numerically in route finder, +10% cargo prices",
+    effects: [
+      { type: "addSaturationDisplay", value: 1 },
+      { type: "modifyRevenue", value: 0.1 },
+    ],
+  },
+  {
+    id: "intelligence_3",
+    name: "Arbitrage Algorithms",
+    branch: TechBranch.Intelligence,
+    tier: 3,
+    rpCost: 30,
+    description: "Route finder shows true net profit, −20% saturation impact",
+    effects: [{ type: "modifySaturation", value: -0.2 }],
+  },
+  {
+    id: "intelligence_4",
+    name: "Market Manipulation",
+    branch: TechBranch.Intelligence,
+    tier: 4,
+    rpCost: 50,
+    description: "Once per 5 turns: reset saturation on one planet to 0",
+    effects: [{ type: "addMarketReset", value: 5 }],
+  },
+
+  // Branch 5: Crisis Management
+  {
+    id: "crisis_1",
+    name: "Emergency Reserves",
+    branch: TechBranch.Crisis,
+    tier: 1,
+    rpCost: 8,
+    description: "Events that cost cash reduced by 25%",
+    effects: [{ type: "modifyEventCash", value: -0.25 }],
+  },
+  {
+    id: "crisis_2",
+    name: "Crisis Response Teams",
+    branch: TechBranch.Crisis,
+    tier: 2,
+    rpCost: 16,
+    description: "Hazard events duration −1 turn (min 1)",
+    effects: [{ type: "modifyEventDuration", value: -1 }],
+  },
+  {
+    id: "crisis_3",
+    name: "Political Connections",
+    branch: TechBranch.Crisis,
+    tier: 3,
+    rpCost: 30,
+    description:
+      "Empire events duration −1 turn, 25% chance to avoid them entirely",
+    effects: [{ type: "modifyEventDuration", value: -1 }],
+  },
+  {
+    id: "crisis_4",
+    name: "Galactic Insurance",
+    branch: TechBranch.Crisis,
+    tier: 4,
+    rpCost: 50,
+    description:
+      "Grounded routes pay 50% mothball refund, breakdowns earn 50% revenue",
+    effects: [
+      { type: "addMothballRefund", value: 0.5 },
+      { type: "addBreakdownRevenue", value: 0.5 },
+    ],
+  },
+];
+
+// ── AI Personality Slot Configs ────────────────────────────────
+
+export const AI_PERSONALITY_SLOTS: Record<
+  string,
+  { baseSlots: number; maxSlots: number }
+> = {
+  aggressiveExpander: { baseSlots: 5, maxSlots: 10 },
+  steadyHauler: { baseSlots: 4, maxSlots: 7 },
+  cherryPicker: { baseSlots: 4, maxSlots: 8 },
+};
