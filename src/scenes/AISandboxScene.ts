@@ -485,7 +485,7 @@ export class AISandboxScene extends Phaser.Scene {
     });
     label.setFontSize(12);
     container.add(label);
-    this.activityList.addItem(container);
+    this.activityList.prependItem(container);
   }
 
   // ── Playback controls ────────────────────────────────────────
