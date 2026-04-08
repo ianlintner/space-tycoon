@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { SimulationRunner } from "../SimulationRunner.ts";
-import type { SimulationConfig, SimulationResult } from "../SimulationLogger.ts";
+import type {
+  SimulationConfig,
+  SimulationResult,
+} from "../SimulationLogger.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration matrix — vary seeds, sizes, company counts, shapes
