@@ -87,7 +87,7 @@ function selectStartingSystems(
 
 // ── AI Company Names ─────────────────────────────────────────
 
-const AI_COMPANY_NAME_PREFIXES = [
+export const AI_COMPANY_NAME_PREFIXES = [
   "Nova",
   "Stellar",
   "Deep",
@@ -100,7 +100,7 @@ const AI_COMPANY_NAME_PREFIXES = [
   "Prime",
 ];
 
-const AI_COMPANY_NAME_SUFFIXES = [
+export const AI_COMPANY_NAME_SUFFIXES = [
   "Freight Lines",
   "Logistics",
   "Haulers",
@@ -113,11 +113,12 @@ const AI_COMPANY_NAME_SUFFIXES = [
   "Star Carriers",
 ];
 
-const AI_PERSONALITIES: (typeof AIPersonality)[keyof typeof AIPersonality][] = [
-  AIPersonality.AggressiveExpander,
-  AIPersonality.SteadyHauler,
-  AIPersonality.CherryPicker,
-];
+export const AI_PERSONALITIES: (typeof AIPersonality)[keyof typeof AIPersonality][] =
+  [
+    AIPersonality.AggressiveExpander,
+    AIPersonality.SteadyHauler,
+    AIPersonality.CherryPicker,
+  ];
 
 function createAICompanies(
   empireIds: string[],

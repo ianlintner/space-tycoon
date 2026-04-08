@@ -20,6 +20,10 @@ import {
   AI_SLOT_GROWTH_INTERVAL,
   OVERHAUL_COST_RATIO,
   OVERHAUL_RESTORE_CONDITION,
+  AI_STARTING_CASH,
+  AI_REPLACEMENT_DELAY,
+  AI_REPLACEMENT_CASH_RATIO,
+  AI_OVERHAUL_CONDITION,
 } from "../../data/constants.ts";
 import {
   calculateTripsPerTurn,
@@ -32,6 +36,11 @@ import {
   calculateShipValue,
 } from "../fleet/FleetManager.ts";
 import { calculateTariff } from "../routes/TariffCalculator.ts";
+import {
+  AI_COMPANY_NAME_PREFIXES,
+  AI_COMPANY_NAME_SUFFIXES,
+  AI_PERSONALITIES,
+} from "../NewGameSetup.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 
 // ---------------------------------------------------------------------------
@@ -118,6 +127,9 @@ export function simulateAITurns(
       activeRoutes: bankrupt ? [] : updatedRoutes,
       totalCargoDelivered: company.totalCargoDelivered + routeResult.totalCargo,
       bankrupt,
+      // Track the turn bankruptcy occurred (keep existing value if already bankrupt)
+      bankruptTurn:
+        bankrupt && !company.bankrupt ? state.turn : company.bankruptTurn,
     };
 
     summaries.push({
@@ -134,11 +146,112 @@ export function simulateAITurns(
     return updatedCompany;
   });
 
+  // ── Replace bankrupt companies after a delay (Aerobiz-style) ──
+  const finalCompanies = replaceBankruptCompanies(updatedCompanies, state, rng);
+
   return {
-    aiCompanies: updatedCompanies,
+    aiCompanies: finalCompanies,
     marketUpdate: marketState,
     summaries,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Bankrupt company replacement (Aerobiz-style)
+// ---------------------------------------------------------------------------
+
+/**
+ * After AI_REPLACEMENT_DELAY turns of bankruptcy, replace a bankrupt company
+ * with a fresh newcomer. The new company gets a starter ship, reduced cash,
+ * and a random personality — simulating a new entrant seizing the opportunity
+ * left by the defunct company.
+ */
+function replaceBankruptCompanies(
+  companies: AICompany[],
+  state: GameState,
+  rng: SeededRNG,
+): AICompany[] {
+  // Don't spawn replacements in the final 20% of the game — too late to matter
+  if (state.turn > state.maxTurns * 0.8) return companies;
+
+  const existingNames = new Set(companies.map((c) => c.name));
+  const empireIds = state.galaxy.empires.map((e) => e.id);
+
+  return companies.map((company) => {
+    if (!company.bankrupt) return company;
+    if (company.bankruptTurn == null) return company;
+
+    const turnsSinceBankruptcy = state.turn - company.bankruptTurn;
+    if (turnsSinceBankruptcy < AI_REPLACEMENT_DELAY) return company;
+
+    // Generate a unique name for the replacement company
+    let name: string;
+    let attempts = 0;
+    do {
+      const prefix = rng.pick(AI_COMPANY_NAME_PREFIXES);
+      const suffix = rng.pick(AI_COMPANY_NAME_SUFFIXES);
+      name = `${prefix} ${suffix}`;
+      attempts++;
+    } while (existingNames.has(name) && attempts < 50);
+    existingNames.add(name);
+
+    // Pick a random personality for variety
+    const personality = rng.pick(AI_PERSONALITIES);
+
+    // Pick an empire — prefer one with fewer active AI companies
+    const empireCounts = new Map<string, number>();
+    for (const eid of empireIds) {
+      empireCounts.set(eid, 0);
+    }
+    for (const c of companies) {
+      if (!c.bankrupt) {
+        empireCounts.set(c.empireId, (empireCounts.get(c.empireId) ?? 0) + 1);
+      }
+    }
+    const sortedEmpires = [...empireCounts.entries()].sort(
+      (a, b) => a[1] - b[1],
+    );
+    const empireId = sortedEmpires[0]?.[0] ?? company.empireId;
+
+    // Starter ship
+    const starterTemplate = SHIP_TEMPLATES[ShipClass.CargoShuttle];
+    const starterShip: Ship = {
+      id: `${company.id}-gen${(company.generation ?? 0) + 1}-ship-0`,
+      name: starterTemplate.name,
+      class: starterTemplate.class,
+      cargoCapacity: starterTemplate.cargoCapacity,
+      passengerCapacity: starterTemplate.passengerCapacity,
+      speed: starterTemplate.speed,
+      fuelEfficiency: starterTemplate.fuelEfficiency,
+      reliability: starterTemplate.baseReliability,
+      age: 0,
+      condition: 100,
+      purchaseCost: starterTemplate.purchaseCost,
+      maintenanceCost: starterTemplate.baseMaintenance,
+      assignedRouteId: null,
+    };
+
+    const startingCash =
+      AI_STARTING_CASH * AI_REPLACEMENT_CASH_RATIO -
+      starterTemplate.purchaseCost;
+
+    const replacement: AICompany = {
+      id: company.id, // reuse slot
+      name,
+      empireId,
+      cash: startingCash,
+      fleet: [starterShip],
+      activeRoutes: [],
+      reputation: 40, // slightly below average — they're newcomers
+      totalCargoDelivered: 0,
+      personality,
+      bankrupt: false,
+      bankruptTurn: undefined,
+      generation: (company.generation ?? 0) + 1,
+    };
+
+    return replacement;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +420,53 @@ function makeAIDecisions(
   let currentFleet = fleet;
   let currentRoutes = routes;
   let currentCash = cash;
+
+  // ── Overhaul worn-out ships before they break down ──
+  currentFleet = currentFleet.map((ship) => {
+    if (ship.condition >= AI_OVERHAUL_CONDITION) return ship;
+    const cost = ship.purchaseCost * OVERHAUL_COST_RATIO;
+    if (currentCash >= cost) {
+      currentCash -= cost;
+      return { ...ship, condition: OVERHAUL_RESTORE_CONDITION };
+    }
+    return ship;
+  });
+
+  // ── Abandon unprofitable routes ──
+  // Estimate per-route profit; drop routes that are losing money
+  currentRoutes = currentRoutes.filter((route) => {
+    if (!route.cargoType) return true; // keep even if no cargo assignment
+    const assignedShips = currentFleet.filter(
+      (s) => s.assignedRouteId === route.id,
+    );
+    if (assignedShips.length === 0) return true; // no ships to evaluate
+
+    let routeProfit = 0;
+    for (const ship of assignedShips) {
+      const trips = calculateTripsPerTurn(route.distance, ship.speed);
+      const destMarket = market.planetMarkets[route.destinationPlanetId];
+      if (!destMarket) continue;
+      const destEntry = destMarket[route.cargoType];
+      const price = calculatePrice(destEntry, route.cargoType);
+      const isPassengers = route.cargoType === CargoType.Passengers;
+      const capacity = isPassengers
+        ? ship.passengerCapacity
+        : ship.cargoCapacity;
+      const revenue = price * capacity * trips;
+      const fuelCost =
+        route.distance * 2 * ship.fuelEfficiency * market.fuelPrice * trips;
+      routeProfit += revenue - fuelCost;
+    }
+
+    if (routeProfit < 0) {
+      // Unassign ships from this route
+      currentFleet = currentFleet.map((s) =>
+        s.assignedRouteId === route.id ? { ...s, assignedRouteId: null } : s,
+      );
+      return false; // drop the route
+    }
+    return true;
+  });
 
   // Find cheapest ship cost for buy threshold
   const cheapestShipCost = Math.min(

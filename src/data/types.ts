@@ -349,6 +349,10 @@ export interface AICompany {
   totalCargoDelivered: number;
   personality: AIPersonality;
   bankrupt: boolean;
+  /** Turn number when this company went bankrupt (undefined if still active) */
+  bankruptTurn?: number;
+  /** Generation counter — 0 for original companies, incremented for replacements */
+  generation?: number;
 }
 
 // ── Contract types ─────────────────────────────────────────

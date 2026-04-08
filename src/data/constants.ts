@@ -145,6 +145,8 @@ export const AI_MAX_FLEET = 15; // cap fleet size per AI company
 export const AI_MAX_PURCHASES_PER_TURN = 2; // max ships bought per turn
 export const AI_OVERHAUL_CONDITION = 60; // overhaul ships below this condition
 export const AI_MAX_SHIP_SPEND_RATIO = 0.4; // SteadyHauler won't spend more than 40% cash on one ship
+export const AI_REPLACEMENT_DELAY = 3; // turns after bankruptcy before a replacement company spawns
+export const AI_REPLACEMENT_CASH_RATIO = 0.75; // replacement companies start with 75% of normal starting cash
 
 export const SHIP_TEMPLATES: Record<ShipClass, ShipTemplate> = {
   [ShipClass.CargoShuttle]: {
