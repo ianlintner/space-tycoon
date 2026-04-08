@@ -322,6 +322,9 @@ export type TutorialTrigger =
   | "firstReport"
   | "firstProfit"
   | "firstLoss"
+  | "firstContract"
+  | "firstResearch"
+  | "firstEmpireUnlock"
   | "complete";
 
 export interface AdviserState {

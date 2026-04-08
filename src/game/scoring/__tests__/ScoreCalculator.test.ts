@@ -381,6 +381,107 @@ describe("ScoreCalculator", () => {
       const score = calculateScore(state);
       expect(score).toBe(-549000);
     });
+
+    // -----------------------------------------------------------------------
+    // Phase 3 scoring bonuses
+    // -----------------------------------------------------------------------
+
+    it("adds 1500 per unlocked empire", () => {
+      const base = makeGameState({ unlockedEmpireIds: [] });
+      const with3 = makeGameState({
+        unlockedEmpireIds: ["emp-1", "emp-2", "emp-3"],
+      });
+
+      expect(calculateScore(with3) - calculateScore(base)).toBe(3 * 1500);
+    });
+
+    it("adds 750 per completed contract", () => {
+      const base = makeGameState({ contracts: [] });
+      const with2 = makeGameState({
+        contracts: [
+          {
+            id: "c1",
+            type: "delivery" as never,
+            cargoType: CargoType.Food,
+            durationTurns: 10,
+            turnsRemaining: 0,
+            rewardCash: 5000,
+            rewardReputation: 5,
+            rewardResearchPoints: 0,
+            rewardTariffReduction: null,
+            depositPaid: 1000,
+            turnsWithoutShip: 0,
+            status: "completed" as never,
+            originPlanetId: "planet-a",
+            destinationPlanetId: "planet-b",
+            targetEmpireId: "emp-1",
+            linkedRouteId: null,
+          },
+          {
+            id: "c2",
+            type: "delivery" as never,
+            cargoType: CargoType.Food,
+            durationTurns: 10,
+            turnsRemaining: 0,
+            rewardCash: 5000,
+            rewardReputation: 5,
+            rewardResearchPoints: 0,
+            rewardTariffReduction: null,
+            depositPaid: 1000,
+            turnsWithoutShip: 0,
+            status: "completed" as never,
+            originPlanetId: "planet-a",
+            destinationPlanetId: "planet-b",
+            targetEmpireId: "emp-1",
+            linkedRouteId: null,
+          },
+        ],
+      });
+
+      expect(calculateScore(with2) - calculateScore(base)).toBe(2 * 750);
+    });
+
+    it("does not count non-completed contracts", () => {
+      const withActive = makeGameState({
+        contracts: [
+          {
+            id: "c1",
+            type: "delivery" as never,
+            cargoType: CargoType.Food,
+            durationTurns: 10,
+            turnsRemaining: 7,
+            rewardCash: 5000,
+            rewardReputation: 5,
+            rewardResearchPoints: 0,
+            rewardTariffReduction: null,
+            depositPaid: 1000,
+            turnsWithoutShip: 0,
+            status: "active" as never,
+            originPlanetId: "planet-a",
+            destinationPlanetId: "planet-b",
+            targetEmpireId: "emp-1",
+            linkedRouteId: "route-1",
+          },
+        ],
+      });
+      const base = makeGameState({ contracts: [] });
+
+      expect(calculateScore(withActive) - calculateScore(base)).toBe(0);
+    });
+
+    it("adds 500 per completed tech", () => {
+      const base = makeGameState();
+      const with4 = makeGameState({
+        tech: {
+          researchPoints: 0,
+          completedTechIds: ["logistics_1", "fuel_1", "nav_1", "trade_1"],
+          currentResearchId: null,
+          researchProgress: 0,
+        },
+      });
+
+      expect(calculateScore(with4) - calculateScore(base)).toBe(4 * 500);
+    });
   });
 
   describe("getHighScores / saveHighScore", () => {

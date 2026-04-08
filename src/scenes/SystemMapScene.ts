@@ -16,6 +16,7 @@ import {
 } from "../ui/index.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { SeededRNG } from "../utils/SeededRNG.ts";
+import { isEmpireAccessible } from "../game/empire/EmpireAccessManager.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
 
@@ -82,6 +83,15 @@ export class SystemMapScene extends Phaser.Scene {
     // Starfield background
     createStarfield(this);
 
+    // Check if this system's empire is accessible
+    const systemEmpireAccessible = isEmpireAccessible(system.empireId, state);
+    const systemEmpire = state.galaxy.empires.find(
+      (e) => e.id === system.empireId,
+    );
+
+    // Trade policy for this system's empire
+    const empirePolicy = state.empireTradePolicies[system.empireId];
+
     // PortraitPanel as left sidebar showing system portrait
     this.portraitPanel = new PortraitPanel(this, {
       x: L.sidebarLeft,
@@ -130,6 +140,42 @@ export class SystemMapScene extends Phaser.Scene {
         hud.switchContentScene("GalaxyMapScene");
       },
     });
+
+    // Locked empire overlay
+    if (!systemEmpireAccessible) {
+      const overlayBg = this.add.graphics();
+      overlayBg.fillStyle(0x000000, 0.5);
+      overlayBg.fillRect(
+        L.mainContentLeft,
+        L.contentTop,
+        L.mainContentWidth,
+        L.contentHeight,
+      );
+      overlayBg.setDepth(900);
+
+      const lockMsg = this.add
+        .text(
+          cx,
+          cy - 20,
+          `\uD83D\uDD12 ${systemEmpire?.name ?? "Unknown Empire"}\nLocked — complete a contract to unlock trade`,
+          {
+            fontSize: `${theme.fonts.body.size}px`,
+            fontFamily: theme.fonts.body.family,
+            color: colorToString(theme.colors.textDim),
+            align: "center",
+            stroke: "#000000",
+            strokeThickness: 2,
+          },
+        )
+        .setOrigin(0.5, 0.5)
+        .setDepth(901);
+
+      addPulseTween(this, lockMsg, {
+        minAlpha: 0.6,
+        maxAlpha: 1.0,
+        duration: 2000,
+      });
+    }
 
     // Central star with multi-layer glow
     const starRadius = 30;
@@ -325,9 +371,39 @@ export class SystemMapScene extends Phaser.Scene {
         })
         .setOrigin(0.5, 0);
 
+      // Trade policy restriction icons (show banned cargo types)
+      if (empirePolicy && systemEmpireAccessible) {
+        const bans = [
+          ...empirePolicy.bannedImports.map((c) => `\u274C${c}`),
+          ...empirePolicy.bannedExports.map((c) => `\u26D4${c}`),
+        ];
+        if (bans.length > 0) {
+          this.add
+            .text(pos.x, pos.y + planetDiameter * 0.65 + 36, bans.join(" "), {
+              fontSize: "9px",
+              fontFamily: theme.fonts.caption.family,
+              color: colorToString(theme.colors.loss),
+              stroke: "#000000",
+              strokeThickness: 1,
+            })
+            .setOrigin(0.5, 0)
+            .setAlpha(0.8);
+        }
+      }
+
+      // Dim planets in locked empires
+      if (!systemEmpireAccessible) {
+        planetSprite.setAlpha(0.35);
+        planetHalo.setAlpha(0.05);
+      }
+
       // Click to see planet detail — launch as overlay
       const planetIndex = sortedPlanets.findIndex((p) => p.id === planet.id);
       planetSprite.on("pointerup", () => {
+        if (!systemEmpireAccessible) {
+          // Locked — don't open planet detail
+          return;
+        }
         getAudioDirector().sfx("map_star_select");
         // Update the PortraitPanel to show the planet
         if (this.portraitPanel) {

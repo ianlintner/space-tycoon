@@ -19,7 +19,10 @@ import {
   estimateRouteRevenue,
   addCargoLock,
 } from "../game/routes/RouteManager.ts";
-import { validateRouteCreation } from "../game/empire/EmpireAccessManager.ts";
+import {
+  validateRouteCreation,
+  getEmpireForPlanet,
+} from "../game/empire/EmpireAccessManager.ts";
 import { getLayout } from "./Layout.ts";
 import { Button } from "./Button.ts";
 import { Label } from "./Label.ts";
@@ -648,6 +651,50 @@ class RouteBuilderPanel {
       };
     }
 
+    // Check for empire access / trade policy issues
+    const validationError = validateRouteCreation(
+      origin.id,
+      destination.id,
+      cargo,
+      state,
+    );
+    if (validationError) {
+      const distance = calculateDistance(
+        origin,
+        destination,
+        state.galaxy.systems,
+      );
+      return {
+        distanceLabel: `${distance.toFixed(1)} units`,
+        shipLabel: "—",
+        statusLabel: `\u26A0 ${validationError}`,
+        revenueLabel: "—",
+        fuelLabel: "—",
+        profitLabel: "—",
+        profitValue: null,
+      };
+    }
+
+    // Show tariff info for inter-empire routes
+    const originEmpireId = getEmpireForPlanet(
+      origin.id,
+      state.galaxy.systems,
+      state.galaxy.planets,
+    );
+    const destEmpireId = getEmpireForPlanet(
+      destination.id,
+      state.galaxy.systems,
+      state.galaxy.planets,
+    );
+    const isInterEmpire =
+      originEmpireId && destEmpireId && originEmpireId !== destEmpireId;
+    const destEmpire = isInterEmpire
+      ? (state.galaxy.empires ?? []).find((e) => e.id === destEmpireId)
+      : undefined;
+    const tariffNote = destEmpire
+      ? ` \u2022 Tariff: ${Math.round(destEmpire.tariffRate * 100)}%`
+      : "";
+
     const distance = calculateDistance(
       origin,
       destination,
@@ -662,8 +709,8 @@ class RouteBuilderPanel {
           ? "No affordable compatible ship available"
           : "No compatible ship selected",
         statusLabel: this.autoBuy
-          ? "The route can still be created, but you will need to assign a ship later."
-          : "Create the route now and assign a ship later in Routes.",
+          ? `The route can still be created, but you will need to assign a ship later.${tariffNote}`
+          : `Create the route now and assign a ship later in Routes.${tariffNote}`,
         revenueLabel: "—",
         fuelLabel: "—",
         profitLabel: "—",
@@ -697,10 +744,10 @@ class RouteBuilderPanel {
           ? previewShip.name
           : `${previewShip.name}`,
       statusLabel: previewShip.isPurchasedPreview
-        ? "A compatible ship will be purchased automatically if you confirm."
+        ? `A compatible ship will be purchased automatically if you confirm.${tariffNote}`
         : previewShip.id == null
-          ? "A compatible ship will be chosen automatically if one is free."
-          : "This ship will be assigned as soon as the route is created.",
+          ? `A compatible ship will be chosen automatically if one is free.${tariffNote}`
+          : `This ship will be assigned as soon as the route is created.${tariffNote}`,
       revenueLabel: formatCash(revenue),
       fuelLabel: formatCash(fuel),
       profitLabel: formatCash(profit),
@@ -769,6 +816,8 @@ class RouteBuilderPanel {
       latestState,
     );
     if (validationError) {
+      this.statusValue.setText(`\u26A0 ${validationError}`);
+      this.statusValue.setLabelColor(getTheme().colors.loss);
       return;
     }
 
@@ -783,6 +832,10 @@ class RouteBuilderPanel {
       latestState.activeRoutes.length,
     );
     if (latestState.cash < licenseFee) {
+      this.statusValue.setText(
+        `\u26A0 Insufficient funds — license fee: §${licenseFee.toLocaleString()}`,
+      );
+      this.statusValue.setLabelColor(getTheme().colors.loss);
       return;
     }
 

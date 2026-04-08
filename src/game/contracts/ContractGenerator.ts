@@ -189,7 +189,7 @@ function generateRandomContract(
   ];
 
   const totalWeight = types.reduce((sum, t) => sum + t.weight, 0);
-  let roll = rng.nextFloat() * totalWeight;
+  let roll = rng.nextFloat(0, 1) * totalWeight;
   let contractType: ContractType = CT.PassengerFerry;
   for (const t of types) {
     roll -= t.weight;

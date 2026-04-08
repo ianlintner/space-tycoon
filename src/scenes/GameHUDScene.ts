@@ -17,6 +17,10 @@ import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { checkTutorialAdvancement } from "../game/adviser/AdviserEngine.ts";
 import type { TutorialTrigger } from "../data/types.ts";
 import { TUTORIAL_STEPS } from "../game/adviser/TutorialDefinitions.ts";
+import {
+  getAvailableRouteSlots,
+  getUsedRouteSlots,
+} from "../game/routes/RouteManager.ts";
 
 function formatCash(amount: number): string {
   return "\u00A7" + amount.toLocaleString();
@@ -50,6 +54,8 @@ export class GameHUDScene extends Phaser.Scene {
   private adviserBadge: Phaser.GameObjects.Text | null = null;
   private tutorialOverlay: TutorialOverlay | null = null;
   private actionPromptLabel!: Label;
+  private routeSlotLabel!: Label;
+  private researchLabel!: Label;
   private navBadges = new Map<string, Phaser.GameObjects.Arc>();
   private endTurnModal: Modal | null = null;
 
@@ -58,6 +64,8 @@ export class GameHUDScene extends Phaser.Scene {
     "SystemMapScene",
     "FleetScene",
     "RoutesScene",
+    "ContractsScene",
+    "TechTreeScene",
     "FinanceScene",
     "MarketScene",
     "SimPlaybackScene",
@@ -189,6 +197,8 @@ export class GameHUDScene extends Phaser.Scene {
       { label: "Map", scene: "GalaxyMapScene", icon: "icon-map" },
       { label: "Fleet", scene: "FleetScene", icon: "icon-fleet" },
       { label: "Routes", scene: "RoutesScene", icon: "icon-routes" },
+      { label: "Contracts", scene: "ContractsScene", icon: "icon-routes" },
+      { label: "Research", scene: "TechTreeScene", icon: "icon-finance" },
       { label: "Finance", scene: "FinanceScene", icon: "icon-finance" },
       { label: "Market", scene: "MarketScene", icon: "icon-market" },
     ];
@@ -491,6 +501,35 @@ export class GameHUDScene extends Phaser.Scene {
       color: theme.colors.textDim,
     });
     this.actionPromptLabel.setOrigin(0, 0.5);
+
+    // Route slot indicator (bottom bar, to the left of the end turn area)
+    const slotsUsed = getUsedRouteSlots(state);
+    const slotsTotal = getAvailableRouteSlots(state);
+    this.routeSlotLabel = new Label(this, {
+      x: L.gameWidth - 200,
+      y: L.gameHeight - L.hudBottomBarHeight / 2 - 8,
+      text: `Routes ${slotsUsed}/${slotsTotal}`,
+      style: "caption",
+      color: slotsUsed >= slotsTotal ? theme.colors.loss : theme.colors.textDim,
+    });
+    this.routeSlotLabel.setOrigin(1, 0.5);
+
+    // Research progress indicator (bottom bar, below route slots)
+    const techState = state.tech;
+    const researchText = techState?.currentResearchId
+      ? `Researching...`
+      : "No research";
+    this.researchLabel = new Label(this, {
+      x: L.gameWidth - 200,
+      y: L.gameHeight - L.hudBottomBarHeight / 2 + 8,
+      text: researchText,
+      style: "caption",
+      color: techState?.currentResearchId
+        ? theme.colors.accent
+        : theme.colors.textDim,
+    });
+    this.researchLabel.setOrigin(1, 0.5);
+
     this.updateActionPrompt();
 
     // End Turn button cluster (bottom right area)
@@ -640,6 +679,25 @@ export class GameHUDScene extends Phaser.Scene {
     this.updateActionPrompt();
     this.updateNavBadges();
 
+    // Route slot indicator
+    const slotsUsed = getUsedRouteSlots(state);
+    const slotsTotal = getAvailableRouteSlots(state);
+    this.routeSlotLabel.setText(`Routes ${slotsUsed}/${slotsTotal}`);
+    this.routeSlotLabel.setLabelColor(
+      slotsUsed >= slotsTotal ? theme.colors.loss : theme.colors.textDim,
+    );
+
+    // Research indicator
+    const techState = state.tech;
+    if (techState?.currentResearchId) {
+      const techCount = (state.tech?.completedTechIds ?? []).length;
+      this.researchLabel.setText(`Research \u2022 ${techCount} techs`);
+      this.researchLabel.setLabelColor(theme.colors.accent);
+    } else {
+      this.researchLabel.setText("No research");
+      this.researchLabel.setLabelColor(theme.colors.textDim);
+    }
+
     // Disable nav buttons during simulation and review phases
     const navEnabled = state.phase === "planning";
     const disabledReason =
@@ -665,6 +723,8 @@ export class GameHUDScene extends Phaser.Scene {
           GalaxyMapScene: "Map",
           FleetScene: "Fleet",
           RoutesScene: "Routes",
+          ContractsScene: "Contracts",
+          TechTreeScene: "Research",
           FinanceScene: "Finance",
           MarketScene: "Market",
         };
@@ -1314,6 +1374,26 @@ export class GameHUDScene extends Phaser.Scene {
       return;
     }
 
+    // New Phase 3 prompts: contracts and research
+    const availableContracts = (state.contracts ?? []).filter(
+      (c) => c.status === "available",
+    );
+    if (availableContracts.length > 0 && state.activeRoutes.length > 0) {
+      this.actionPromptLabel.setText(
+        `📋 ${availableContracts.length} contract${availableContracts.length > 1 ? "s" : ""} available — check Contracts`,
+      );
+      this.actionPromptLabel.setLabelColor(theme.colors.accent);
+      return;
+    }
+
+    if (!state.tech?.currentResearchId && state.activeRoutes.length > 0) {
+      this.actionPromptLabel.setText(
+        "🔬 No active research — pick a tech in Research",
+      );
+      this.actionPromptLabel.setLabelColor(theme.colors.warning);
+      return;
+    }
+
     this.actionPromptLabel.setText("✓ Ready — press ▶ to end turn");
     this.actionPromptLabel.setLabelColor(theme.colors.profit);
   }
@@ -1352,6 +1432,26 @@ export class GameHUDScene extends Phaser.Scene {
     if (financeBadge) {
       financeBadge.setVisible(state.phase === "planning" && state.cash < 0);
       financeBadge.setFillStyle(theme.colors.loss);
+    }
+
+    // Contracts badge: yellow if available contracts to accept
+    const contractsBadge = this.navBadges.get("ContractsScene");
+    if (contractsBadge) {
+      const available = (state.contracts ?? []).filter(
+        (c) => c.status === "available",
+      );
+      contractsBadge.setVisible(
+        state.phase === "planning" && available.length > 0,
+      );
+      contractsBadge.setFillStyle(theme.colors.accent);
+    }
+
+    // Research badge: yellow if no active research and RP available
+    const researchBadge = this.navBadges.get("TechTreeScene");
+    if (researchBadge) {
+      const noResearch = !state.tech?.currentResearchId;
+      researchBadge.setVisible(state.phase === "planning" && noResearch);
+      researchBadge.setFillStyle(theme.colors.warning);
     }
 
     // Hide all badges during sim/review

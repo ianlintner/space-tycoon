@@ -16,6 +16,8 @@ import { MarketScene } from "./scenes/MarketScene.ts";
 import { SimPlaybackScene } from "./scenes/SimPlaybackScene.ts";
 import { TurnReportScene } from "./scenes/TurnReportScene.ts";
 import { GameOverScene } from "./scenes/GameOverScene.ts";
+import { ContractsScene } from "./scenes/ContractsScene.ts";
+import { TechTreeScene } from "./scenes/TechTreeScene.ts";
 import {
   CARGO_CHEAT_SHEET,
   DISCLOSURE_CARDS,
@@ -549,6 +551,8 @@ function mountGame(): void {
     PlanetDetailScene,
     FleetScene,
     RoutesScene,
+    ContractsScene,
+    TechTreeScene,
     FinanceScene,
     MarketScene,
     SimPlaybackScene,

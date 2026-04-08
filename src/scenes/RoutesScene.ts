@@ -41,7 +41,11 @@ import type { RouteOpportunity } from "../game/routes/RouteManager.ts";
 import { buyShip } from "../game/fleet/FleetManager.ts";
 import { SHIP_TEMPLATES } from "../data/constants.ts";
 import type { ShipClass } from "../data/types.ts";
-import { validateRouteCreation } from "../game/empire/EmpireAccessManager.ts";
+import {
+  validateRouteCreation,
+  getEmpireForPlanet,
+  checkTradePolicyViolation,
+} from "../game/empire/EmpireAccessManager.ts";
 
 function formatCash(n: number): string {
   const sign = n < 0 ? "-" : "";
@@ -246,21 +250,48 @@ export class RoutesScene extends Phaser.Scene {
       width: contentInnerW,
       height: tableHeight,
       columns: [
-        { key: "origin", label: "From", width: 120, sortable: true },
-        { key: "destination", label: "To", width: 120, sortable: true },
+        { key: "origin", label: "From", width: 100, sortable: true },
+        { key: "destination", label: "To", width: 100, sortable: true },
+        {
+          key: "empire",
+          label: "Empire",
+          width: 80,
+          sortable: true,
+        },
         {
           key: "cargo",
           label: "Cargo",
-          width: 130,
+          width: 90,
           sortable: true,
           format: (v) => getCargoLabel(v as string),
           iconFn: (v) => getCargoIconKey(v as string),
           iconTintFn: (v) => getCargoColor(v as string),
         },
         {
+          key: "restricted",
+          label: "",
+          width: 22,
+          align: "center",
+          colorFn: () => getTheme().colors.loss,
+        },
+        {
+          key: "tariff",
+          label: "Tariff",
+          width: 55,
+          align: "right",
+          sortable: true,
+          format: (v) =>
+            typeof v === "number" ? `${Math.round(v * 100)}%` : "\u2014",
+          colorFn: (v) => {
+            if (typeof v !== "number") return getTheme().colors.textDim;
+            if (v >= 0.15) return getTheme().colors.loss;
+            return getTheme().colors.textDim;
+          },
+        },
+        {
           key: "price",
           label: "Price",
-          width: 80,
+          width: 70,
           align: "right",
           sortable: true,
           format: (v) => `§${(v as number).toFixed(0)}`,
@@ -268,7 +299,7 @@ export class RoutesScene extends Phaser.Scene {
         {
           key: "trend",
           label: "",
-          width: 28,
+          width: 24,
           align: "center",
           colorFn: (v) => {
             const t = getTheme();
@@ -280,14 +311,14 @@ export class RoutesScene extends Phaser.Scene {
         {
           key: "dist",
           label: "Dist",
-          width: 55,
+          width: 45,
           align: "right",
           sortable: true,
         },
         {
           key: "profit",
-          label: "Profit/Turn",
-          width: 110,
+          label: "Profit",
+          width: 80,
           align: "right",
           sortable: true,
           format: (v) => formatCompact(v as number),
@@ -299,7 +330,7 @@ export class RoutesScene extends Phaser.Scene {
         {
           key: "ship",
           label: "Ship",
-          width: 130,
+          width: 110,
           sortable: true,
           iconFn: (_v, row) => {
             const sc = row?.["shipClass"] as string | undefined;
@@ -581,11 +612,71 @@ export class RoutesScene extends Phaser.Scene {
     const rows = displayed.map((opp) => {
       // Map back to the original opportunities index for portrait/create
       const origIdx = this.opportunities.indexOf(opp);
+
+      // Empire & tariff info
+      const originEmpireId = getEmpireForPlanet(
+        opp.originPlanetId,
+        state.galaxy.systems,
+        state.galaxy.planets,
+      );
+      const destEmpireId = getEmpireForPlanet(
+        opp.destinationPlanetId,
+        state.galaxy.systems,
+        state.galaxy.planets,
+      );
+      const originEmpire = (state.galaxy.empires ?? []).find(
+        (e) => e.id === originEmpireId,
+      );
+      const destEmpire = (state.galaxy.empires ?? []).find(
+        (e) => e.id === destEmpireId,
+      );
+      const isInterEmpire =
+        originEmpire && destEmpire && originEmpire.id !== destEmpire.id;
+      const empireLabel = isInterEmpire
+        ? `${originEmpire.name.slice(0, 3)}\u2192${destEmpire.name.slice(0, 3)}`
+        : originEmpire
+          ? originEmpire.name.slice(0, 7)
+          : "\u2014";
+      const empireColor = isInterEmpire
+        ? destEmpire.color
+        : originEmpire
+          ? originEmpire.color
+          : undefined;
+
+      // Tariff rate for inter-empire routes
+      const tariff = isInterEmpire ? destEmpire.tariffRate : undefined;
+      // Tariff surcharge from trade policy
+      const destPolicy = destEmpireId
+        ? (state.empireTradePolicies ?? ({} as Record<string, never>))[
+            destEmpireId
+          ]
+        : undefined;
+      const tariffTotal =
+        typeof tariff === "number" && destPolicy?.tariffSurcharge
+          ? tariff + destPolicy.tariffSurcharge
+          : tariff;
+
+      // Check import/export ban restrictions
+      let restricted: string | undefined;
+      if (originEmpireId && destEmpireId) {
+        const policyViolation = checkTradePolicyViolation(
+          originEmpireId,
+          destEmpireId,
+          opp.bestCargoType,
+          state.empireTradePolicies ?? {},
+        );
+        restricted = policyViolation ? "\u26D4" : undefined;
+      }
+
       return {
         _index: origIdx,
         origin: opp.originName,
         destination: opp.destinationName,
+        empire: empireLabel,
+        empireColor,
         cargo: opp.bestCargoType,
+        restricted,
+        tariff: tariffTotal,
         price: opp.destPrice,
         trend: trendArrow(opp.destTrend),
         dist: opp.distance.toFixed(1),

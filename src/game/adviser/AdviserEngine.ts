@@ -133,6 +133,27 @@ export function generateTurnMessages(
     const w = WARNING_MESSAGES.find((m) => m.id === "warn_low_condition")!;
     if (!shown.has(w.id)) messages.push(makeMessage(w, turn));
   }
+  // Contract at risk: active contract with turnsWithoutShip >= 1
+  const contractAtRisk = state.contracts.some(
+    (c) => c.status === "active" && c.turnsWithoutShip >= 1,
+  );
+  if (contractAtRisk) {
+    const w = WARNING_MESSAGES.find((m) => m.id === "warn_contract_at_risk")!;
+    messages.push(makeMessage(w, turn));
+  }
+  // Route slots full
+  if (
+    state.activeRoutes.length >= state.routeSlots &&
+    state.routeSlots > 0
+  ) {
+    const w = WARNING_MESSAGES.find((m) => m.id === "warn_route_slots_full")!;
+    if (!shown.has(w.id)) messages.push(makeMessage(w, turn));
+  }
+  // No active research
+  if (!state.tech.currentResearchId && state.tech.completedTechIds.length < 20) {
+    const w = WARNING_MESSAGES.find((m) => m.id === "warn_no_research")!;
+    if (!shown.has(w.id)) messages.push(makeMessage(w, turn));
+  }
 
   // 5. One contextual tip per turn (cycle & dedup)
   const unseenTips = CONTEXTUAL_TIPS.filter((t) => !shown.has(t.id));

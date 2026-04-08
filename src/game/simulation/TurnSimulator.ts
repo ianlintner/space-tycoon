@@ -405,11 +405,13 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   };
 
   // ----- Step 8b: Process contracts -----
-  nextState = processContracts(nextState);
+  const contractResult = processContracts(nextState);
+  nextState = { ...nextState, ...contractResult };
 
   // ----- Step 8c: Research point accumulation & tech completion -----
   const rpThisTurn = calculateRPPerTurn(nextState);
-  nextState = processResearch(nextState, rpThisTurn);
+  const updatedTech = processResearch(nextState, rpThisTurn);
+  nextState = { ...nextState, tech: updatedTech };
 
   // ----- Step 9: Calculate net profit and update cash -----
   const netProfit =

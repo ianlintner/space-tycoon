@@ -13,8 +13,16 @@ import {
 } from "../ui/index.ts";
 import { drawEmpireBorders } from "../ui/EmpireBorders.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
+import {
+  isEmpireAccessible,
+} from "../game/empire/EmpireAccessManager.ts";
+import {
+  getAvailableRouteSlots,
+  getUsedRouteSlots,
+} from "../game/routes/RouteManager.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
+import type { Empire, GameState } from "../data/types.ts";
 
 // ── Camera zoom / pan constants ─────────────────────────────────────────────
 
@@ -156,6 +164,13 @@ export class GalaxyMapScene extends Phaser.Scene {
       gridStep: 10,
     });
 
+    // ── Route slot indicator (fixed to camera) ──
+    const slotsUsed = getUsedRouteSlots(state);
+    const slotsTotal = getAvailableRouteSlots(state);
+    const slotBlocks =
+      "\u25A0".repeat(slotsUsed) +
+      "\u25A1".repeat(Math.max(0, slotsTotal - slotsUsed));
+
     // ── HUD overlay labels (fixed to camera via setScrollFactor) ──
     new Label(this, {
       x: 20,
@@ -163,6 +178,14 @@ export class GalaxyMapScene extends Phaser.Scene {
       text: "Galaxy Map",
       style: "caption",
       color: theme.colors.textDim,
+    }).setScrollFactor(0);
+
+    new Label(this, {
+      x: 20,
+      y: L.contentTop + 28,
+      text: `Routes: ${slotsUsed}/${slotsTotal} ${slotBlocks}`,
+      style: "caption",
+      color: slotsUsed >= slotsTotal ? theme.colors.loss : theme.colors.textDim,
     }).setScrollFactor(0);
 
     this.add
@@ -182,6 +205,13 @@ export class GalaxyMapScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setAlpha(0.85)
       .setScrollFactor(0);
+
+    // ── Build empire accessibility lookup ──
+    const empireAccessible = new Map<string, boolean>();
+    for (const emp of empires) {
+      empireAccessible.set(emp.id, isEmpireAccessible(emp.id, state));
+    }
+    const empireMap = new Map(empires.map((e) => [e.id, e]));
 
     // ── Build lookups ──
     const planetSystemMap = new Map<string, string>();
@@ -292,12 +322,77 @@ export class GalaxyMapScene extends Phaser.Scene {
       );
     }
 
+    // Empire info card container (destroyed & rebuilt per click)
+    let empireInfoCard: Phaser.GameObjects.Container | null = null;
+
+    const destroyInfoCard = () => {
+      if (empireInfoCard) {
+        empireInfoCard.destroy(true);
+        empireInfoCard = null;
+      }
+    };
+
     for (const system of systems) {
       const sysX = system.x;
       const sysY = system.y + L.contentTop;
       const planetCount = planetCountsBySystem.get(system.id) ?? 0;
+      const accessible = empireAccessible.get(system.empireId) ?? false;
+
       // Stars with more planets are slightly larger (3-7px radius)
       const mainRadius = 3 + Math.min(4, planetCount);
+
+      if (!accessible) {
+        // Locked empire — dim dot, no glow
+        const dimStar = this.add
+          .circle(sysX, sysY, Math.max(2, mainRadius * 0.5), system.starColor)
+          .setAlpha(0.25);
+
+        this.add
+          .text(sysX, sysY + 8, system.name, {
+            fontSize: `${theme.fonts.caption.size}px`,
+            fontFamily: theme.fonts.caption.family,
+            color: colorToString(theme.colors.textDim),
+            stroke: "#000000",
+            strokeThickness: 2,
+          })
+          .setOrigin(0.5, 0)
+          .setAlpha(0.3);
+
+        // Lock icon
+        this.add
+          .text(sysX + mainRadius + 4, sysY - 6, "\uD83D\uDD12", {
+            fontSize: "10px",
+          })
+          .setOrigin(0, 0.5)
+          .setAlpha(0.4);
+
+        dimStar.setInteractive(
+          new Phaser.Geom.Circle(
+            mainRadius,
+            mainRadius,
+            Math.max(mainRadius + 10, 16),
+          ),
+          Phaser.Geom.Circle.Contains,
+        );
+        if (dimStar.input) {
+          dimStar.input.cursor = "pointer";
+        }
+        dimStar.on("pointerup", () => {
+          getAudioDirector().sfx("map_star_select");
+          const emp = empireMap.get(system.empireId);
+          const empName = emp?.name ?? "Unknown";
+          destroyInfoCard();
+          empireInfoCard = this.createEmpireInfoCard(
+            sysX,
+            sysY,
+            empName,
+            emp,
+            state,
+            false,
+          );
+        });
+        continue;
+      }
 
       // Outer soft halo — large and dim for atmosphere
       const outerHalo = this.add
@@ -360,6 +455,16 @@ export class GalaxyMapScene extends Phaser.Scene {
       });
     }
 
+    // Click on empty space dismisses empire info card
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      if (this.isDragging) return;
+      // Check if we clicked on a game object — if not, dismiss
+      const overObjects = this.input.hitTestPointer(pointer);
+      if (overObjects.length === 0) {
+        destroyInfoCard();
+      }
+    });
+
     // ── Camera setup: zoom + pan ──
     const cam = this.cameras.main;
     // Don't use setBounds — at low zoom the viewport exceeds world size
@@ -411,5 +516,72 @@ export class GalaxyMapScene extends Phaser.Scene {
     this.input.on("pointerup", () => {
       this.isDragging = false;
     });
+  }
+
+  private createEmpireInfoCard(
+    worldX: number,
+    worldY: number,
+    name: string,
+    empire: Empire | undefined,
+    state: GameState,
+    accessible: boolean,
+  ): Phaser.GameObjects.Container {
+    const theme = getTheme();
+    const container = this.add.container(worldX + 20, worldY - 20);
+    const cardW = 260;
+    const lines: string[] = [];
+    lines.push(name);
+
+    if (empire) {
+      lines.push(`Disposition: ${empire.disposition}`);
+      lines.push(`Tariff: ${Math.round(empire.tariffRate * 100)}%`);
+      const policy = state.empireTradePolicies[empire.id];
+      if (policy) {
+        if (policy.bannedImports.length > 0) {
+          lines.push(`Import Ban: ${policy.bannedImports.join(", ")}`);
+        }
+        if (policy.bannedExports.length > 0) {
+          lines.push(`Export Ban: ${policy.bannedExports.join(", ")}`);
+        }
+        if (policy.tariffSurcharge > 0) {
+          lines.push(
+            `Surcharge: +${Math.round(policy.tariffSurcharge * 100)}%`,
+          );
+        }
+      }
+    }
+
+    lines.push(accessible ? "Status: Unlocked" : "Status: Locked \uD83D\uDD12");
+
+    const lineHeight = 16;
+    const cardH = lines.length * lineHeight + 16;
+
+    // Background
+    const bg = this.add.graphics();
+    bg.fillStyle(theme.colors.panelBg, 0.92);
+    bg.fillRoundedRect(0, 0, cardW, cardH, 6);
+    bg.lineStyle(1, theme.colors.panelBorder, 0.6);
+    bg.strokeRoundedRect(0, 0, cardW, cardH, 6);
+    container.add(bg);
+
+    for (let i = 0; i < lines.length; i++) {
+      const isTitle = i === 0;
+      const txt = this.add
+        .text(10, 8 + i * lineHeight, lines[i], {
+          fontSize: `${isTitle ? theme.fonts.body.size : theme.fonts.caption.size}px`,
+          fontFamily: isTitle
+            ? theme.fonts.body.family
+            : theme.fonts.caption.family,
+          color: colorToString(
+            isTitle ? theme.colors.accent : theme.colors.text,
+          ),
+          stroke: "#000000",
+          strokeThickness: 1,
+        })
+        .setOrigin(0, 0);
+      container.add(txt);
+    }
+
+    return container;
   }
 }
