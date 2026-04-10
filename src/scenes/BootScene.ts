@@ -13,6 +13,11 @@ import {
   getPortraitAssetPath,
   getPortraitTextureKey,
 } from "../data/portraits.ts";
+import {
+  PLANET_PORTRAIT_TYPES,
+  getPlanetPortraitTextureKey,
+  getPlanetPortraitAssetPath,
+} from "../data/planetPortraits.ts";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -26,6 +31,14 @@ export class BootScene extends Phaser.Scene {
     // Preload CEO portrait images
     for (const def of CEO_PORTRAITS) {
       this.load.image(getPortraitTextureKey(def.id), getPortraitAssetPath(def));
+    }
+
+    // Preload planet portrait images
+    for (const ptype of PLANET_PORTRAIT_TYPES) {
+      this.load.image(
+        getPlanetPortraitTextureKey(ptype),
+        getPlanetPortraitAssetPath(ptype),
+      );
     }
   }
 

@@ -11,6 +11,7 @@ import type {
 import { getLayout } from "./Layout.ts";
 import type { Planet, Ship, StarSystem, GameEvent } from "../data/types.ts";
 import { SHIP_TEMPLATES } from "../data/constants.ts";
+import { getPlanetPortraitTextureKey } from "../data/planetPortraits.ts";
 
 export interface PortraitPanelConfig {
   x: number;
@@ -22,6 +23,7 @@ export interface PortraitPanelConfig {
 export class PortraitPanel extends Phaser.GameObjects.Container {
   private panel: Panel;
   private portraitGraphics: Phaser.GameObjects.Graphics;
+  private portraitImage: Phaser.GameObjects.Image | null = null;
   private nameLabel: Label;
   private statLabels: Label[];
   private portraitWidth: number;
@@ -54,10 +56,14 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
     scene.children.remove(this.panel);
     this.add(this.panel);
 
-    // Graphics object for portrait area
+    // Graphics object for portrait area (procedural fallback)
     this.portraitGraphics = scene.add.graphics();
     this.portraitGraphics.setPosition(theme.spacing.sm, theme.spacing.sm);
     this.add(this.portraitGraphics);
+
+    // Image object for loaded planet portrait textures
+    // Created on demand in updatePortrait when a loaded texture is available
+    this.portraitImage = null;
 
     // Geometry mask to clip portrait within panel bounds
     const maskShape = scene.make.graphics({});
@@ -106,16 +112,49 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
   ): void {
     const theme = getTheme();
 
-    // Clear and redraw portrait
-    this.portraitGraphics.clear();
-    drawPortrait(
-      this.portraitGraphics,
-      type,
-      this.portraitWidth,
-      this.portraitHeight,
-      seed,
-      data,
-    );
+    // Try loaded planet portrait texture first
+    let usedImage = false;
+    if (type === "planet" && data?.planetType) {
+      const texKey = getPlanetPortraitTextureKey(data.planetType);
+      if (this.scene.textures.exists(texKey)) {
+        this.portraitGraphics.clear();
+        this.portraitGraphics.setVisible(false);
+        if (!this.portraitImage) {
+          this.portraitImage = this.scene.add.image(
+            theme.spacing.sm + this.portraitWidth / 2,
+            theme.spacing.sm + this.portraitHeight / 2,
+            texKey,
+          );
+          this.portraitImage.setMask(this.portraitGraphics.mask!);
+          this.add(this.portraitImage);
+        } else {
+          this.portraitImage.setTexture(texKey);
+        }
+        this.portraitImage.setDisplaySize(
+          this.portraitWidth,
+          this.portraitHeight,
+        );
+        this.portraitImage.setVisible(true);
+        usedImage = true;
+      }
+    }
+
+    if (!usedImage) {
+      // Fall back to procedural portrait drawing
+      if (this.portraitImage) {
+        this.portraitImage.setVisible(false);
+      }
+      this.portraitGraphics.setVisible(true);
+      this.portraitGraphics.clear();
+      drawPortrait(
+        this.portraitGraphics,
+        type,
+        this.portraitWidth,
+        this.portraitHeight,
+        seed,
+        data,
+      );
+    }
 
     // Update name
     this.nameLabel.setText(name);
@@ -198,6 +237,9 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
   /** Clear all portrait visuals. */
   clear(): void {
     this.portraitGraphics.clear();
+    if (this.portraitImage) {
+      this.portraitImage.setVisible(false);
+    }
     this.nameLabel.setText("");
     this.clearStatRows();
   }
