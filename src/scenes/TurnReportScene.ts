@@ -50,11 +50,12 @@ export class TurnReportScene extends Phaser.Scene {
     getAudioDirector().setMusicState("report");
 
     // Flow constants: ensure all panels fit in contentHeight (612px)
-    const TR_GAP = 4;
-    const TR_ROUTE_H = 125;
-    const TR_AI_H = 116;
-    const TR_BOTTOM_H = 115;
-    const TR_ROUTE_Y = L.contentTop + 200 + TR_GAP;
+    const TR_GAP = 8;
+    const TR_PL_H = 192;
+    const TR_ROUTE_H = 120;
+    const TR_AI_H = 112;
+    const TR_BOTTOM_H = 112;
+    const TR_ROUTE_Y = L.contentTop + TR_PL_H + TR_GAP;
     const TR_AI_Y = TR_ROUTE_Y + TR_ROUTE_H + TR_GAP;
 
     const history = state.history;
@@ -114,7 +115,7 @@ export class TurnReportScene extends Phaser.Scene {
       x: L.mainContentLeft,
       y: L.contentTop,
       width: L.mainContentWidth,
-      height: 200,
+      height: TR_PL_H,
       title: "Profit & Loss",
     });
     const plContent = plPanel.getContentArea();

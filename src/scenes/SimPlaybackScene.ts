@@ -82,7 +82,7 @@ export class SimPlaybackScene extends Phaser.Scene {
     // Zoom camera to fit the galaxy within the viewport
     const zoomX = vpW / (galW + 200);
     const zoomY = vpH / (galH + 200);
-    const fitZoom = Math.min(zoomX, zoomY, 1);
+    const fitZoom = Math.max(Math.min(zoomX, zoomY, 1), 0.55);
     cam.setZoom(fitZoom);
     cam.centerOn(galCx, galCy);
 
@@ -548,6 +548,13 @@ export class SimPlaybackScene extends Phaser.Scene {
     // Show milestone overlay for notable outcomes
     const isLargeProfit = net > 0 && net >= 5000;
     if (isLargeProfit) {
+      // Reset camera to full game area so overlay renders at correct size/position
+      const L2 = getLayout();
+      const cam = this.cameras.main;
+      cam.setViewport(0, 0, L2.gameWidth, L2.gameHeight);
+      cam.setZoom(1);
+      cam.centerOn(L2.gameWidth / 2, L2.gameHeight / 2);
+
       const sign = net >= 0 ? "+" : "";
       MilestoneOverlay.show(
         this,

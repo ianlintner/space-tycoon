@@ -81,8 +81,8 @@ export class MarketScene extends Phaser.Scene {
     });
 
     // Build columns: Planet, Type, then one per cargo type
-    const planetColWidth = 100;
-    const typeColWidth = 80;
+    const planetColWidth = 115;
+    const typeColWidth = 100;
     const cargoColWidth = Math.floor(
       (content.width - planetColWidth - typeColWidth) /
         CARGO_TYPE_VALUES.length,
