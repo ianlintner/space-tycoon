@@ -45,6 +45,7 @@ import {
 } from "../NewGameSetup.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 import { pickRandomPortrait } from "../../data/portraits.ts";
+import { isRouteGrounded } from "../events/EventEngine.ts";
 
 // ---------------------------------------------------------------------------
 // AI turn simulation
@@ -286,6 +287,15 @@ function simulateAIRoutes(
 
   for (const route of company.activeRoutes) {
     if (!route.cargoType) continue;
+
+    // Skip grounded routes (embargoes, blockades, border closures)
+    const grounded = isRouteGrounded(
+      route,
+      state.activeEvents,
+      state.galaxy.systems,
+      state.galaxy.planets,
+    );
+    if (grounded) continue;
 
     for (const shipId of route.assignedShipIds) {
       const ship = company.fleet.find((s) => s.id === shipId);
@@ -772,10 +782,13 @@ function openAIRoute(
   // Accept profitable routes always. When most ships are idle (desperate),
   // also accept marginal routes that aren't deeply unprofitable — better
   // than sitting idle earning nothing.
+  // CherryPickers are more selective — they require higher profit margins.
   const totalShips = company.fleet.length;
   const idleRatio = totalShips > 0 ? idleShips.length / totalShips : 0;
   const desperate = idleRatio > 0.5;
-  const profitFloor = desperate ? -500 : 0;
+  const isCherryPicker = company.personality === AIPersonality.CherryPicker;
+  const cherryMinProfit = isCherryPicker ? 200 : 0;
+  const profitFloor = desperate ? -500 : cherryMinProfit;
 
   if (!bestRoute || bestRoute.profit <= profitFloor) return null;
 

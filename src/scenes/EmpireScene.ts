@@ -80,10 +80,12 @@ export class EmpireScene extends Phaser.Scene {
       title: "Diplomatic Relations",
     });
     const content = contentPanel.getContentArea();
+    const absX = L.mainContentLeft + content.x;
+    const absY = L.contentTop + content.y;
 
     this.table = new DataTable(this, {
-      x: content.x,
-      y: content.y,
+      x: absX,
+      y: absY,
       width: content.width,
       height: content.height - 20,
       columns: [

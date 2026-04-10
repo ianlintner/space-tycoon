@@ -15,6 +15,8 @@ import type { EventTemplate } from "./EventDefinitions.ts";
 import { MOTHBALL_FEE_RATIO, BASE_FUEL_PRICE } from "../../data/constants.ts";
 import { getEmpireForPlanet } from "../empire/EmpireAccessManager.ts";
 import { hasTechEffect } from "../tech/TechEffects.ts";
+import { setDiplomaticStatus } from "../empire/DiplomacyManager.ts";
+import { updateBorderPorts } from "../empire/EmpireBorderManager.ts";
 
 // ---------------------------------------------------------------------------
 // Galaxy shape expected by selectEvents (avoids importing full GameState)
@@ -81,9 +83,18 @@ function pickTarget(
 } {
   const empires = galaxy.empires ?? [];
 
-  // Empire-pair events: Trade Embargo, Tariff War
+  // Empire-pair events: Trade Embargo, Tariff War, Diplomatic events
   const needsEmpirePair = template.effects.some(
-    (e) => e.type === "groundEmpireRoutes" || e.type === "modifyTariff",
+    (e) =>
+      e.type === "groundEmpireRoutes" ||
+      e.type === "modifyTariff" ||
+      e.type === "declareWar" ||
+      e.type === "signPeace" ||
+      e.type === "formAlliance" ||
+      e.type === "formTradePact" ||
+      e.type === "closeBorders" ||
+      e.type === "openBorders" ||
+      e.type === "degradeRelation",
   );
   if (needsEmpirePair && empires.length >= 2) {
     const idxA = rng.nextInt(0, empires.length - 1);
@@ -373,6 +384,200 @@ export function applyEventEffects(
 
       case "modifyTariff": {
         // Tariff modifier is read by TariffCalculator from activeEvents
+        break;
+      }
+
+      case "declareWar": {
+        if (effect.empireId && effect.empireId2 && nextState.diplomaticRelations) {
+          nextState = {
+            ...nextState,
+            diplomaticRelations: setDiplomaticStatus(
+              effect.empireId,
+              effect.empireId2,
+              "war",
+              [...nextState.diplomaticRelations],
+            ),
+          };
+          if (nextState.borderPorts) {
+            nextState = {
+              ...nextState,
+              borderPorts: updateBorderPorts(
+                [...nextState.borderPorts],
+                nextState.galaxy.systems,
+                nextState.diplomaticRelations!,
+              ),
+            };
+          }
+        }
+        break;
+      }
+
+      case "signPeace": {
+        if (effect.empireId && effect.empireId2 && nextState.diplomaticRelations) {
+          nextState = {
+            ...nextState,
+            diplomaticRelations: setDiplomaticStatus(
+              effect.empireId,
+              effect.empireId2,
+              "peace",
+              [...nextState.diplomaticRelations],
+            ),
+          };
+          if (nextState.borderPorts) {
+            nextState = {
+              ...nextState,
+              borderPorts: updateBorderPorts(
+                [...nextState.borderPorts],
+                nextState.galaxy.systems,
+                nextState.diplomaticRelations!,
+              ),
+            };
+          }
+        }
+        break;
+      }
+
+      case "formAlliance": {
+        if (effect.empireId && effect.empireId2 && nextState.diplomaticRelations) {
+          nextState = {
+            ...nextState,
+            diplomaticRelations: setDiplomaticStatus(
+              effect.empireId,
+              effect.empireId2,
+              "alliance",
+              [...nextState.diplomaticRelations],
+            ),
+          };
+          if (nextState.borderPorts) {
+            nextState = {
+              ...nextState,
+              borderPorts: updateBorderPorts(
+                [...nextState.borderPorts],
+                nextState.galaxy.systems,
+                nextState.diplomaticRelations!,
+              ),
+            };
+          }
+        }
+        break;
+      }
+
+      case "formTradePact": {
+        if (effect.empireId && effect.empireId2 && nextState.diplomaticRelations) {
+          nextState = {
+            ...nextState,
+            diplomaticRelations: setDiplomaticStatus(
+              effect.empireId,
+              effect.empireId2,
+              "tradePact",
+              [...nextState.diplomaticRelations],
+            ),
+          };
+          if (nextState.borderPorts) {
+            nextState = {
+              ...nextState,
+              borderPorts: updateBorderPorts(
+                [...nextState.borderPorts],
+                nextState.galaxy.systems,
+                nextState.diplomaticRelations!,
+              ),
+            };
+          }
+        }
+        break;
+      }
+
+      case "closeBorders": {
+        if (effect.empireId && effect.empireId2 && nextState.diplomaticRelations) {
+          nextState = {
+            ...nextState,
+            diplomaticRelations: setDiplomaticStatus(
+              effect.empireId,
+              effect.empireId2,
+              "coldWar",
+              [...nextState.diplomaticRelations],
+            ),
+          };
+          if (nextState.borderPorts) {
+            nextState = {
+              ...nextState,
+              borderPorts: updateBorderPorts(
+                [...nextState.borderPorts],
+                nextState.galaxy.systems,
+                nextState.diplomaticRelations!,
+              ),
+            };
+          }
+        }
+        break;
+      }
+
+      case "openBorders": {
+        if (effect.empireId && effect.empireId2 && nextState.diplomaticRelations) {
+          // Open borders implies at least peace status
+          nextState = {
+            ...nextState,
+            diplomaticRelations: setDiplomaticStatus(
+              effect.empireId,
+              effect.empireId2,
+              "peace",
+              [...nextState.diplomaticRelations],
+            ),
+          };
+          if (nextState.borderPorts) {
+            nextState = {
+              ...nextState,
+              borderPorts: updateBorderPorts(
+                [...nextState.borderPorts],
+                nextState.galaxy.systems,
+                nextState.diplomaticRelations!,
+              ),
+            };
+          }
+        }
+        break;
+      }
+
+      case "degradeRelation": {
+        if (effect.empireId && effect.empireId2 && nextState.diplomaticRelations) {
+          // Find current relation and degrade by one step
+          const rel = nextState.diplomaticRelations.find(
+            (r) =>
+              (r.empireA === effect.empireId && r.empireB === effect.empireId2) ||
+              (r.empireA === effect.empireId2 && r.empireB === effect.empireId),
+          );
+          if (rel) {
+            const ladder: Array<typeof rel.status> = [
+              "war",
+              "coldWar",
+              "peace",
+              "tradePact",
+              "alliance",
+            ];
+            const idx = ladder.indexOf(rel.status);
+            if (idx > 0) {
+              nextState = {
+                ...nextState,
+                diplomaticRelations: setDiplomaticStatus(
+                  effect.empireId,
+                  effect.empireId2!,
+                  ladder[idx - 1],
+                  [...nextState.diplomaticRelations],
+                ),
+              };
+              if (nextState.borderPorts) {
+                nextState = {
+                  ...nextState,
+                  borderPorts: updateBorderPorts(
+                    [...nextState.borderPorts],
+                    nextState.galaxy.systems,
+                    nextState.diplomaticRelations!,
+                  ),
+                };
+              }
+            }
+          }
+        }
         break;
       }
     }

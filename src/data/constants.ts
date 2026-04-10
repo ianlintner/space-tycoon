@@ -97,7 +97,7 @@ export const HYPERLANE_SHAPE_BIAS = {
 // ── Diplomacy Config ───────────────────────────────────────
 
 /** Turns of war before ceasefire can occur */
-export const WAR_MIN_DURATION = 3;
+export const WAR_MIN_DURATION = 4;
 /** Maximum turns a war can last before forced ceasefire */
 export const WAR_MAX_DURATION = 8;
 /** Turns of peace required before trade pact can be proposed */
@@ -107,7 +107,7 @@ export const ALLIANCE_PACT_REQUIREMENT = 5;
 /** Chance per turn that relations drift (improve or degrade) */
 export const DIPLOMACY_DRIFT_CHANCE = 0.08;
 /** Per-turn chance of war between cold-war empires */
-export const COLD_WAR_ESCALATION_CHANCE = 0.06;
+export const COLD_WAR_ESCALATION_CHANCE = 0.015;
 
 /** Open border ports by diplomatic status */
 export const BORDER_PORTS_BY_STATUS = {
@@ -592,7 +592,7 @@ export const AI_PERSONALITY_SLOTS: Record<
   string,
   { baseSlots: number; maxSlots: number }
 > = {
-  aggressiveExpander: { baseSlots: 5, maxSlots: 12 },
-  steadyHauler: { baseSlots: 4, maxSlots: 9 },
-  cherryPicker: { baseSlots: 4, maxSlots: 8 },
+  aggressiveExpander: { baseSlots: 5, maxSlots: 11 },
+  steadyHauler: { baseSlots: 4, maxSlots: 8 },
+  cherryPicker: { baseSlots: 5, maxSlots: 11 },
 };

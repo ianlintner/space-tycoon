@@ -29,6 +29,10 @@ import {
 import { findAdjacentEmpires } from "./empire/EmpireAccessManager.ts";
 import { generateEmpireTradePolicies } from "./empire/EmpirePolicyGenerator.ts";
 import { generateCEOName, pickRandomPortrait } from "../data/portraits.ts";
+import {
+  initializeDiplomacy,
+  initializeBorderPorts,
+} from "./empire/DiplomacyManager.ts";
 
 export interface NewGameResult {
   state: GameState;
@@ -275,6 +279,20 @@ export function createNewGame(
     researchProgress: 0,
   };
 
+  // Phase 4: Initialize diplomacy & border ports
+  const diplomacyRng = new SeededRNG(seed + 3);
+  const diplomaticRelations = initializeDiplomacy(
+    galaxyData.empires,
+    galaxyData.systems,
+    galaxyData.hyperlanes,
+  );
+  const borderPorts = initializeBorderPorts(
+    galaxyData.hyperlanes,
+    galaxyData.systems,
+    diplomaticRelations,
+    diplomacyRng,
+  );
+
   const state: GameState = {
     seed,
     turn: 1,
@@ -295,6 +313,10 @@ export function createNewGame(
       systems: galaxyData.systems,
       planets: galaxyData.planets,
     },
+    hyperlanes: galaxyData.hyperlanes,
+    borderPorts,
+    diplomaticRelations,
+    hyperlaneDensity: "medium",
     fleet: startingShips,
     activeRoutes: [],
     market,

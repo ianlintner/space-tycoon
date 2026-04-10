@@ -92,6 +92,17 @@ interface RunSummary {
     avgCargoPrice: number;
     totalMarketVolume: number;
   }[];
+  // Diplomacy trajectory
+  diplomacyTrajectory: {
+    turn: number;
+    wars: number;
+    coldWars: number;
+    peaces: number;
+    tradePacts: number;
+    alliances: number;
+    openPorts: number;
+    closedPorts: number;
+  }[];
   scoreSpread: number; // max - min score among non-bankrupt
   giniCoefficient: number; // wealth inequality
 }
@@ -148,6 +159,20 @@ function extractRunSummary(result: SimulationResult): RunSummary {
       totalMarketVolume: tl.economy.totalMarketVolume,
     }));
 
+  // Diplomacy trajectory (sample every 5 turns)
+  const diplomacyTrajectory = turnLogs
+    .filter((_, i) => i % 5 === 0 || i === turnLogs.length - 1)
+    .map((tl) => ({
+      turn: tl.turn,
+      wars: tl.diplomacy.wars,
+      coldWars: tl.diplomacy.coldWars,
+      peaces: tl.diplomacy.peaces,
+      tradePacts: tl.diplomacy.tradePacts,
+      alliances: tl.diplomacy.alliances,
+      openPorts: tl.diplomacy.openBorderPorts,
+      closedPorts: tl.diplomacy.closedBorderPorts,
+    }));
+
   const nonBankruptScores = summary.rankings
     .filter((r) => !summary.bankruptcies.some((b) => b.name === r.name))
     .map((r) => r.score);
@@ -181,6 +206,7 @@ function extractRunSummary(result: SimulationResult): RunSummary {
     warningCounts: summary.warningCounts,
     companyTrajectories,
     economyTrajectory,
+    diplomacyTrajectory,
     scoreSpread,
     giniCoefficient,
   };
@@ -240,6 +266,15 @@ interface AggregateAnalysis {
     avgPeakFuelPrice: number;
     avgFinalCargoPrice: number;
     fuelPriceVariance: number;
+  };
+  // Diplomacy health
+  diplomacyStats: {
+    avgFinalWars: number;
+    avgFinalPeaces: number;
+    avgFinalTradePacts: number;
+    avgFinalAlliances: number;
+    avgOpenPorts: number;
+    avgClosedPorts: number;
   };
   // Balance issues
   balanceIssues: string[];
@@ -448,6 +483,45 @@ function analyzeRuns(runs: RunSummary[]): AggregateAnalysis {
     );
   }
 
+  // Diplomacy stats from trajectory snapshots
+  const diplomacyStats = {
+    avgFinalWars: 0,
+    avgFinalPeaces: 0,
+    avgFinalTradePacts: 0,
+    avgFinalAlliances: 0,
+    avgOpenPorts: 0,
+    avgClosedPorts: 0,
+  };
+  const runsWithDiplomacy = runs.filter(
+    (r) => r.diplomacyTrajectory.length > 0,
+  );
+  if (runsWithDiplomacy.length > 0) {
+    for (const run of runsWithDiplomacy) {
+      const last = run.diplomacyTrajectory[run.diplomacyTrajectory.length - 1];
+      diplomacyStats.avgFinalWars += last.wars;
+      diplomacyStats.avgFinalPeaces += last.peaces;
+      diplomacyStats.avgFinalTradePacts += last.tradePacts;
+      diplomacyStats.avgFinalAlliances += last.alliances;
+      diplomacyStats.avgOpenPorts += last.openPorts;
+      diplomacyStats.avgClosedPorts += last.closedPorts;
+    }
+    const n = runsWithDiplomacy.length;
+    diplomacyStats.avgFinalWars /= n;
+    diplomacyStats.avgFinalPeaces /= n;
+    diplomacyStats.avgFinalTradePacts /= n;
+    diplomacyStats.avgFinalAlliances /= n;
+    diplomacyStats.avgOpenPorts /= n;
+    diplomacyStats.avgClosedPorts /= n;
+  }
+
+  // Excessive wars check
+  const warWarnings = warningFrequency["WAR_OUTBREAK"] ?? 0;
+  if (warWarnings > totalRuns * 30) {
+    balanceIssues.push(
+      `EXCESSIVE_WARS: WAR_OUTBREAK fired ${warWarnings} times across ${totalRuns} runs (${(warWarnings / totalRuns).toFixed(1)} per game)`,
+    );
+  }
+
   return {
     totalRuns,
     avgWallTimeMs,
@@ -459,6 +533,7 @@ function analyzeRuns(runs: RunSummary[]): AggregateAnalysis {
     eventFrequency,
     warningFrequency,
     economyStats,
+    diplomacyStats,
     balanceIssues,
   };
 }
@@ -590,6 +665,16 @@ function generateReport(
   lines.push(
     `- Avg final cargo price: ${analysis.economyStats.avgFinalCargoPrice.toFixed(2)}`,
   );
+
+  // Diplomacy
+  lines.push("\n## Diplomacy Health\n");
+  const ds = analysis.diplomacyStats;
+  lines.push(`- Avg final wars: ${ds.avgFinalWars.toFixed(2)}`);
+  lines.push(`- Avg final peaces: ${ds.avgFinalPeaces.toFixed(2)}`);
+  lines.push(`- Avg final trade pacts: ${ds.avgFinalTradePacts.toFixed(2)}`);
+  lines.push(`- Avg final alliances: ${ds.avgFinalAlliances.toFixed(2)}`);
+  lines.push(`- Avg open border ports: ${ds.avgOpenPorts.toFixed(1)}`);
+  lines.push(`- Avg closed border ports: ${ds.avgClosedPorts.toFixed(1)}`);
 
   // Top events
   lines.push("\n## Event Frequency (top 15)\n");

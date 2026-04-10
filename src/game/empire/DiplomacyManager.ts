@@ -175,8 +175,9 @@ function applyDrift(rel: DiplomaticRelation, rng: SeededRNG): string | null {
       return `Relations improved to ${newStatus}`;
     }
   } else {
-    // Try to degrade
-    if (idx > 0) {
+    // Try to degrade — but prevent drift from coldWar directly to war
+    // (only explicit COLD_WAR_ESCALATION_CHANCE should trigger wars)
+    if (idx > 1) {
       const newStatus = STATUS_LADDER[idx - 1];
       rel.status = newStatus;
       rel.turnsInCurrentStatus = 0;

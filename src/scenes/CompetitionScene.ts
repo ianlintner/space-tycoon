@@ -71,6 +71,8 @@ export class CompetitionScene extends Phaser.Scene {
       title: "AI Companies",
     });
     const content = contentPanel.getContentArea();
+    const absX = L.mainContentLeft + content.x;
+    const absY = L.contentTop + content.y;
 
     // Build table rows
     const rows = companies.map((company) => {
@@ -92,8 +94,8 @@ export class CompetitionScene extends Phaser.Scene {
     };
 
     this.table = new DataTable(this, {
-      x: content.x,
-      y: content.y,
+      x: absX,
+      y: absY,
       width: content.width,
       height: content.height - 20,
       columns: [

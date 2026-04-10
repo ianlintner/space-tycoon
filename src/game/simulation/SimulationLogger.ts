@@ -49,6 +49,16 @@ export interface TurnLog {
     avgCargoPrice: number;
     totalMarketVolume: number;
   };
+  diplomacy: {
+    wars: number;
+    coldWars: number;
+    peaces: number;
+    tradePacts: number;
+    alliances: number;
+    openBorderPorts: number;
+    closedBorderPorts: number;
+    restrictedBorderPorts: number;
+  };
   companies: CompanyTurnLog[];
   events: { name: string; category: string }[];
   warnings: SimWarning[];
@@ -102,6 +112,7 @@ export class SimulationLogger {
 
   logTurn(state: GameState, turnResult: TurnResult): TurnLog {
     const economy = this.buildEconomyMetrics(state);
+    const diplomacy = this.buildDiplomacyMetrics(state);
     const companies = this.buildCompanyLogs(state, turnResult);
     const warnings = this.detectWarnings(state, turnResult.turn);
 
@@ -143,6 +154,7 @@ export class SimulationLogger {
     const turnLog: TurnLog = {
       turn: turnResult.turn,
       economy,
+      diplomacy,
       companies,
       events,
       warnings,
@@ -262,6 +274,36 @@ export class SimulationLogger {
       });
     }
 
+    // WAR_OUTBREAK: any empires at war
+    const relations = state.diplomaticRelations ?? [];
+    const warCount = relations.filter((r) => r.status === "war").length;
+    if (warCount > 0) {
+      warnings.push({
+        level: "info",
+        code: "WAR_OUTBREAK",
+        message: `${warCount} active war(s) between empires`,
+        context: { warCount },
+      });
+    }
+
+    // MASS_BORDER_CLOSURE: >50% of border ports closed
+    const ports = state.borderPorts ?? [];
+    if (ports.length > 0) {
+      const closedCount = ports.filter((p) => p.status === "closed").length;
+      if (closedCount / ports.length > 0.5) {
+        warnings.push({
+          level: "warn",
+          code: "MASS_BORDER_CLOSURE",
+          message: `${closedCount}/${ports.length} border ports are closed`,
+          context: {
+            closedCount,
+            totalPorts: ports.length,
+            ratio: closedCount / ports.length,
+          },
+        });
+      }
+    }
+
     return warnings;
   }
 
@@ -289,6 +331,66 @@ export class SimulationLogger {
       fuelPrice,
       avgCargoPrice: priceCount > 0 ? totalPrice / priceCount : 0,
       totalMarketVolume: totalVolume,
+    };
+  }
+
+  private buildDiplomacyMetrics(state: GameState): TurnLog["diplomacy"] {
+    const relations = state.diplomaticRelations ?? [];
+    const ports = state.borderPorts ?? [];
+
+    let wars = 0;
+    let coldWars = 0;
+    let peaces = 0;
+    let tradePacts = 0;
+    let alliances = 0;
+
+    for (const rel of relations) {
+      switch (rel.status) {
+        case "war":
+          wars++;
+          break;
+        case "coldWar":
+          coldWars++;
+          break;
+        case "peace":
+          peaces++;
+          break;
+        case "tradePact":
+          tradePacts++;
+          break;
+        case "alliance":
+          alliances++;
+          break;
+      }
+    }
+
+    let openBorderPorts = 0;
+    let closedBorderPorts = 0;
+    let restrictedBorderPorts = 0;
+
+    for (const port of ports) {
+      switch (port.status) {
+        case "open":
+          openBorderPorts++;
+          break;
+        case "closed":
+          closedBorderPorts++;
+          break;
+        case "restricted":
+          restrictedBorderPorts++;
+          break;
+      }
+    }
+
+    return {
+      wars,
+      coldWars,
+      peaces,
+      tradePacts,
+      alliances,
+      openBorderPorts,
+      closedBorderPorts,
+      restrictedBorderPorts,
     };
   }
 

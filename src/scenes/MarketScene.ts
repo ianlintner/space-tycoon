@@ -31,6 +31,20 @@ function trendArrow(trend: string): string {
 
 const CARGO_TYPE_VALUES = Object.values(CargoType) as CargoTypeValue[];
 
+/** Shorter display labels for planet types to prevent column truncation. */
+function planetTypeLabel(type: string): string {
+  switch (type) {
+    case "agricultural":
+      return "agri.";
+    case "hubStation":
+      return "hub";
+    case "industrial":
+      return "industry";
+    default:
+      return type;
+  }
+}
+
 export class MarketScene extends Phaser.Scene {
   private portrait!: PortraitPanel;
 
@@ -95,7 +109,13 @@ export class MarketScene extends Phaser.Scene {
         width: planetColWidth,
         sortable: true,
       },
-      { key: "type", label: "Type", width: typeColWidth, sortable: true },
+      {
+        key: "type",
+        label: "Type",
+        width: typeColWidth,
+        sortable: true,
+        format: (v) => planetTypeLabel(v as string),
+      },
     ];
 
     for (const ct of CARGO_TYPE_VALUES) {

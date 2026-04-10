@@ -36,6 +36,7 @@ import {
   getRevenueMultiplier,
 } from "../tech/TechEffects.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
+import { processDiplomacyTurn } from "../empire/DiplomacyManager.ts";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -403,6 +404,28 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     ...nextState,
     activeEvents: [...tickedEvents, ...newEvents],
   };
+
+  // ----- Step 8a: Process diplomacy -----
+  if (
+    nextState.diplomaticRelations &&
+    nextState.hyperlanes &&
+    nextState.borderPorts
+  ) {
+    const diplomacyResult = processDiplomacyTurn(
+      [...nextState.diplomaticRelations],
+      nextState.galaxy.empires,
+      nextState.galaxy.systems,
+      nextState.hyperlanes,
+      [...nextState.borderPorts],
+      nextState.turn,
+      rng,
+    );
+    nextState = {
+      ...nextState,
+      diplomaticRelations: diplomacyResult.relations,
+      borderPorts: diplomacyResult.borderPorts,
+    };
+  }
 
   // ----- Step 8b: Process contracts -----
   const contractResult = processContracts(nextState);
