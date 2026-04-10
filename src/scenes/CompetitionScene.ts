@@ -132,7 +132,8 @@ export class CompetitionScene extends Phaser.Scene {
       0,
     );
 
-    this.portrait.updatePortrait("company", 0, company.name, [
+    this.portrait.showCEO(company, [
+      { label: "Company", value: company.name },
       { label: "Empire", value: empire?.name ?? "Unknown" },
       { label: "Style", value: personalityLabel(company.personality) },
       { label: "Cash", value: formatCash(company.cash) },

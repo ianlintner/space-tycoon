@@ -25,6 +25,8 @@ export interface PortraitData {
   planetCount?: number;
   eventCategory?: EventCategory;
   alienRole?: AlienRole;
+  /** Explicit texture key — bypasses procedural generation when the texture exists. */
+  textureKey?: string;
 }
 
 interface PixelGrid {

@@ -9,9 +9,16 @@ import type {
   AlienRole,
 } from "./PortraitGenerator.ts";
 import { getLayout } from "./Layout.ts";
-import type { Planet, Ship, StarSystem, GameEvent } from "../data/types.ts";
+import type {
+  Planet,
+  Ship,
+  StarSystem,
+  GameEvent,
+  AICompany,
+} from "../data/types.ts";
 import { SHIP_TEMPLATES } from "../data/constants.ts";
 import { getPlanetPortraitTextureKey } from "../data/planetPortraits.ts";
+import { getPortraitTextureKey } from "../data/portraits.ts";
 
 export interface PortraitPanelConfig {
   x: number;
@@ -112,31 +119,34 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
   ): void {
     const theme = getTheme();
 
-    // Try loaded planet portrait texture first
+    // Try loaded texture first (CEO portrait or planet portrait)
     let usedImage = false;
-    if (type === "planet" && data?.planetType) {
-      const texKey = getPlanetPortraitTextureKey(data.planetType);
-      if (this.scene.textures.exists(texKey)) {
-        this.portraitGraphics.clear();
-        this.portraitGraphics.setVisible(false);
-        if (!this.portraitImage) {
-          this.portraitImage = this.scene.add.image(
-            theme.spacing.sm + this.portraitWidth / 2,
-            theme.spacing.sm + this.portraitHeight / 2,
-            texKey,
-          );
-          this.portraitImage.setMask(this.portraitGraphics.mask!);
-          this.add(this.portraitImage);
-        } else {
-          this.portraitImage.setTexture(texKey);
-        }
-        this.portraitImage.setDisplaySize(
-          this.portraitWidth,
-          this.portraitHeight,
+    const explicitTexKey = data?.textureKey;
+    const planetTexKey =
+      type === "planet" && data?.planetType
+        ? getPlanetPortraitTextureKey(data.planetType)
+        : undefined;
+    const texKey = explicitTexKey ?? planetTexKey;
+    if (texKey && this.scene.textures.exists(texKey)) {
+      this.portraitGraphics.clear();
+      this.portraitGraphics.setVisible(false);
+      if (!this.portraitImage) {
+        this.portraitImage = this.scene.add.image(
+          theme.spacing.sm + this.portraitWidth / 2,
+          theme.spacing.sm + this.portraitHeight / 2,
+          texKey,
         );
-        this.portraitImage.setVisible(true);
-        usedImage = true;
+        this.portraitImage.setMask(this.portraitGraphics.mask!);
+        this.add(this.portraitImage);
+      } else {
+        this.portraitImage.setTexture(texKey);
       }
+      this.portraitImage.setDisplaySize(
+        this.portraitWidth,
+        this.portraitHeight,
+      );
+      this.portraitImage.setVisible(true);
+      usedImage = true;
     }
 
     if (!usedImage) {
@@ -232,6 +242,21 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
     seed = hashString(`${role}:${name}`),
   ): void {
     this.updatePortrait("alien", seed, name, stats, { alienRole: role });
+  }
+
+  /** Convenience: show an AI company CEO portrait with company stats. */
+  showCEO(
+    company: AICompany,
+    stats: Array<{ label: string; value: string }>,
+  ): void {
+    const texKey = getPortraitTextureKey(company.ceoPortrait.portraitId);
+    this.updatePortrait(
+      "company",
+      hashString(company.id),
+      company.ceoName,
+      stats,
+      { textureKey: texKey },
+    );
   }
 
   /** Clear all portrait visuals. */
