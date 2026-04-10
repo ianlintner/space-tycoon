@@ -6,7 +6,8 @@ import {
   GalaxyShape,
   HyperlaneDensity,
 } from "../data/types.ts";
-import { generateLeaderName, pickRandomPortrait } from "../data/portraits.ts";
+import { generateLeaderName } from "../data/portraits.ts";
+import { pickRandomLeaderPortrait } from "../data/empireLeaderPortraits.ts";
 import type {
   Sector,
   Empire,
@@ -566,7 +567,7 @@ export function generateGalaxy(
       disposition,
       homeSystemId,
       leaderName: generateLeaderName(rng),
-      leaderPortrait: pickRandomPortrait(rng),
+      leaderPortrait: pickRandomLeaderPortrait(rng),
     };
     empires.push(empire);
   }

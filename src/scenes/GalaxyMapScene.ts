@@ -12,6 +12,12 @@ import {
   getShipColor,
 } from "../ui/index.ts";
 import { drawEmpireBorders } from "../ui/EmpireBorders.ts";
+import {
+  generateEmpireFlags,
+  getEmpireFlagKey,
+  FLAG_WIDTH,
+  FLAG_HEIGHT,
+} from "../ui/EmpireFlagGenerator.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { isEmpireAccessible } from "../game/empire/EmpireAccessManager.ts";
 import {
@@ -161,6 +167,23 @@ export class GalaxyMapScene extends Phaser.Scene {
       influence: 130,
       gridStep: 10,
     });
+
+    // ── Empire flags at home systems ──
+    generateEmpireFlags(this, empires, state.seed);
+    const systemById = new Map(systems.map((s) => [s.id, s]));
+    for (const empire of empires) {
+      const homeSys = systemById.get(empire.homeSystemId);
+      if (!homeSys) continue;
+      const flagKey = getEmpireFlagKey(empire.id);
+      if (!this.textures.exists(flagKey)) continue;
+      const flagX = homeSys.x - FLAG_WIDTH / 2;
+      const flagY = homeSys.y + L.contentTop - 20;
+      const flag = this.add
+        .image(flagX, flagY, flagKey)
+        .setOrigin(0, 1)
+        .setAlpha(0.85);
+      flag.setDisplaySize(FLAG_WIDTH, FLAG_HEIGHT);
+    }
 
     // ── Route slot indicator (fixed to camera) ──
     const slotsUsed = getUsedRouteSlots(state);
@@ -601,6 +624,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     lines.push(name);
 
     if (empire) {
+      lines.push(`Leader: ${empire.leaderName}`);
       lines.push(`Disposition: ${empire.disposition}`);
       lines.push(`Tariff: ${Math.round(empire.tariffRate * 100)}%`);
       const policy = state.empireTradePolicies[empire.id];

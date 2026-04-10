@@ -18,6 +18,11 @@ import {
   getPlanetPortraitTextureKey,
   getPlanetPortraitAssetPath,
 } from "../data/planetPortraits.ts";
+import {
+  EMPIRE_LEADER_PORTRAITS,
+  getLeaderTextureKey,
+  getLeaderAssetPath,
+} from "../data/empireLeaderPortraits.ts";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -39,6 +44,11 @@ export class BootScene extends Phaser.Scene {
         getPlanetPortraitTextureKey(ptype),
         getPlanetPortraitAssetPath(ptype),
       );
+    }
+
+    // Preload empire leader portrait images
+    for (const def of EMPIRE_LEADER_PORTRAITS) {
+      this.load.image(getLeaderTextureKey(def.id), getLeaderAssetPath(def));
     }
   }
 

@@ -164,10 +164,12 @@ export class EmpireScene extends Phaser.Scene {
       empireSystems.some((s) => s.id === p.systemId),
     );
 
-    this.portrait.updatePortrait("empire", 0, empire.name, [
+    this.portrait.showEmpireLeader(empire, [
+      { label: "Empire", value: empire.name },
       { label: "Systems", value: String(empireSystems.length) },
       { label: "Planets", value: String(empirePlanets.length) },
       { label: "Tariff", value: `${(empire.tariffRate * 100).toFixed(0)}%` },
+      { label: "Disposition", value: empire.disposition },
     ]);
   }
 }

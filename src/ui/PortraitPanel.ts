@@ -15,10 +15,12 @@ import type {
   StarSystem,
   GameEvent,
   AICompany,
+  Empire,
 } from "../data/types.ts";
 import { SHIP_TEMPLATES } from "../data/constants.ts";
 import { getPlanetPortraitTextureKey } from "../data/planetPortraits.ts";
 import { getPortraitTextureKey } from "../data/portraits.ts";
+import { getLeaderTextureKey } from "../data/empireLeaderPortraits.ts";
 
 export interface PortraitPanelConfig {
   x: number;
@@ -254,6 +256,21 @@ export class PortraitPanel extends Phaser.GameObjects.Container {
       "company",
       hashString(company.id),
       company.ceoName,
+      stats,
+      { textureKey: texKey },
+    );
+  }
+
+  /** Convenience: show an empire leader portrait with empire stats. */
+  showEmpireLeader(
+    empire: Empire,
+    stats: Array<{ label: string; value: string }>,
+  ): void {
+    const texKey = getLeaderTextureKey(empire.leaderPortrait.portraitId);
+    this.updatePortrait(
+      "empire",
+      hashString(empire.id),
+      empire.leaderName,
       stats,
       { textureKey: texKey },
     );
