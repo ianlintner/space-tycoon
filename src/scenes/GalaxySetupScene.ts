@@ -3,6 +3,7 @@ import {
   createStarfield,
   Panel,
   Button,
+  Dropdown,
   Label,
   getTheme,
   getLayout,
@@ -35,8 +36,6 @@ export class GalaxySetupScene extends Phaser.Scene {
   private galaxyShape: GalaxyShape = "spiral";
   private seedLabel!: Label;
   private nameLabel!: Label;
-  private sizeButtons: Button[] = [];
-  private shapeButtons: Button[] = [];
   private cardObjects: Phaser.GameObjects.GameObject[] = [];
   private systemCards: Panel[] = [];
   private startingOptions: StarSystem[] = [];
@@ -68,8 +67,6 @@ export class GalaxySetupScene extends Phaser.Scene {
     this.galaxyShape = "spiral";
     this.cardObjects = [];
     this.systemCards = [];
-    this.sizeButtons = [];
-    this.shapeButtons = [];
 
     // 1. Starfield background
     createStarfield(this);
@@ -87,19 +84,98 @@ export class GalaxySetupScene extends Phaser.Scene {
       title: "NEW GALAXY",
     });
 
-    // Form layout
     const pad = theme.spacing.lg;
-    const innerX = panelX + pad;
-    const labelW = 110;
-    const valueX = innerX + labelW;
-    const rowH = 48;
-    let rowY = panelY + theme.panel.titleHeight + pad;
+    const contentTop = panelY + theme.panel.titleHeight + pad;
 
-    // ── Company name ──
-    new Label(this, { x: innerX, y: rowY, text: "Company:", style: "body" });
+    // ═══════════════════════════════════════════════════════════════════
+    // Top area: Two-column layout — LEFT = CEO portrait, RIGHT = config
+    // ═══════════════════════════════════════════════════════════════════
+    const portraitSize = 120;
+    const portraitAreaW = portraitSize + pad * 2;
+    const portraitCenterX = panelX + pad + portraitSize / 2;
+    const portraitCenterY = contentTop + portraitSize / 2;
+
+    // ── CEO Portrait (large, circular) ──
+    const portraitKey = getPortraitTextureKey(CEO_PORTRAITS[0].id);
+    this.portraitImage = this.add
+      .image(portraitCenterX, portraitCenterY, portraitKey)
+      .setDisplaySize(portraitSize, portraitSize)
+      .setOrigin(0.5, 0.5);
+
+    this.portraitMask = this.add.graphics();
+    this.portraitMask.fillStyle(0xffffff);
+    this.portraitMask.fillCircle(
+      portraitCenterX,
+      portraitCenterY,
+      portraitSize / 2,
+    );
+    this.portraitMask.setVisible(false);
+    this.portraitImage.setMask(this.portraitMask.createGeometryMask());
+
+    // Accent border ring
+    this.add
+      .circle(portraitCenterX, portraitCenterY, portraitSize / 2 + 2)
+      .setStrokeStyle(2, theme.colors.accent)
+      .setFillStyle(0x000000, 0);
+
+    // Portrait label (name) below portrait
+    this.portraitLabel = new Label(this, {
+      x: portraitCenterX,
+      y: portraitCenterY + portraitSize / 2 + theme.spacing.sm,
+      text: CEO_PORTRAITS[0].label,
+      style: "caption",
+      color: theme.colors.accent,
+    });
+    this.portraitLabel.setOrigin(0.5, 0);
+
+    // Prev/Next buttons below label
+    const navY = portraitCenterY + portraitSize / 2 + theme.spacing.sm + 20;
+    const navBtnW = 36;
+    const navGap = 8;
+    new Button(this, {
+      x: portraitCenterX - navBtnW - navGap / 2,
+      y: navY,
+      width: navBtnW,
+      height: 28,
+      label: "\u25C0",
+      onClick: () => {
+        this.portraitIndex =
+          (this.portraitIndex - 1 + CEO_PORTRAITS.length) %
+          CEO_PORTRAITS.length;
+        this.updatePortraitPreview();
+      },
+    });
+    new Button(this, {
+      x: portraitCenterX + navGap / 2,
+      y: navY,
+      width: navBtnW,
+      height: 28,
+      label: "\u25B6",
+      onClick: () => {
+        this.portraitIndex = (this.portraitIndex + 1) % CEO_PORTRAITS.length;
+        this.updatePortraitPreview();
+      },
+    });
+
+    // ── Right column: Configuration fields ──
+    const rightX = panelX + portraitAreaW + pad;
+    const rightW = panelW - portraitAreaW - pad * 2;
+    const labelW = 90;
+    const fieldX = rightX + labelW;
+    const fieldW = Math.min(200, rightW - labelW);
+    const rowH = 44;
+    let rowY = contentTop;
+
+    // Company name
+    new Label(this, {
+      x: rightX,
+      y: rowY + 8,
+      text: "Company:",
+      style: "body",
+    });
     this.nameLabel = new Label(this, {
-      x: valueX,
-      y: rowY,
+      x: fieldX,
+      y: rowY + 8,
       text: PRESET_NAMES[0],
       style: "value",
       color: theme.colors.accent,
@@ -112,85 +188,20 @@ export class GalaxySetupScene extends Phaser.Scene {
 
     rowY += rowH;
 
-    // ── CEO Portrait ──
-    new Label(this, { x: innerX, y: rowY, text: "CEO:", style: "body" });
-    const portraitSize = 40;
-    const portraitCenterX = valueX + portraitSize / 2;
-    const portraitCenterY = rowY + portraitSize / 2 - 8;
-
-    const portraitKey = getPortraitTextureKey(CEO_PORTRAITS[0].id);
-    this.portraitImage = this.add
-      .image(portraitCenterX, portraitCenterY, portraitKey)
-      .setDisplaySize(portraitSize, portraitSize)
-      .setOrigin(0.5, 0.5);
-
-    // Round mask for portrait
-    this.portraitMask = this.add.graphics();
-    this.portraitMask.fillStyle(0xffffff);
-    this.portraitMask.fillCircle(
-      portraitCenterX,
-      portraitCenterY,
-      portraitSize / 2,
-    );
-    this.portraitMask.setVisible(false);
-    this.portraitImage.setMask(this.portraitMask.createGeometryMask());
-
-    // Border ring
-    this.add
-      .circle(portraitCenterX, portraitCenterY, portraitSize / 2 + 1)
-      .setStrokeStyle(1, theme.colors.panelBorder)
-      .setFillStyle(0x000000, 0);
-
-    this.portraitLabel = new Label(this, {
-      x: valueX + portraitSize + 12,
-      y: rowY,
-      text: CEO_PORTRAITS[0].label,
-      style: "value",
-      color: theme.colors.accent,
-    });
-
-    // Prev/Next buttons
-    new Button(this, {
-      x: valueX + portraitSize + 12,
-      y: rowY + 22,
-      autoWidth: true,
-      height: 26,
-      label: "\u25C0",
-      onClick: () => {
-        this.portraitIndex =
-          (this.portraitIndex - 1 + CEO_PORTRAITS.length) %
-          CEO_PORTRAITS.length;
-        this.updatePortraitPreview();
-      },
-    });
-    new Button(this, {
-      x: valueX + portraitSize + 50,
-      y: rowY + 22,
-      autoWidth: true,
-      height: 26,
-      label: "\u25B6",
-      onClick: () => {
-        this.portraitIndex = (this.portraitIndex + 1) % CEO_PORTRAITS.length;
-        this.updatePortraitPreview();
-      },
-    });
-
-    rowY += rowH;
-
-    // ── Seed ──
-    new Label(this, { x: innerX, y: rowY, text: "Seed:", style: "body" });
+    // Seed
+    new Label(this, { x: rightX, y: rowY + 8, text: "Seed:", style: "body" });
     this.seedLabel = new Label(this, {
-      x: valueX,
-      y: rowY,
+      x: fieldX,
+      y: rowY + 8,
       text: String(this.seed),
       style: "value",
       color: theme.colors.accent,
     });
     new Button(this, {
-      x: valueX + 180,
-      y: rowY - 2,
+      x: fieldX + 120,
+      y: rowY + 4,
       autoWidth: true,
-      height: 34,
+      height: 30,
       label: "Randomize",
       onClick: () => {
         this.seed = Math.floor(Math.random() * 1000000);
@@ -199,81 +210,67 @@ export class GalaxySetupScene extends Phaser.Scene {
       },
     });
 
-    rowY += rowH + 4;
+    rowY += rowH;
 
-    // ── Game Size ──
-    new Label(this, { x: innerX, y: rowY, text: "Size:", style: "body" });
-    const sizes: { label: string; value: GameSize }[] = [
-      { label: "Small", value: "small" },
-      { label: "Medium", value: "medium" },
-      { label: "Large", value: "large" },
-    ];
-    let btnX = valueX;
-    for (const sizeOpt of sizes) {
-      const btn = new Button(this, {
-        x: btnX,
-        y: rowY - 4,
-        autoWidth: true,
-        height: 34,
-        label: sizeOpt.label,
-        onClick: () => {
-          this.gameSize = sizeOpt.value;
-          this.updateSizeHighlight();
-          this.regenerate();
-        },
-      });
-      this.sizeButtons.push(btn);
-      btnX += (btn.width || 90) + 10;
-    }
-    this.updateSizeHighlight();
+    // Size dropdown
+    new Label(this, { x: rightX, y: rowY + 6, text: "Size:", style: "body" });
+    new Dropdown(this, {
+      x: fieldX,
+      y: rowY + 2,
+      width: fieldW,
+      height: 32,
+      options: [
+        { label: "Small", value: "small" },
+        { label: "Medium", value: "medium" },
+        { label: "Large", value: "large" },
+      ],
+      defaultIndex: 0,
+      onChange: (value) => {
+        this.gameSize = value as GameSize;
+        this.regenerate();
+      },
+    });
 
     rowY += rowH;
 
-    // ── Galaxy Shape ──
-    new Label(this, { x: innerX, y: rowY, text: "Shape:", style: "body" });
-    const shapes: { label: string; value: GalaxyShape }[] = [
-      { label: "Spiral", value: "spiral" },
-      { label: "Elliptical", value: "elliptical" },
-      { label: "Ring", value: "ring" },
-      { label: "Irregular", value: "irregular" },
-    ];
-    btnX = valueX;
-    for (const shapeOpt of shapes) {
-      const btn = new Button(this, {
-        x: btnX,
-        y: rowY - 4,
-        autoWidth: true,
-        height: 34,
-        label: shapeOpt.label,
-        onClick: () => {
-          this.galaxyShape = shapeOpt.value;
-          this.updateShapeHighlight();
-          this.regenerate();
-        },
-      });
-      this.shapeButtons.push(btn);
-      btnX += (btn.width || 100) + 10;
-    }
-    this.updateShapeHighlight();
+    // Shape dropdown
+    new Label(this, { x: rightX, y: rowY + 6, text: "Shape:", style: "body" });
+    new Dropdown(this, {
+      x: fieldX,
+      y: rowY + 2,
+      width: fieldW,
+      height: 32,
+      options: [
+        { label: "Spiral", value: "spiral" },
+        { label: "Elliptical", value: "elliptical" },
+        { label: "Ring", value: "ring" },
+        { label: "Irregular", value: "irregular" },
+      ],
+      defaultIndex: 0,
+      onChange: (value) => {
+        this.galaxyShape = value as GalaxyShape;
+        this.regenerate();
+      },
+    });
 
-    rowY += rowH + 12;
+    rowY += rowH + theme.spacing.md;
 
-    // ── Starting System section ──
+    // ═══════════════════════════════════════════════════════════════════
+    // Bottom area: Starting system cards
+    // ═══════════════════════════════════════════════════════════════════
     new Label(this, {
-      x: innerX,
+      x: panelX + pad,
       y: rowY,
       text: "Select Starting System:",
       style: "body",
       color: theme.colors.accent,
     });
 
-    // Store layout for buildSystemCards
     this.configX = panelX;
     this.configW = panelW;
-    this.cardsTopY = rowY + 32;
+    this.cardsTopY = rowY + 28;
     this.cardsBottomY = panelY + panelH - 76;
 
-    // Generate initial game data and build cards
     this.regenerate();
 
     // ── Launch button ──
@@ -285,7 +282,6 @@ export class GalaxySetupScene extends Phaser.Scene {
       height: 44,
       label: "Launch",
       onClick: () => {
-        // Apply chosen CEO portrait before launching
         const chosenPortrait = CEO_PORTRAITS[this.portraitIndex];
         this.currentState.ceoPortrait = {
           portraitId: chosenPortrait.id,
@@ -317,25 +313,6 @@ export class GalaxySetupScene extends Phaser.Scene {
     this.startingOptions = result.startingSystemOptions;
     this.selectedSystemIndex = 0;
     this.buildSystemCards();
-  }
-
-  private updateSizeHighlight(): void {
-    const sizeValues: GameSize[] = ["small", "medium", "large"];
-    this.sizeButtons.forEach((btn, i) => {
-      btn.setActive(sizeValues[i] === this.gameSize);
-    });
-  }
-
-  private updateShapeHighlight(): void {
-    const shapeValues: GalaxyShape[] = [
-      "spiral",
-      "elliptical",
-      "ring",
-      "irregular",
-    ];
-    this.shapeButtons.forEach((btn, i) => {
-      btn.setActive(shapeValues[i] === this.galaxyShape);
-    });
   }
 
   private updatePortraitPreview(): void {
