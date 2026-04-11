@@ -34,6 +34,9 @@ import {
   PLANET_CHEAT_SHEET,
   STARTER_FLEET_CARDS,
 } from "./siteContent.ts";
+import { CEO_PORTRAITS } from "./data/portraits.ts";
+import { EMPIRE_LEADER_PORTRAITS } from "./data/empireLeaderPortraits.ts";
+import { SHIP_TEMPLATES } from "./data/constants.ts";
 
 interface NavItem {
   id: string;
@@ -44,6 +47,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview" },
   { id: "command-deck", label: "Command Deck" },
   { id: "manual", label: "Manual" },
+  { id: "wiki", label: "Wiki" },
+  { id: "portrait-qa", label: "Portrait QA" },
   { id: "help", label: "Help" },
   { id: "ai-disclosure", label: "AI & Credits" },
 ];
@@ -164,6 +169,76 @@ function renderDisclosureCards(): string {
   ).join("");
 }
 
+function renderWikiLinks(): string {
+  return [
+    {
+      title: "Wiki Hub",
+      href: "/wiki/index.html",
+      caption: "Overview and navigation for all reference sections.",
+    },
+    {
+      title: `CEO Directory (${CEO_PORTRAITS.length})`,
+      href: "/wiki/ceos.html",
+      caption: "Full company roster with portrait cards and metadata.",
+    },
+    {
+      title: `Leader Directory (${EMPIRE_LEADER_PORTRAITS.length})`,
+      href: "/wiki/leaders.html",
+      caption: "Empire leadership roster with archetype and species labels.",
+    },
+    {
+      title: `Ship Directory (${Object.keys(SHIP_TEMPLATES).length})`,
+      href: "/wiki/ships.html",
+      caption:
+        "Ship classes, capacities, performance, and operating cost baselines.",
+    },
+  ]
+    .map(
+      (link) => `
+        <a class="qa-link" href="${link.href}" target="_blank" rel="noreferrer noopener">
+          <strong>${link.title}</strong>
+          <span>${link.caption}</span>
+        </a>
+      `,
+    )
+    .join("");
+}
+
+function renderQaLinks(): string {
+  return [
+    {
+      title: "Compact CEO Portrait Gallery",
+      href: "/qa/spacebiz-ceo-gallery-compact.html",
+      caption: "100 CEO portraits in a scan-friendly grid for visual QA.",
+    },
+    {
+      title: "Compact Leader Portrait Gallery",
+      href: "/qa/spacebiz-leader-gallery-compact.html",
+      caption: "20 empire leader portraits in compact card format.",
+    },
+    {
+      title: "Compact Planet Portrait Gallery",
+      href: "/qa/spacebiz-planet-gallery-compact.html",
+      caption: "Planet portrait set by biome type for art consistency checks.",
+    },
+    {
+      title: "Ship Reference Sheet",
+      href: "/qa/spacebiz-ship-reference.html",
+      caption:
+        "Ship class and stat reference for balancing and regression review.",
+    },
+  ]
+    .map(
+      (link) => `
+        <a class="qa-link" href="${link.href}" target="_blank" rel="noreferrer noopener">
+          <strong>${link.title}</strong>
+          <span>${link.caption}</span>
+        </a>
+      `,
+    )
+    .join("");
+}
+
 function renderSite(): void {
   const app = document.querySelector<HTMLDivElement>("#app");
   if (!app) {
@@ -177,7 +252,7 @@ function renderSite(): void {
           <span class="brand__mark">SF</span>
           <span class="brand__text">
             <span class="brand__title">Star Freight Tycoon</span>
-            <span class="brand__subtitle">Trade lanes. Quarter reports. Space capitalism.</span>
+            <span class="brand__subtitle">Trade lanes, quarter reports, and long-horizon strategy.</span>
           </span>
         </a>
 
@@ -237,9 +312,9 @@ function renderSite(): void {
             <div class="hero-copy-wrap panel-surface">
               <div class="hero-copy hero-copy--full">
                 <span class="kicker">Playable Home Screen</span>
-                <h1>Run a freight empire from a polished orbital command deck.</h1>
+                <h1>Operate a freight empire from a live, playable command interface.</h1>
                 <p>
-                  This one-page site turns the game itself into a full-width hero experience, then layers in a manual, fast help, and up-front AI asset disclosure without ever feeling like you left the bridge.
+                  The website is designed as an operational hub: a playable build at the top, then strategy documentation, encyclopedia-style references, and transparent production notes.
                 </p>
 
                 <div class="hero-actions">
@@ -259,7 +334,7 @@ function renderSite(): void {
                   </article>
                   <article class="badge">
                     <span>Style</span>
-                    <strong>Retro neon with cinematic framing</strong>
+                    <strong>Retro-futurist control room presentation</strong>
                   </article>
                 </div>
 
@@ -278,10 +353,10 @@ function renderSite(): void {
           <div class="section-head">
             <div>
               <span class="kicker">Site Menu</span>
-              <h2>Simple navigation, zero confusion, maximum vibes.</h2>
+              <h2>Clear navigation for gameplay, documentation, and review.</h2>
             </div>
             <p>
-              The interaction model is intentionally friendly: sticky menu, smooth section jumps, live section highlighting, and expandable briefings instead of dense walls of text.
+              Navigation is intentionally direct: sticky section menu, active section indicators, and collapsible briefings for quick scanning.
             </p>
           </div>
 
@@ -293,7 +368,7 @@ function renderSite(): void {
             <div class="copy-block">
               <h3 class="panel-title">Command shortcuts</h3>
               <p>
-                Treat the navigation like a flight console: jump to the section you need, skim the briefing, then get right back to the game.
+                Use these shortcuts to move between gameplay, documentation, and visual reference material without context switching.
               </p>
               <div class="quick-links">
                 <a class="quick-link" href="#overview">
@@ -306,11 +381,15 @@ function renderSite(): void {
                 </a>
                 <a class="quick-link" href="#help">
                   <strong>Quick help</strong>
-                  <span>Need tactical advice? Open the short-form strategy panels and FAQs.</span>
+                  <span>Open concise strategy panels and the operational FAQ.</span>
                 </a>
                 <a class="quick-link" href="#ai-disclosure">
                   <strong>Production notes</strong>
                   <span>Review the disclosure for AI-assisted music and visual material usage.</span>
+                </a>
+                <a class="quick-link" href="#wiki">
+                  <strong>Game wiki</strong>
+                  <span>Browse CEOs, leaders, and ship classes in one indexed section.</span>
                 </a>
               </div>
             </div>
@@ -324,7 +403,7 @@ function renderSite(): void {
               <h2>Everything you need to play without opening a second tab.</h2>
             </div>
             <p>
-              Start here if you want the full loop: how a run begins, what makes a route profitable, when to expand, and how to avoid a dramatic debt-fueled spiral.
+              Start here for the complete loop: opening setup, route economics, expansion timing, and risk control.
             </p>
           </div>
 
@@ -351,14 +430,46 @@ function renderSite(): void {
           </div>
         </section>
 
+        <section id="wiki" class="section panel-surface">
+          <div class="section-head">
+            <div>
+              <span class="kicker">Game Wiki</span>
+              <h2>Dedicated reference pages for characters, leaders, and ships.</h2>
+            </div>
+            <p>
+              The homepage now stays compact while full wiki pages open separately for deeper reading and QA workflows.
+            </p>
+          </div>
+
+          <div class="qa-grid">
+            ${renderWikiLinks()}
+          </div>
+        </section>
+
+        <section id="portrait-qa" class="section panel-surface">
+          <div class="section-head">
+            <div>
+              <span class="kicker">Portrait QA</span>
+              <h2>Dedicated compact galleries for art and agent QA workflows.</h2>
+            </div>
+            <p>
+              Open these standalone pages to review full portrait sets quickly. They are optimized for scanning, mismatch spotting, and prompt iteration loops.
+            </p>
+          </div>
+
+          <div class="qa-grid">
+            ${renderQaLinks()}
+          </div>
+        </section>
+
         <section id="help" class="section panel-surface">
           <div class="section-head">
             <div>
               <span class="kicker">Help & Strategy</span>
-              <h2>Short answers for the moments when the galaxy punches first.</h2>
+              <h2>Fast strategic answers for mid-run decision points.</h2>
             </div>
             <p>
-              These panels are tuned for quick rescue reads: what to do in the early game, when to buy ships, and how to recover from a rough quarter without panic-building an empire-shaped crater.
+              These panels focus on practical decisions: opening routes, fleet expansion timing, and recovery patterns after weak turns.
             </p>
           </div>
 
@@ -398,7 +509,7 @@ function renderSite(): void {
             <div class="footer-panel">
               <h3>Why this structure works</h3>
               <p>
-                The home page stays playable, the manual is browseable, the help is quick to scan, and the disclosure is impossible to miss. That combination makes the site feel curated instead of merely assembled.
+                The site keeps the build playable while surfacing strategy docs, wiki content, QA galleries, and transparent credits in a single reliable flow.
               </p>
             </div>
             <div class="footer-panel">
@@ -412,6 +523,10 @@ function renderSite(): void {
                   <strong>Manual</strong>
                   <span>Full loop and cheat sheets.</span>
                 </a>
+                <a class="quick-link" href="#portrait-qa">
+                  <strong>Portrait QA</strong>
+                  <span>Open compact gallery pages for visual review.</span>
+                </a>
               </div>
             </div>
           </div>
@@ -420,7 +535,7 @@ function renderSite(): void {
 
       <footer class="footer">
         <p class="footer-note">
-          <strong>Star Freight Tycoon</strong> — playable web prototype, strategy reference, and transparent production notes in one streamlined SPA shell. <span id="site-year"></span>
+          <strong>Star Freight Tycoon</strong> — playable web build, strategy manual, in-site wiki, and portrait QA tooling in one documentation-driven interface. <span id="site-year"></span>
         </p>
       </footer>
     </div>

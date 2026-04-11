@@ -490,7 +490,10 @@ canvas {
 .card-grid,
 .cheat-grid,
 .disclosure-grid,
-.footer-links {
+.footer-links,
+.directory-grid,
+.ship-grid,
+.qa-grid {
   display: grid;
   gap: 0.9rem;
 }
@@ -545,7 +548,9 @@ canvas {
 .cheat-card,
 .disclosure-card,
 .help-panel,
-.footer-panel {
+.footer-panel,
+.portrait-card,
+.ship-card {
   position: relative;
   padding: 1.1rem;
   border-radius: var(--radius-md);
@@ -558,7 +563,9 @@ canvas {
 .card h3,
 .disclosure-card h3,
 .help-panel h3,
-.footer-panel h3 {
+.footer-panel h3,
+.portrait-meta h3,
+.ship-card h3 {
   display: block;
   margin-bottom: 0.45rem;
   font-size: 1.02rem;
@@ -582,7 +589,9 @@ canvas {
 .disclosure-card p,
 .help-panel p,
 .cheat-card p,
-.footer-panel p {
+.footer-panel p,
+.portrait-meta p,
+.ship-card p {
   color: var(--text-dim);
   line-height: 1.62;
 }
@@ -952,6 +961,81 @@ details[open] summary::after {
 
 .help-layout {
   grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+}
+
+.directory-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.portrait-card {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.8rem;
+}
+
+.portrait-card img {
+  width: 92px;
+  height: 92px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid rgba(110, 255, 235, 0.24);
+  background: rgba(8, 14, 28, 0.8);
+}
+
+.portrait-meta p {
+  margin: 0 0 0.45rem;
+  font-size: 0.86rem;
+}
+
+.ship-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.ship-card ul {
+  margin: 0.7rem 0 0;
+  padding-left: 1rem;
+  color: var(--text-dim);
+}
+
+.ship-card li {
+  margin-bottom: 0.22rem;
+  font-size: 0.86rem;
+}
+
+.qa-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.qa-link {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(117, 244, 233, 0.2);
+  background: rgba(8, 15, 30, 0.56);
+  display: grid;
+  gap: 0.35rem;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.qa-link:hover,
+.qa-link:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(110, 255, 235, 0.42);
+  background: rgba(15, 28, 53, 0.86);
+}
+
+.qa-link strong {
+  font-size: 0.95rem;
+}
+
+.qa-link span {
+  color: var(--text-dim);
+  line-height: 1.5;
+  font-size: 0.86rem;
 }
 
 .faq-list {

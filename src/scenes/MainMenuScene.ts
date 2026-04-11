@@ -33,8 +33,9 @@ const HERO_CONFIGS: readonly HeroConfig[] = [
   {
     key: "hero-freight",
     strap: "Heavy Cargo Division",
-    subtitle: "Run the freight lines that keep the galaxy moving",
-    vignette: "Containers, cranes, and cold profit under a hard vacuum sky.",
+    subtitle: "Operate freight corridors that sustain interstellar economies",
+    vignette:
+      "Industrial terminals, cargo cranes, and long-haul logistics across contested space.",
     focusX: 0.56,
     focusY: 0.48,
     anchorX: 0.54,
@@ -46,8 +47,9 @@ const HERO_CONFIGS: readonly HeroConfig[] = [
   {
     key: "hero-passenger",
     strap: "Passenger & Luxury Lanes",
-    subtitle: "Build a luxury interstellar passenger empire",
-    vignette: "High-orbit terminals, moonlit skylines, and premium routes.",
+    subtitle: "Manage premium passenger routes between high-demand systems",
+    vignette:
+      "Orbital terminals, high-traffic hubs, and service tiers built around reliability.",
     focusX: 0.58,
     focusY: 0.46,
     anchorX: 0.56,
@@ -233,17 +235,17 @@ export class MainMenuScene extends Phaser.Scene {
     const promptLabel = new Label(this, {
       x: textLeftX,
       y: panelY + 48,
-      text: "Choose your next jump.",
+      text: "Select your next operation.",
       style: "body",
       color: theme.colors.text,
     });
     promptLabel.setOrigin(0, 0);
 
     const statusText = canResumeSandbox
-      ? "Sandbox in progress — resume or start fresh."
+      ? "Sandbox session detected — resume current simulation or start a new run."
       : canContinue
-        ? "Save detected — continue your company from orbit."
-        : "No save on record — start a fresh company charter.";
+        ? "Saved company detected — continue from the last checkpoint."
+        : "No save detected — initialize a new company profile.";
     const statusLabel = new Label(this, {
       x: textLeftX,
       y: panelY + 80,
