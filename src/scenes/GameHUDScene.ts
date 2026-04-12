@@ -52,7 +52,7 @@ export class GameHUDScene extends Phaser.Scene {
   private navIndicators = new Map<string, Phaser.GameObjects.Rectangle>();
   private navBackgrounds = new Map<string, Phaser.GameObjects.Rectangle>();
   private navIcons = new Map<string, Phaser.GameObjects.Image>();
-  private navHitAreas = new Map<string, Phaser.GameObjects.Container>();
+  private navHitAreas = new Map<string, Phaser.GameObjects.Rectangle>();
   private navTooltip!: Tooltip;
   private audioPanelObjects: Phaser.GameObjects.GameObject[] = [];
   private audioPanelOpen = false;
@@ -70,6 +70,20 @@ export class GameHUDScene extends Phaser.Scene {
   private researchLabel!: Label;
   private navBadges = new Map<string, Phaser.GameObjects.Arc>();
   private endTurnModal: Modal | null = null;
+  private readonly navIconButtonSize = 46;
+  private readonly navIconSpacing = 8;
+  private readonly navHitHeight = 50;
+  private readonly navTooltipByScene: Record<string, string> = {
+    GalaxyMapScene: "Galaxy overview — scan territory, lanes, and route flow",
+    RoutesScene: "Route Command — create and optimize trade routes",
+    FleetScene: "Fleet Ops — assign ships and monitor condition",
+    ContractsScene: "Contracts — accept mission cargo for bonus income",
+    MarketScene: "Market Intel — compare prices and demand across worlds",
+    TechTreeScene: "Research — choose technologies and track progress",
+    FinanceScene: "Finance — review cashflow, loans, and net worth",
+    EmpireScene: "Empires — diplomacy, borders, and trade policy",
+    CompetitionScene: "Rivals — standings and competitor performance",
+  };
 
   private readonly contentSceneKeys = [
     "GalaxyMapScene",
@@ -239,12 +253,12 @@ export class GameHUDScene extends Phaser.Scene {
     // ── Left Navigation Sidebar (Paradox-style icon strip) ──
     const navItems = [
       { label: "Map", scene: "GalaxyMapScene", icon: "icon-map" },
-      { label: "Fleet", scene: "FleetScene", icon: "icon-fleet" },
       { label: "Routes", scene: "RoutesScene", icon: "icon-routes" },
+      { label: "Fleet", scene: "FleetScene", icon: "icon-fleet" },
       { label: "Contracts", scene: "ContractsScene", icon: "icon-contracts" },
+      { label: "Market", scene: "MarketScene", icon: "icon-market" },
       { label: "Research", scene: "TechTreeScene", icon: "icon-research" },
       { label: "Finance", scene: "FinanceScene", icon: "icon-finance" },
-      { label: "Market", scene: "MarketScene", icon: "icon-market" },
       { label: "Empires", scene: "EmpireScene", icon: "icon-empire" },
       { label: "Rivals", scene: "CompetitionScene", icon: "icon-rival" },
     ];
@@ -286,8 +300,8 @@ export class GameHUDScene extends Phaser.Scene {
     this.navTooltip.attachTo(this.turnLabel, "Open route planning");
     this.navTooltip.attachTo(this.cashLabel, "Open finance overview");
 
-    const iconBtnSize = 46;
-    const iconSpacing = 8;
+    const iconBtnSize = this.navIconButtonSize;
+    const iconSpacing = this.navIconSpacing;
     const navStartY = navSidebarTop + 12;
     const navCenterX = L.navSidebarWidth / 2;
 
@@ -295,20 +309,23 @@ export class GameHUDScene extends Phaser.Scene {
       const item = navItems[i];
       const btnY =
         navStartY + i * (iconBtnSize + iconSpacing) + iconBtnSize / 2;
-      const btnContainer = this.add.container(navCenterX, btnY);
-      btnContainer.setSize(L.navSidebarWidth, iconBtnSize + iconSpacing + 4);
-      btnContainer.setInteractive(
-        new Phaser.Geom.Rectangle(
-          -L.navSidebarWidth / 2,
-          -(iconBtnSize + iconSpacing + 4) / 2,
+
+      // Explicit hit target aligned in world coordinates.
+      // Using a separate rectangle avoids container-local hit area drift.
+      const hitRect = this.add
+        .rectangle(
+          navCenterX,
+          btnY,
           L.navSidebarWidth,
-          iconBtnSize + iconSpacing + 4,
-        ),
-        Phaser.Geom.Rectangle.Contains,
-      );
-      if (btnContainer.input) {
-        btnContainer.input.cursor = "pointer";
-      }
+          this.navHitHeight,
+          0x0,
+          0,
+        )
+        .setOrigin(0.5, 0.5)
+        .setInteractive({ useHandCursor: true });
+
+      const btnContainer = this.add.container(navCenterX, btnY);
+      btnContainer.setSize(L.navSidebarWidth, this.navHitHeight);
 
       // Button background (hover/active states)
       const bg = this.add
@@ -343,31 +360,34 @@ export class GameHUDScene extends Phaser.Scene {
       btnContainer.add([bg, icon, indicator]);
 
       // Tooltip
-      this.navTooltip.attachTo(btnContainer, item.label);
+      this.navTooltip.attachTo(
+        hitRect,
+        this.navTooltipByScene[item.scene] ?? item.label,
+      );
 
-      btnContainer.on("pointerover", () => {
+      hitRect.on("pointerover", () => {
         if (item.scene !== this.activeContentScene) {
           getAudioDirector().sfx("ui_hover");
           bg.setAlpha(0.22);
           icon.setTint(theme.colors.text);
         }
       });
-      btnContainer.on("pointerout", () => {
+      hitRect.on("pointerout", () => {
         if (item.scene !== this.activeContentScene) {
           bg.setAlpha(0.0);
           icon.setTint(theme.colors.textDim);
         }
       });
-      btnContainer.on("pointerdown", () => {
+      hitRect.on("pointerdown", () => {
         if (item.scene !== this.activeContentScene) {
           bg.setAlpha(0.32);
         }
       });
-      btnContainer.on("pointerup", () => {
+      hitRect.on("pointerup", () => {
         getAudioDirector().sfx("ui_click_primary");
         this.switchContentScene(item.scene);
       });
-      btnContainer.on("pointerupoutside", () => {
+      hitRect.on("pointerupoutside", () => {
         if (item.scene !== this.activeContentScene) {
           bg.setAlpha(0.0);
         }
@@ -376,7 +396,7 @@ export class GameHUDScene extends Phaser.Scene {
       this.navIndicators.set(item.scene, indicator);
       this.navBackgrounds.set(item.scene, bg);
       this.navIcons.set(item.scene, icon);
-      this.navHitAreas.set(item.scene, btnContainer);
+      this.navHitAreas.set(item.scene, hitRect);
 
       // Attention badge (small colored dot, top-right of icon)
       const badge = this.add
@@ -752,30 +772,13 @@ export class GameHUDScene extends Phaser.Scene {
         : "Quarter complete — review results to continue";
     for (const [scene, hitArea] of this.navHitAreas) {
       if (navEnabled) {
-        hitArea.setInteractive(
-          new Phaser.Geom.Rectangle(
-            -L.navSidebarWidth / 2,
-            -29,
-            L.navSidebarWidth,
-            58,
-          ),
-          Phaser.Geom.Rectangle.Contains,
-        );
+        hitArea.setInteractive({ useHandCursor: true });
         if (hitArea.input) {
           hitArea.input.cursor = "pointer";
         }
         // Restore original tooltip
-        const navItems: Record<string, string> = {
-          GalaxyMapScene: "Map",
-          FleetScene: "Fleet",
-          RoutesScene: "Routes",
-          ContractsScene: "Contracts",
-          TechTreeScene: "Research",
-          FinanceScene: "Finance",
-          MarketScene: "Market",
-        };
-        if (navItems[scene]) {
-          this.navTooltip.attachTo(hitArea, navItems[scene]);
+        if (this.navTooltipByScene[scene]) {
+          this.navTooltip.attachTo(hitArea, this.navTooltipByScene[scene]);
         }
       } else {
         hitArea.disableInteractive();
