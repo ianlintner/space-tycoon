@@ -625,6 +625,54 @@ export const HUB_DEMOLISH_REFUND_RATIO = 0.5;
 
 /** All hub room definitions */
 export const HUB_ROOM_DEFINITIONS: Record<HubRoomType, HubRoomDefinition> = {
+  [HubRoomType.SimpleTerminal]: {
+    type: HubRoomType.SimpleTerminal,
+    name: "Simple Terminal",
+    description:
+      "Core hub module. Boosts trade and passenger revenue by 5% at hub and neighbors.",
+    icon: "📡",
+    buildCost: 5000,
+    upkeepCost: 500,
+    limit: 1,
+    techRequirement: null,
+    bonusScope: "localRadius",
+    bonusEffects: [
+      { type: "modifyRevenue", value: 0.05 },
+      { type: "modifyPassengerRevenue", value: 0.05 },
+    ],
+  },
+  [HubRoomType.ImprovedTerminal]: {
+    type: HubRoomType.ImprovedTerminal,
+    name: "Improved Terminal",
+    description:
+      "Upgraded hub module. Boosts trade and passenger revenue by 8% at hub and neighbors.",
+    icon: "📡",
+    buildCost: 15000,
+    upkeepCost: 1000,
+    limit: 1,
+    techRequirement: null,
+    bonusScope: "localRadius",
+    bonusEffects: [
+      { type: "modifyRevenue", value: 0.08 },
+      { type: "modifyPassengerRevenue", value: 0.08 },
+    ],
+  },
+  [HubRoomType.AdvancedTerminal]: {
+    type: HubRoomType.AdvancedTerminal,
+    name: "Advanced Terminal",
+    description:
+      "Top-tier hub module. Boosts trade and passenger revenue by 12% at hub and neighbors.",
+    icon: "📡",
+    buildCost: 35000,
+    upkeepCost: 1500,
+    limit: 1,
+    techRequirement: null,
+    bonusScope: "localRadius",
+    bonusEffects: [
+      { type: "modifyRevenue", value: 0.12 },
+      { type: "modifyPassengerRevenue", value: 0.12 },
+    ],
+  },
   [HubRoomType.TradeOffice]: {
     type: HubRoomType.TradeOffice,
     name: "Trade Office",
@@ -649,17 +697,91 @@ export const HUB_ROOM_DEFINITIONS: Record<HubRoomType, HubRoomDefinition> = {
     bonusScope: "localRadius",
     bonusEffects: [{ type: "modifyPassengerRevenue", value: 0.25 }],
   },
-  [HubRoomType.FreightTerminal]: {
-    type: HubRoomType.FreightTerminal,
-    name: "Freight Terminal",
-    description: "Adds 1 additional route slot empire-wide.",
-    icon: "📦",
-    buildCost: 20000,
-    upkeepCost: 3000,
+  [HubRoomType.OreProcessing]: {
+    type: HubRoomType.OreProcessing,
+    name: "Ore Processing",
+    description:
+      "Adds 1 route slot. Reduces saturation impact by 15% at hub and neighbors.",
+    icon: "⛏️",
+    buildCost: 16000,
+    upkeepCost: 2500,
     limit: 1,
     techRequirement: "logistics_1",
+    bonusScope: "localRadius",
+    bonusEffects: [
+      { type: "addRouteSlots", value: 1 },
+      { type: "modifySaturation", value: -0.15 },
+    ],
+  },
+  [HubRoomType.FoodTerminal]: {
+    type: HubRoomType.FoodTerminal,
+    name: "Hydroponics Bay",
+    description:
+      "Reduces fuel costs by 12% for routes through hub and neighbors.",
+    icon: "🌿",
+    buildCost: 12000,
+    upkeepCost: 1800,
+    limit: 1,
+    techRequirement: "logistics_1",
+    bonusScope: "localRadius",
+    bonusEffects: [{ type: "modifyFuel", value: -0.12 }],
+  },
+  [HubRoomType.TechTerminal]: {
+    type: HubRoomType.TechTerminal,
+    name: "Data Nexus",
+    description:
+      "Generates +1 research point per turn from tech cargo analysis.",
+    icon: "💾",
+    buildCost: 20000,
+    upkeepCost: 2500,
+    limit: 1,
+    techRequirement: "intelligence_1",
     bonusScope: "empire",
-    bonusEffects: [{ type: "addRouteSlots", value: 1 }],
+    bonusEffects: [{ type: "addRPPerTurn", value: 1 }],
+  },
+  [HubRoomType.LuxuryTerminal]: {
+    type: HubRoomType.LuxuryTerminal,
+    name: "Luxury Arcade",
+    description: "Increases trade revenue by 5% on all empire routes.",
+    icon: "💎",
+    buildCost: 18000,
+    upkeepCost: 2500,
+    limit: 1,
+    techRequirement: "intelligence_1",
+    bonusScope: "empire",
+    bonusEffects: [{ type: "modifyRevenue", value: 0.05 }],
+  },
+  [HubRoomType.HazmatTerminal]: {
+    type: HubRoomType.HazmatTerminal,
+    name: "Hazmat Containment",
+    description:
+      "Reduces tariff rates by 12%. Increases AI maintenance costs by 5%.",
+    icon: "☢️",
+    buildCost: 22000,
+    upkeepCost: 3000,
+    limit: 1,
+    techRequirement: "engineering_1",
+    bonusScope: "empire",
+    bonusEffects: [
+      { type: "modifyTariff", value: -0.12 },
+      { type: "modifyAIMaintenance", value: 0.05 },
+    ],
+  },
+  [HubRoomType.MedicalTerminal]: {
+    type: HubRoomType.MedicalTerminal,
+    name: "Medical Wing",
+    description:
+      "Ships at hub gain +2 condition/turn. Boosts passenger revenue by 10% at hub and neighbors.",
+    icon: "🏥",
+    buildCost: 16000,
+    upkeepCost: 2500,
+    limit: 1,
+    techRequirement: "engineering_1",
+    bonusScope: "localRadius",
+    bonusEffects: [
+      { type: "addRepairPerTurn", value: 2 },
+      { type: "modifyPassengerRevenue", value: 0.1 },
+    ],
   },
   [HubRoomType.FuelDepot]: {
     type: HubRoomType.FuelDepot,
@@ -756,13 +878,19 @@ export const HUB_ROOM_DEFINITIONS: Record<HubRoomType, HubRoomDefinition> = {
 
 /** Room types that are always available (no tech requirement) */
 export const HUB_STARTER_ROOMS: HubRoomType[] = [
+  HubRoomType.SimpleTerminal,
   HubRoomType.TradeOffice,
   HubRoomType.PassengerLounge,
 ];
 
 /** Room types that require tech and are randomized per run */
 export const HUB_TECH_GATED_ROOMS: HubRoomType[] = [
-  HubRoomType.FreightTerminal,
+  HubRoomType.OreProcessing,
+  HubRoomType.FoodTerminal,
+  HubRoomType.TechTerminal,
+  HubRoomType.LuxuryTerminal,
+  HubRoomType.HazmatTerminal,
+  HubRoomType.MedicalTerminal,
   HubRoomType.FuelDepot,
   HubRoomType.MarketExchange,
   HubRoomType.CustomsBureau,
@@ -770,4 +898,35 @@ export const HUB_TECH_GATED_ROOMS: HubRoomType[] = [
   HubRoomType.ResearchLab,
   HubRoomType.CargoWarehouse,
   HubRoomType.SecurityOffice,
+];
+
+/** Terminal room types (SimpleTerminal upgrade chain) — cannot be demolished */
+export const TERMINAL_ROOM_TYPES: HubRoomType[] = [
+  HubRoomType.SimpleTerminal,
+  HubRoomType.ImprovedTerminal,
+  HubRoomType.AdvancedTerminal,
+];
+
+/** Upgrade-only room types — never appear in build palette or room pools */
+export const HUB_UPGRADE_ONLY_ROOMS: HubRoomType[] = [
+  HubRoomType.ImprovedTerminal,
+  HubRoomType.AdvancedTerminal,
+];
+
+/** Terminal upgrade path: from → to with cost */
+export const SIMPLE_TERMINAL_UPGRADES: Array<{
+  from: HubRoomType;
+  to: HubRoomType;
+  cost: number;
+}> = [
+  {
+    from: HubRoomType.SimpleTerminal,
+    to: HubRoomType.ImprovedTerminal,
+    cost: 15000,
+  },
+  {
+    from: HubRoomType.ImprovedTerminal,
+    to: HubRoomType.AdvancedTerminal,
+    cost: 35000,
+  },
 ];

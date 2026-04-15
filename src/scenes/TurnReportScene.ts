@@ -155,6 +155,15 @@ export class TurnReportScene extends Phaser.Scene {
       });
     }
 
+    // Add hub & other costs row if any
+    if (lastTurn.otherCosts > 0) {
+      plRows.push({
+        label: "Hub & Other",
+        value: formatCash(-lastTurn.otherCosts),
+        color: theme.colors.loss,
+      });
+    }
+
     let rowY = plContent.y + 4;
     for (let i = 0; i < plRows.length; i++) {
       const row = plRows[i];

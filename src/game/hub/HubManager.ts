@@ -17,6 +17,9 @@ import {
   HUB_STARTER_ROOMS,
   HUB_TECH_GATED_ROOMS,
   HUB_TECH_ROOMS_PER_RUN,
+  TERMINAL_ROOM_TYPES,
+  HUB_UPGRADE_ONLY_ROOMS,
+  SIMPLE_TERMINAL_UPGRADES,
 } from "../../data/constants";
 import type { SeededRNG } from "../../utils/SeededRNG";
 
@@ -59,7 +62,11 @@ export function getHubUpkeep(hub: StationHub): number {
 }
 
 /** Check if a grid cell is occupied */
-function isGridCellOccupied(hub: StationHub, gridX: number, gridY: number): boolean {
+function isGridCellOccupied(
+  hub: StationHub,
+  gridX: number,
+  gridY: number,
+): boolean {
   return hub.rooms.some((r) => r.gridX === gridX && r.gridY === gridY);
 }
 
@@ -77,6 +84,11 @@ export function canBuildRoom(
   cash: number,
 ): CanBuildResult {
   const def = HUB_ROOM_DEFINITIONS[roomType];
+
+  // Upgrade-only rooms cannot be built directly
+  if (HUB_UPGRADE_ONLY_ROOMS.includes(roomType)) {
+    return { canBuild: false, reason: "Upgrade only" };
+  }
 
   if (!hub.availableRoomTypes.includes(roomType)) {
     return { canBuild: false, reason: "Room not available this run" };
@@ -96,7 +108,10 @@ export function canBuildRoom(
   }
 
   if (cash < def.buildCost) {
-    return { canBuild: false, reason: `Not enough cash (need ${def.buildCost})` };
+    return {
+      canBuild: false,
+      reason: `Not enough cash (need ${def.buildCost})`,
+    };
   }
 
   return { canBuild: true, reason: "OK" };
@@ -111,7 +126,12 @@ export function buildRoom(
   cash: number,
   tech: TechState,
 ): { hub: StationHub; cost: number } | null {
-  if (gridX < 0 || gridX >= HUB_GRID_SLOTS_PER_DECK || gridY < 0 || gridY >= HUB_GRID_DECKS) {
+  if (
+    gridX < 0 ||
+    gridX >= HUB_GRID_SLOTS_PER_DECK ||
+    gridY < 0 ||
+    gridY >= HUB_GRID_DECKS
+  ) {
     return null;
   }
 
@@ -139,13 +159,16 @@ export function buildRoom(
   };
 }
 
-/** Demolish a room by ID. Returns updated hub and refund amount, or null if not found. */
+/** Demolish a room by ID. Returns updated hub and refund amount, or null if not found or non-demolishable. */
 export function demolishRoom(
   hub: StationHub,
   roomId: string,
 ): { hub: StationHub; refund: number } | null {
   const room = hub.rooms.find((r) => r.id === roomId);
   if (!room) return null;
+
+  // Terminal rooms cannot be demolished
+  if (isTerminalRoom(room.type)) return null;
 
   const def = HUB_ROOM_DEFINITIONS[room.type];
   return {
@@ -194,10 +217,62 @@ export function isSystemInHubRadius(
   hyperlanes: Hyperlane[],
 ): boolean {
   if (hubSystemId === targetSystemId) return true;
-  return getHyperlaneNeighbors(hubSystemId, hyperlanes).includes(targetSystemId);
+  return getHyperlaneNeighbors(hubSystemId, hyperlanes).includes(
+    targetSystemId,
+  );
 }
 
 /** Get the room definition for a room type */
 export function getRoomDefinition(roomType: HubRoomType): HubRoomDefinition {
   return HUB_ROOM_DEFINITIONS[roomType];
+}
+
+/** Check if a room type is a terminal (SimpleTerminal upgrade chain) */
+export function isTerminalRoom(roomType: HubRoomType): boolean {
+  return TERMINAL_ROOM_TYPES.includes(roomType);
+}
+
+/** Pre-build SimpleTerminal at position (0,0) in a fresh hub */
+export function initializeHubWithTerminal(hub: StationHub): StationHub {
+  const terminalRoom: HubRoom = {
+    id: `room_0_0_terminal`,
+    type: "simpleTerminal" as HubRoomType,
+    gridX: 0,
+    gridY: 0,
+  };
+  return {
+    ...hub,
+    rooms: [terminalRoom],
+  };
+}
+
+/** Get the available terminal upgrade for a room, or null if fully upgraded */
+export function getTerminalUpgrade(
+  roomType: HubRoomType,
+): { to: HubRoomType; cost: number } | null {
+  const upgrade = SIMPLE_TERMINAL_UPGRADES.find((u) => u.from === roomType);
+  return upgrade ? { to: upgrade.to, cost: upgrade.cost } : null;
+}
+
+/** Upgrade a terminal room in-place. Returns updated hub and cost, or null on failure. */
+export function upgradeTerminal(
+  hub: StationHub,
+  roomId: string,
+  cash: number,
+): { hub: StationHub; cost: number } | null {
+  const room = hub.rooms.find((r) => r.id === roomId);
+  if (!room) return null;
+
+  const upgrade = getTerminalUpgrade(room.type);
+  if (!upgrade) return null;
+  if (cash < upgrade.cost) return null;
+
+  const updatedRooms = hub.rooms.map((r) =>
+    r.id === roomId ? { ...r, type: upgrade.to } : r,
+  );
+
+  return {
+    hub: { ...hub, rooms: updatedRooms },
+    cost: upgrade.cost,
+  };
 }

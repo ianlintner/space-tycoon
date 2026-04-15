@@ -37,10 +37,26 @@ import {
 } from "../tech/TechEffects.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 import { processDiplomacyTurn } from "../empire/DiplomacyManager.ts";
+import { getHubUpkeep } from "../hub/HubManager.ts";
+import {
+  getRepairBonus,
+  getRPBonus,
+  getTariffMultiplier,
+  getSaturationMultiplier,
+} from "../hub/HubBonusCalculator.ts";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/** Extract system ID from planet ID: "planet-{si}-{syi}-{pi}" → "system-{si}-{syi}" */
+function planetToSystemId(planetId: string): string | null {
+  const parts = planetId.split("-");
+  if (parts.length >= 4 && parts[0] === "planet") {
+    return `system-${parts[1]}-${parts[2]}`;
+  }
+  return null;
+}
 
 interface ShipRouteResult {
   revenue: number;
@@ -146,7 +162,17 @@ function updateSaturation(
       const entry = planetMarket[cargoType];
       if (!entry) continue;
 
-      const saturationIncrease = amount / (entry.baseDemand * 5);
+      // Hub CargoWarehouse reduces saturation buildup in nearby systems
+      const sysId = planetToSystemId(planetId);
+      const satMult = sysId
+        ? getSaturationMultiplier(
+            state.stationHub,
+            sysId,
+            state.hyperlanes ?? [],
+          )
+        : 1.0;
+
+      const saturationIncrease = (amount / (entry.baseDemand * 5)) * satMult;
       const newSaturation = Math.min(
         1,
         Math.max(0, entry.saturation + saturationIncrease),
@@ -353,6 +379,7 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     );
     totalTariffCosts += tariff;
   }
+  totalTariffCosts *= getTariffMultiplier(nextState.stationHub);
   totalTariffCosts = Math.round(totalTariffCosts * 100) / 100;
 
   // ----- Step 3: Update saturation at destination planets -----
@@ -363,13 +390,43 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     calculateMaintenanceCosts(nextState.fleet) *
     getMaintenanceMultiplier(nextState);
 
+  // ----- Step 4b: Hub upkeep -----
+  const hubUpkeep = nextState.stationHub
+    ? getHubUpkeep(nextState.stationHub)
+    : 0;
+
   // ----- Step 5: Process loans -----
   const { updatedLoans, totalInterest } = processLoans(nextState.loans);
   nextState = { ...nextState, loans: updatedLoans };
 
   // ----- Step 6: Age fleet -----
   const agedFleet = ageFleet(nextState.fleet, rng);
-  nextState = { ...nextState, fleet: agedFleet };
+
+  // ----- Step 6a: Apply hub Repair Bay bonus -----
+  const repairBonus =
+    nextState.stationHub && nextState.stationHub.systemId
+      ? getRepairBonus(nextState.stationHub, nextState.stationHub.systemId)
+      : 0;
+  const repairedFleet =
+    repairBonus > 0
+      ? agedFleet.map((ship) => {
+          // Only boost ships on routes touching the hub system
+          if (!ship.assignedRouteId) return ship;
+          const route = nextState.activeRoutes.find(
+            (r) => r.id === ship.assignedRouteId,
+          );
+          if (!route) return ship;
+          const hubSysId = nextState.stationHub!.systemId;
+          const originSysId = planetToSystemId(route.originPlanetId);
+          const destSysId = planetToSystemId(route.destinationPlanetId);
+          if (originSysId !== hubSysId && destSysId !== hubSysId) return ship;
+          return {
+            ...ship,
+            condition: Math.min(100, ship.condition + repairBonus),
+          };
+        })
+      : agedFleet;
+  nextState = { ...nextState, fleet: repairedFleet };
 
   // ----- Step 6b: Simulate AI company turns -----
   const aiResult = simulateAITurns(nextState, rng);
@@ -432,7 +489,9 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   nextState = { ...nextState, ...contractResult };
 
   // ----- Step 8c: Research point accumulation & tech completion -----
-  const rpThisTurn = calculateRPPerTurn(nextState);
+  const baseRP = calculateRPPerTurn(nextState);
+  const hubRPBonus = getRPBonus(nextState.stationHub);
+  const rpThisTurn = baseRP + hubRPBonus;
   const updatedTech = processResearch(nextState, rpThisTurn);
   nextState = { ...nextState, tech: updatedTech };
 
@@ -443,7 +502,8 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     maintenanceCosts -
     totalInterest -
     totalTariffCosts -
-    totalMothballFees;
+    totalMothballFees -
+    hubUpkeep;
   const newCash = nextState.cash + netProfit;
   nextState = { ...nextState, cash: Math.round(newCash * 100) / 100 };
 
@@ -464,7 +524,7 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
     maintenanceCosts: Math.round(maintenanceCosts * 100) / 100,
     loanPayments: totalInterest,
     tariffCosts: totalTariffCosts,
-    otherCosts: totalMothballFees,
+    otherCosts: totalMothballFees + hubUpkeep,
     netProfit: Math.round(netProfit * 100) / 100,
     cashAtEnd: nextState.cash,
     cargoDelivered,

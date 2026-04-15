@@ -99,6 +99,7 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
     },
     empireTradePolicies: {},
     interEmpireCargoLocks: [],
+    stationHub: null,
     ...overrides,
   };
 }

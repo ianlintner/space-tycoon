@@ -1,5 +1,4 @@
 import type { StationHub, HubBonusEffect, Hyperlane } from "../../data/types";
-import { HubRoomType } from "../../data/types";
 import { HUB_ROOM_DEFINITIONS, HUB_RADIUS_FALLOFF } from "../../data/constants";
 import { getHyperlaneNeighbors } from "./HubManager";
 
@@ -50,10 +49,16 @@ function getRadiusMultiplier(
 }
 
 /**
- * Check if any room of a given type is built in the hub.
+ * Check if any built room provides a specific effect type.
  */
-function hasRoom(hub: StationHub, roomType: string): boolean {
-  return hub.rooms.some((r) => r.type === roomType);
+function hasEffect(
+  hub: StationHub,
+  effectType: HubBonusEffect["type"],
+): boolean {
+  return hub.rooms.some((r) => {
+    const def = HUB_ROOM_DEFINITIONS[r.type];
+    return def.bonusEffects.some((e) => e.type === effectType);
+  });
 }
 
 // ── Empire-wide multipliers (apply to all routes / activity) ──
@@ -97,7 +102,7 @@ export function getPassengerRevenueMultiplier(
   hyperlanes: Hyperlane[],
 ): number {
   if (!hub) return 1.0;
-  if (!hasRoom(hub, HubRoomType.PassengerLounge)) return 1.0;
+  if (!hasEffect(hub, "modifyPassengerRevenue")) return 1.0;
   const radius = getRadiusMultiplier(hub.systemId, systemId, hyperlanes);
   if (radius === 0) return 1.0;
   const bonus = sumEffect(hub, "modifyPassengerRevenue");
@@ -111,7 +116,7 @@ export function getFuelMultiplier(
   hyperlanes: Hyperlane[],
 ): number {
   if (!hub) return 1.0;
-  if (!hasRoom(hub, HubRoomType.FuelDepot)) return 1.0;
+  if (!hasEffect(hub, "modifyFuel")) return 1.0;
   // Check if any system on the route is in hub radius
   let bestRadius = 0;
   for (const sysId of routeSystemIds) {
@@ -130,7 +135,7 @@ export function getSaturationMultiplier(
   hyperlanes: Hyperlane[],
 ): number {
   if (!hub) return 1.0;
-  if (!hub.rooms.some((r) => r.type === HubRoomType.CargoWarehouse)) return 1.0;
+  if (!hasEffect(hub, "modifySaturation")) return 1.0;
   const radius = getRadiusMultiplier(hub.systemId, systemId, hyperlanes);
   if (radius === 0) return 1.0;
   const bonus = sumEffect(hub, "modifySaturation");

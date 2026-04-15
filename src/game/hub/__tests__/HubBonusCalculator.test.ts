@@ -88,10 +88,10 @@ describe("getRouteSlotBonus", () => {
     expect(getRouteSlotBonus(null)).toBe(0);
   });
 
-  it("returns 1 with Freight Terminal", () => {
+  it("returns 1 with Ore Processing", () => {
     const hub = makeHub({
       rooms: [
-        { id: "r1", type: HubRoomType.FreightTerminal, gridX: 0, gridY: 0 },
+        { id: "r1", type: HubRoomType.OreProcessing, gridX: 0, gridY: 0 },
       ],
     });
     expect(getRouteSlotBonus(hub)).toBe(1);

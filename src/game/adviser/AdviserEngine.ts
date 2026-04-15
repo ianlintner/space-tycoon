@@ -154,6 +154,20 @@ export function generateTurnMessages(
     const w = WARNING_MESSAGES.find((m) => m.id === "warn_no_research")!;
     if (!shown.has(w.id)) messages.push(makeMessage(w, turn));
   }
+  // Hub station empty (has hub but no rooms)
+  if (state.stationHub && state.stationHub.rooms.length === 0) {
+    const w = WARNING_MESSAGES.find((m) => m.id === "warn_hub_empty")!;
+    if (!shown.has(w.id)) messages.push(makeMessage(w, turn));
+  }
+  // Hub upkeep exceeds 30% of last turn revenue
+  if (state.stationHub && state.history.length > 0) {
+    const lastRevenue = state.history[state.history.length - 1].revenue;
+    const hubUpkeep = state.history[state.history.length - 1].otherCosts;
+    if (lastRevenue > 0 && hubUpkeep > lastRevenue * 0.3) {
+      const w = WARNING_MESSAGES.find((m) => m.id === "warn_hub_high_upkeep")!;
+      if (!shown.has(w.id)) messages.push(makeMessage(w, turn));
+    }
+  }
 
   // 5. One contextual tip per turn (cycle & dedup)
   const unseenTips = CONTEXTUAL_TIPS.filter((t) => !shown.has(t.id));

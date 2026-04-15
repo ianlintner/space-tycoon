@@ -20,6 +20,7 @@ import {
   getLayout,
 } from "../ui/index.ts";
 import { calculateShipValue } from "../game/fleet/FleetManager.ts";
+
 import { getPortraitTextureKey } from "../data/portraits.ts";
 
 function formatCash(n: number): string {
@@ -206,6 +207,13 @@ export class FinanceScene extends Phaser.Scene {
         formatCash(-lastTurn.loanPayments),
         theme.colors.loss,
       );
+      if (lastTurn.otherCosts > 0) {
+        addRow(
+          "Hub & Other",
+          formatCash(-lastTurn.otherCosts),
+          theme.colors.loss,
+        );
+      }
       addSeparator();
       addRow(
         "Net Profit",
@@ -238,6 +246,10 @@ export class FinanceScene extends Phaser.Scene {
       addRow("Total Fuel", formatCash(-totalFuel), theme.colors.loss);
       addRow("Total Maintenance", formatCash(-totalMaint), theme.colors.loss);
       addRow("Total Loan Payments", formatCash(-totalLoan), theme.colors.loss);
+      const totalOther = history.reduce((sum, t) => sum + t.otherCosts, 0);
+      if (totalOther > 0) {
+        addRow("Total Hub & Other", formatCash(-totalOther), theme.colors.loss);
+      }
       addSeparator();
       addRow(
         "Total Net Profit",

@@ -10,6 +10,10 @@ import {
   upgradeHub,
   getHyperlaneNeighbors,
   isSystemInHubRadius,
+  isTerminalRoom,
+  initializeHubWithTerminal,
+  getTerminalUpgrade,
+  upgradeTerminal,
 } from "../HubManager.ts";
 import { HubRoomType } from "../../../data/types.ts";
 import type { StationHub, TechState, Hyperlane } from "../../../data/types.ts";
@@ -157,7 +161,7 @@ describe("canBuildRoom", () => {
 
   it("rejects when tech requirement not met", () => {
     const hub = makeHub();
-    const result = canBuildRoom(hub, HubRoomType.FreightTerminal, [], 100000);
+    const result = canBuildRoom(hub, HubRoomType.OreProcessing, [], 100000);
     expect(result.canBuild).toBe(false);
     expect(result.reason).toContain("tech");
   });
@@ -166,7 +170,7 @@ describe("canBuildRoom", () => {
     const hub = makeHub();
     const result = canBuildRoom(
       hub,
-      HubRoomType.FreightTerminal,
+      HubRoomType.OreProcessing,
       ["logistics_1"],
       100000,
     );
@@ -349,5 +353,182 @@ describe("isSystemInHubRadius", () => {
     expect(isSystemInHubRadius("sys-1", "sys-99", makeHyperlanes())).toBe(
       false,
     );
+  });
+});
+
+// ── Terminal Functions ──────────────────────────────────────
+
+describe("isTerminalRoom", () => {
+  it("returns true for SimpleTerminal", () => {
+    expect(isTerminalRoom(HubRoomType.SimpleTerminal)).toBe(true);
+  });
+
+  it("returns true for ImprovedTerminal", () => {
+    expect(isTerminalRoom(HubRoomType.ImprovedTerminal)).toBe(true);
+  });
+
+  it("returns true for AdvancedTerminal", () => {
+    expect(isTerminalRoom(HubRoomType.AdvancedTerminal)).toBe(true);
+  });
+
+  it("returns false for non-terminal rooms", () => {
+    expect(isTerminalRoom(HubRoomType.TradeOffice)).toBe(false);
+    expect(isTerminalRoom(HubRoomType.FuelDepot)).toBe(false);
+    expect(isTerminalRoom(HubRoomType.RepairBay)).toBe(false);
+  });
+});
+
+describe("initializeHubWithTerminal", () => {
+  it("adds SimpleTerminal at (0,0)", () => {
+    const hub = createEmptyHub("sys-1", "emp-1", ALL_ROOM_TYPES);
+    const result = initializeHubWithTerminal(hub);
+    expect(result.rooms).toHaveLength(1);
+    expect(result.rooms[0].type).toBe(HubRoomType.SimpleTerminal);
+    expect(result.rooms[0].gridX).toBe(0);
+    expect(result.rooms[0].gridY).toBe(0);
+  });
+
+  it("does not mutate original hub", () => {
+    const hub = createEmptyHub("sys-1", "emp-1", ALL_ROOM_TYPES);
+    initializeHubWithTerminal(hub);
+    expect(hub.rooms).toHaveLength(0);
+  });
+});
+
+describe("getTerminalUpgrade", () => {
+  it("returns ImprovedTerminal upgrade for SimpleTerminal", () => {
+    const upgrade = getTerminalUpgrade(HubRoomType.SimpleTerminal);
+    expect(upgrade).not.toBeNull();
+    expect(upgrade!.to).toBe(HubRoomType.ImprovedTerminal);
+    expect(upgrade!.cost).toBe(15000);
+  });
+
+  it("returns AdvancedTerminal upgrade for ImprovedTerminal", () => {
+    const upgrade = getTerminalUpgrade(HubRoomType.ImprovedTerminal);
+    expect(upgrade).not.toBeNull();
+    expect(upgrade!.to).toBe(HubRoomType.AdvancedTerminal);
+    expect(upgrade!.cost).toBe(35000);
+  });
+
+  it("returns null for AdvancedTerminal (max level)", () => {
+    expect(getTerminalUpgrade(HubRoomType.AdvancedTerminal)).toBeNull();
+  });
+
+  it("returns null for non-terminal room types", () => {
+    expect(getTerminalUpgrade(HubRoomType.TradeOffice)).toBeNull();
+    expect(getTerminalUpgrade(HubRoomType.FuelDepot)).toBeNull();
+  });
+});
+
+describe("upgradeTerminal", () => {
+  it("upgrades SimpleTerminal to ImprovedTerminal", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.SimpleTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    const result = upgradeTerminal(hub, "t1", 50000);
+    expect(result).not.toBeNull();
+    expect(result!.hub.rooms[0].type).toBe(HubRoomType.ImprovedTerminal);
+    expect(result!.cost).toBe(15000);
+  });
+
+  it("upgrades ImprovedTerminal to AdvancedTerminal", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.ImprovedTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    const result = upgradeTerminal(hub, "t1", 50000);
+    expect(result).not.toBeNull();
+    expect(result!.hub.rooms[0].type).toBe(HubRoomType.AdvancedTerminal);
+    expect(result!.cost).toBe(35000);
+  });
+
+  it("returns null for max-level terminal", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.AdvancedTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    expect(upgradeTerminal(hub, "t1", 99999)).toBeNull();
+  });
+
+  it("returns null when insufficient cash", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.SimpleTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    expect(upgradeTerminal(hub, "t1", 100)).toBeNull();
+  });
+
+  it("returns null for non-existent room id", () => {
+    const hub = makeHub();
+    expect(upgradeTerminal(hub, "nope", 50000)).toBeNull();
+  });
+
+  it("does not mutate original hub", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.SimpleTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    upgradeTerminal(hub, "t1", 50000);
+    expect(hub.rooms[0].type).toBe(HubRoomType.SimpleTerminal);
+  });
+});
+
+describe("canBuildRoom — upgrade-only rejection", () => {
+  it("rejects ImprovedTerminal as upgrade-only", () => {
+    const hub = makeHub();
+    const result = canBuildRoom(hub, HubRoomType.ImprovedTerminal, [], 100000);
+    expect(result.canBuild).toBe(false);
+    expect(result.reason).toContain("Upgrade only");
+  });
+
+  it("rejects AdvancedTerminal as upgrade-only", () => {
+    const hub = makeHub();
+    const result = canBuildRoom(hub, HubRoomType.AdvancedTerminal, [], 100000);
+    expect(result.canBuild).toBe(false);
+    expect(result.reason).toContain("Upgrade only");
+  });
+});
+
+describe("demolishRoom — terminal protection", () => {
+  it("returns null when trying to demolish SimpleTerminal", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.SimpleTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    expect(demolishRoom(hub, "t1")).toBeNull();
+  });
+
+  it("returns null when trying to demolish ImprovedTerminal", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.ImprovedTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    expect(demolishRoom(hub, "t1")).toBeNull();
+  });
+
+  it("returns null when trying to demolish AdvancedTerminal", () => {
+    const hub = makeHub({
+      rooms: [
+        { id: "t1", type: HubRoomType.AdvancedTerminal, gridX: 0, gridY: 0 },
+      ],
+    });
+    expect(demolishRoom(hub, "t1")).toBeNull();
+  });
+
+  it("still allows demolishing non-terminal rooms", () => {
+    const hub = makeHub({
+      rooms: [{ id: "r1", type: HubRoomType.FuelDepot, gridX: 1, gridY: 0 }],
+    });
+    const result = demolishRoom(hub, "r1");
+    expect(result).not.toBeNull();
+    expect(result!.hub.rooms).toHaveLength(0);
   });
 });

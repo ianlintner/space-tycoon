@@ -21,6 +21,7 @@ import {
 } from "../../data/constants.ts";
 import type { ShipClass } from "../../data/types.ts";
 import { getTechRouteSlotBonus } from "../tech/TechEffects.ts";
+import { getRouteSlotBonus } from "../hub/HubBonusCalculator.ts";
 import {
   isEmpireAccessible,
   getEmpireForPlanet,
@@ -113,7 +114,11 @@ export function calculateLicenseFee(
  * Total route slots available (base + tech bonus).
  */
 export function getAvailableRouteSlots(state: GameState): number {
-  return state.routeSlots + getTechRouteSlotBonus(state);
+  return (
+    state.routeSlots +
+    getTechRouteSlotBonus(state) +
+    getRouteSlotBonus(state.stationHub)
+  );
 }
 
 /**

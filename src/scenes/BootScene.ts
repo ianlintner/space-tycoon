@@ -557,6 +557,44 @@ export class BootScene extends Phaser.Scene {
       tex.refresh();
     }
 
+    // ── icon-hub: Space station (central ring + docking arms) ──
+    {
+      const { tex, ctx } = this.makeCanvas("icon-hub", s, s);
+      ctx.strokeStyle = col;
+      ctx.fillStyle = col;
+      ctx.lineWidth = 1.5;
+      const cx = s / 2,
+        cy = s / 2;
+      // Central ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.stroke();
+      // Docking arms (4 directions)
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 5);
+      ctx.lineTo(cx, 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 5);
+      ctx.lineTo(cx, 22);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy);
+      ctx.lineTo(2, cy);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + 5, cy);
+      ctx.lineTo(22, cy);
+      ctx.stroke();
+      // End caps
+      ctx.fillRect(cx - 2, 1, 4, 3);
+      ctx.fillRect(cx - 2, 20, 4, 3);
+      ctx.fillRect(1, cy - 2, 3, 4);
+      ctx.fillRect(20, cy - 2, 3, 4);
+      tex.refresh();
+    }
+
     // ── icon-adviser: Husky face silhouette (ears + muzzle) ──
     {
       const { tex, ctx } = this.makeCanvas("icon-adviser", s, s);

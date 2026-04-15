@@ -91,6 +91,11 @@ export function calculateScore(state: GameState): number {
   const techsResearched = state.tech.completedTechIds.length;
   const techBonus = techsResearched * 500;
 
+  // Phase 5: Hub station bonus
+  const hubRoomCount = state.stationHub?.rooms.length ?? 0;
+  const hubLevel = state.stationHub?.level ?? 0;
+  const hubBonus = hubRoomCount * 300 + hubLevel * 500;
+
   const score =
     netWorth +
     reputationBonus +
@@ -100,7 +105,8 @@ export function calculateScore(state: GameState): number {
     diversityBonus +
     empireUnlockBonus +
     contractBonus +
-    techBonus;
+    techBonus +
+    hubBonus;
   return Math.round(score);
 }
 

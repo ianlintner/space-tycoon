@@ -201,6 +201,7 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
     },
     empireTradePolicies: {},
     interEmpireCargoLocks: [],
+    stationHub: null,
     ...overrides,
   };
 }

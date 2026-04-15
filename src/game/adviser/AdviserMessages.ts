@@ -468,6 +468,27 @@ export const CONTEXTUAL_TIPS: MessageTemplate[] = [
     priority: 3,
     context: "tip",
   },
+  {
+    id: "tip_hub_1",
+    text: "Tip: Your hub station provides bonuses to routes and operations. Build rooms to specialize your station.",
+    mood: "analyzing",
+    priority: 3,
+    context: "tip",
+  },
+  {
+    id: "tip_hub_2",
+    text: "Tip: Hub rooms have upkeep costs each turn. Balance the bonuses against ongoing expenses.",
+    mood: "analyzing",
+    priority: 3,
+    context: "tip",
+  },
+  {
+    id: "tip_hub_3",
+    text: "Tip: Upgrading your hub unlocks more room slots. Plan your station layout before committing.",
+    mood: "analyzing",
+    priority: 3,
+    context: "tip",
+  },
 ];
 
 // ── Warning messages ───────────────────────────────────────
@@ -539,6 +560,20 @@ export const WARNING_MESSAGES: MessageTemplate[] = [
   {
     id: "warn_trade_restriction",
     text: "Caution: Trade policy changes detected. Review your inter-empire routes for newly restricted cargo.",
+    mood: "alert",
+    priority: 2,
+    context: "warning",
+  },
+  {
+    id: "warn_hub_empty",
+    text: "Caution: Your hub station has no rooms. Build rooms to gain bonuses on routes and operations.",
+    mood: "alert",
+    priority: 2,
+    context: "warning",
+  },
+  {
+    id: "warn_hub_high_upkeep",
+    text: "Warning: Hub station upkeep is consuming a large share of revenue. Consider demolishing underperforming rooms.",
     mood: "alert",
     priority: 2,
     context: "warning",

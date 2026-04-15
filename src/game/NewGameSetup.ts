@@ -33,7 +33,11 @@ import {
   initializeDiplomacy,
   initializeBorderPorts,
 } from "./empire/DiplomacyManager.ts";
-import { createEmptyHub, selectRunRoomTypes } from "./hub/HubManager.ts";
+import {
+  createEmptyHub,
+  selectRunRoomTypes,
+  initializeHubWithTerminal,
+} from "./hub/HubManager.ts";
 
 export interface NewGameResult {
   state: GameState;
@@ -299,10 +303,12 @@ export function createNewGame(
   const availableRoomTypes = selectRunRoomTypes(hubRng);
   const defaultStartingSystem = startingSystemOptions[0];
   const stationHub = defaultStartingSystem
-    ? createEmptyHub(
-        defaultStartingSystem.id,
-        defaultStartingSystem.empireId,
-        availableRoomTypes,
+    ? initializeHubWithTerminal(
+        createEmptyHub(
+          defaultStartingSystem.id,
+          defaultStartingSystem.empireId,
+          availableRoomTypes,
+        ),
       )
     : null;
 

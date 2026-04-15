@@ -46,6 +46,10 @@ import {
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 import { pickRandomPortrait } from "../../data/portraits.ts";
 import { isRouteGrounded } from "../events/EventEngine.ts";
+import {
+  getAIRevenueDebuff,
+  getAIMaintenanceDebuff,
+} from "../hub/HubBonusCalculator.ts";
 
 // ---------------------------------------------------------------------------
 // AI turn simulation
@@ -87,15 +91,25 @@ export function simulateAITurns(
     // 2. Update saturation from AI deliveries
     marketState = applyAISaturation(marketState, routeResult.deliveries);
 
-    // 3. Maintenance
-    const maintenanceCosts = calculateMaintenanceCosts(company.fleet);
+    // 3. Maintenance (+ hub Security Office debuff for player's empire AI)
+    const hubEmpireId = state.stationHub?.empireId;
+    const aiInPlayerEmpire = hubEmpireId && company.empireId === hubEmpireId;
+    const aiMaintenanceDebuff = aiInPlayerEmpire
+      ? getAIMaintenanceDebuff(state.stationHub)
+      : 0;
+    const maintenanceCosts =
+      calculateMaintenanceCosts(company.fleet) * (1 + aiMaintenanceDebuff);
 
     // 4. Age fleet
     const agedFleet = ageFleet(company.fleet, rng);
 
-    // 5. Net profit
+    // 5. Net profit (+ hub Security Office revenue debuff)
+    const aiRevenueDebuff = aiInPlayerEmpire
+      ? getAIRevenueDebuff(state.stationHub)
+      : 0;
+    const adjustedRevenue = routeResult.revenue * (1 + aiRevenueDebuff);
     const netProfit =
-      routeResult.revenue -
+      adjustedRevenue -
       routeResult.fuelCost -
       routeResult.tariffCost -
       maintenanceCosts;

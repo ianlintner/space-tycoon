@@ -140,9 +140,17 @@ export type TechBranch = (typeof TechBranch)[keyof typeof TechBranch];
 // ── Hub Station types ──────────────────────────────────────
 
 export const HubRoomType = {
+  SimpleTerminal: "simpleTerminal",
+  ImprovedTerminal: "improvedTerminal",
+  AdvancedTerminal: "advancedTerminal",
   TradeOffice: "tradeOffice",
   PassengerLounge: "passengerLounge",
-  FreightTerminal: "freightTerminal",
+  OreProcessing: "oreProcessing",
+  FoodTerminal: "foodTerminal",
+  TechTerminal: "techTerminal",
+  LuxuryTerminal: "luxuryTerminal",
+  HazmatTerminal: "hazmatTerminal",
+  MedicalTerminal: "medicalTerminal",
   FuelDepot: "fuelDepot",
   MarketExchange: "marketExchange",
   CustomsBureau: "customsBureau",

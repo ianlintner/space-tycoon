@@ -83,6 +83,8 @@ export class GameHUDScene extends Phaser.Scene {
     FinanceScene: "Finance — review cashflow, loans, and net worth",
     EmpireScene: "Empires — diplomacy, borders, and trade policy",
     CompetitionScene: "Rivals — standings and competitor performance",
+    StationBuilderScene:
+      "Hub Station — build rooms and upgrade your orbital hub",
   };
 
   private readonly contentSceneKeys = [
@@ -96,6 +98,7 @@ export class GameHUDScene extends Phaser.Scene {
     "MarketScene",
     "EmpireScene",
     "CompetitionScene",
+    "StationBuilderScene",
     "SimPlaybackScene",
     "TurnReportScene",
   ];
@@ -261,6 +264,7 @@ export class GameHUDScene extends Phaser.Scene {
       { label: "Finance", scene: "FinanceScene", icon: "icon-finance" },
       { label: "Empires", scene: "EmpireScene", icon: "icon-empire" },
       { label: "Rivals", scene: "CompetitionScene", icon: "icon-rival" },
+      { label: "Hub", scene: "StationBuilderScene", icon: "icon-hub" },
     ];
 
     const navSidebarTop = L.hudTopBarHeight;

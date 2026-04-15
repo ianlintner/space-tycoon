@@ -50,6 +50,7 @@ function createDefaultState(): GameState {
     borderPorts: [],
     diplomaticRelations: [],
     hyperlaneDensity: "medium",
+    stationHub: null,
   };
 }
 

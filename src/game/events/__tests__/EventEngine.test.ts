@@ -198,6 +198,7 @@ function makeMinimalGameState(): GameState {
     },
     empireTradePolicies: {},
     interEmpireCargoLocks: [],
+    stationHub: null,
   };
 }
 
