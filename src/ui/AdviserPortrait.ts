@@ -457,6 +457,11 @@ export const ADVISER_FRAME_SIZE = 128;
  * Generate the Rex adviser portrait spritesheet as a CanvasTexture.
  * Layout: 4 columns (frames) × 4 rows (moods: standby, analyzing, alert, success)
  * Each cell is ADVISER_FRAME_SIZE × ADVISER_FRAME_SIZE pixels.
+ *
+ * If a preloaded PNG portrait exists for a mood (key: "rex-portrait-{mood}"),
+ * it is used as the base image. The animated frame border and mood accent
+ * overlays are drawn on top. If no PNG is available, falls back to the full
+ * procedural pixel-art rendering.
  */
 export function generateAdviserSpritesheet(
   textures: Phaser.Textures.TextureManager,
@@ -476,6 +481,9 @@ export function generateAdviserSpritesheet(
 
   for (let row = 0; row < rows; row++) {
     const mood = ADVISER_MOODS[row];
+    const pngKey = `rex-portrait-${mood}`;
+    const hasPng = textures.exists(pngKey);
+
     for (let col = 0; col < cols; col++) {
       // Offset context to draw in the correct cell
       ctx.save();
@@ -487,13 +495,28 @@ export function generateAdviserSpritesheet(
       ctx.clip();
 
       const grid = createPixelGrid(fs, fs);
-      drawBackgroundCanvas(ctx, grid, mood, col);
-      drawFrameCanvas(ctx, grid, mood);
-      drawHuskyBaseCanvas(ctx, grid, col);
-      drawEyesCanvas(ctx, grid, mood, col);
-      drawMouthCanvas(ctx, grid, mood, col);
-      drawHeadsetCanvas(ctx, grid, mood, col);
-      drawMoodAccentsCanvas(ctx, grid, mood, col);
+
+      if (hasPng) {
+        // ── PNG portrait path ──────────────────────────────────
+        // Draw the AI-generated portrait scaled to the frame size,
+        // then overlay the animated frame border and mood accents.
+        const srcTex = textures.get(pngKey);
+        const srcImg = srcTex.getSourceImage() as
+          | HTMLImageElement
+          | HTMLCanvasElement;
+        ctx.drawImage(srcImg, 0, 0, fs, fs);
+        drawFrameCanvas(ctx, grid, mood);
+        drawMoodAccentsCanvas(ctx, grid, mood, col);
+      } else {
+        // ── Procedural fallback ────────────────────────────────
+        drawBackgroundCanvas(ctx, grid, mood, col);
+        drawFrameCanvas(ctx, grid, mood);
+        drawHuskyBaseCanvas(ctx, grid, col);
+        drawEyesCanvas(ctx, grid, mood, col);
+        drawMouthCanvas(ctx, grid, mood, col);
+        drawHeadsetCanvas(ctx, grid, mood, col);
+        drawMoodAccentsCanvas(ctx, grid, mood, col);
+      }
 
       ctx.restore();
     }
