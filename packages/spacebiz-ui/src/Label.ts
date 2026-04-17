@@ -26,6 +26,8 @@ export class Label extends Phaser.GameObjects.Text {
       wordWrap: config.maxWidth ? { width: config.maxWidth } : undefined,
     });
 
+    this.setShadow(0, 1, "#000000", 4, true, true);
+
     if (config.glow) {
       this.setShadow(
         2,

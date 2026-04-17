@@ -663,6 +663,8 @@ class RouteBuilderPanel {
         origin,
         destination,
         state.galaxy.systems,
+        state.hyperlanes,
+        state.borderPorts,
       );
       return {
         distanceLabel: `${distance.toFixed(1)} units`,
@@ -699,6 +701,8 @@ class RouteBuilderPanel {
       origin,
       destination,
       state.galaxy.systems,
+      state.hyperlanes,
+      state.borderPorts,
     );
     const previewShip = this.getPreviewShip(cargo);
 
@@ -825,6 +829,8 @@ class RouteBuilderPanel {
       origin,
       destination,
       latestState.galaxy.systems,
+      latestState.hyperlanes,
+      latestState.borderPorts,
     );
     // Deduct route license fee
     const licenseFee = calculateLicenseFee(

@@ -11,6 +11,7 @@ import {
   STARTING_ADJACENT_EMPIRES,
 } from "../../data/constants.ts";
 import { getTechEffectTotal } from "../tech/TechEffects.ts";
+import { findPath } from "../routes/HyperlaneRouter.ts";
 
 // ---------------------------------------------------------------------------
 // Empire Access Helpers
@@ -151,12 +152,20 @@ export function validateRouteCreation(
   state: GameState,
 ): string | null {
   const { systems, planets } = state.galaxy;
+  const hyperlanes = state.hyperlanes ?? [];
+  const borderPorts = state.borderPorts ?? [];
 
   // Check empire access
   const originEmpireId = getEmpireForPlanet(originPlanetId, systems, planets);
   const destEmpireId = getEmpireForPlanet(destPlanetId, systems, planets);
 
   if (!originEmpireId || !destEmpireId) return "Invalid planet";
+  const originPlanet = planets.find((planet) => planet.id === originPlanetId);
+  const destinationPlanet = planets.find((planet) => planet.id === destPlanetId);
+  if (!originPlanet || !destinationPlanet) return "Invalid planet";
+  if (originPlanet.id === destinationPlanet.id) {
+    return "Origin and destination must be different planets";
+  }
 
   if (!isEmpireAccessible(originEmpireId, state)) {
     return "Origin empire is not yet accessible";
@@ -168,6 +177,19 @@ export function validateRouteCreation(
   // Check route slot availability
   if (state.activeRoutes.length >= state.routeSlots) {
     return "No available route slots";
+  }
+
+  if (
+    originPlanet.systemId !== destinationPlanet.systemId &&
+    hyperlanes.length > 0 &&
+    !findPath(
+      originPlanet.systemId,
+      destinationPlanet.systemId,
+      hyperlanes,
+      borderPorts,
+    )
+  ) {
+    return "No hyperlane path exists between those systems";
   }
 
   // For inter-empire routes, check trade policies and cargo locks

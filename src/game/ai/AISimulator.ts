@@ -557,6 +557,7 @@ function makeAIDecisions(
     const routeResult = openAIRoute(
       company,
       newIdleShips,
+      currentFleet,
       currentRoutes,
       state,
       market,
@@ -661,6 +662,7 @@ function pickShipClassForPersonality(
 function openAIRoute(
   company: AICompany,
   idleShips: Ship[],
+  currentFleet: Ship[],
   existingRoutes: ActiveRoute[],
   state: GameState,
   market: MarketState,
@@ -822,7 +824,7 @@ function openAIRoute(
     cargoType: bestRoute.cargoType,
   };
 
-  const updatedFleet = company.fleet.map((s) =>
+  const updatedFleet = currentFleet.map((s) =>
     s.id === bestShip.id ? { ...s, assignedRouteId: newRoute.id } : s,
   );
 

@@ -2,6 +2,25 @@ import Phaser from "phaser";
 import { lerpColor, getTheme } from "./Theme.ts";
 import { addTwinkleTween, registerAmbientCleanup } from "./AmbientFX.ts";
 
+export interface StarfieldLayerConfig {
+  count: number;
+  scrollFactor: number;
+  minAlpha: number;
+  maxAlpha: number;
+  minScale: number;
+  maxScale: number;
+  tints: number[];
+  hazeAlpha?: number;
+  hazeScale?: number;
+}
+
+export interface StarfieldWorldBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 export interface StarfieldConfig {
   count?: number; // default 120
   drift?: boolean; // default true — slow parallax drift
@@ -10,20 +29,114 @@ export interface StarfieldConfig {
   twinkle?: boolean;
   /** Slow tint colour-cycle on ~15 % of white stars. Default true. */
   shimmer?: boolean;
+  width?: number;
+  height?: number;
+  centerX?: number;
+  centerY?: number;
+  worldBounds?: StarfieldWorldBounds;
+  minZoom?: number;
+  overscan?: number;
+  edgeFeather?: number;
+  haze?: boolean;
+  layers?: StarfieldLayerConfig[];
+}
+
+const DEFAULT_LAYERS: StarfieldLayerConfig[] = [
+  {
+    count: 110,
+    scrollFactor: 0.06,
+    minAlpha: 0.05,
+    maxAlpha: 0.22,
+    minScale: 0.12,
+    maxScale: 0.3,
+    tints: [0xffffff, 0xffffff, 0xbfd8ff],
+    hazeAlpha: 0.028,
+    hazeScale: 3.2,
+  },
+  {
+    count: 80,
+    scrollFactor: 0.16,
+    minAlpha: 0.09,
+    maxAlpha: 0.34,
+    minScale: 0.2,
+    maxScale: 0.52,
+    tints: [0xffffff, 0xffffff, 0xaaccff, 0xffffcc],
+    hazeAlpha: 0.022,
+    hazeScale: 2.4,
+  },
+  {
+    count: 46,
+    scrollFactor: 0.3,
+    minAlpha: 0.16,
+    maxAlpha: 0.5,
+    minScale: 0.35,
+    maxScale: 0.82,
+    tints: [0xffffff, 0xaaccff, 0xffffcc],
+    hazeAlpha: 0.014,
+    hazeScale: 1.7,
+  },
+];
+
+function resolveBounds(
+  scene: Phaser.Scene,
+  config?: StarfieldConfig,
+): { centerX: number; centerY: number; width: number; height: number } {
+  if (config?.worldBounds) {
+    const { minX, maxX, minY, maxY } = config.worldBounds;
+    return {
+      centerX: (minX + maxX) / 2,
+      centerY: (minY + maxY) / 2,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
+    };
+  }
+
+  const width = config?.width ?? scene.scale.width;
+  const height = config?.height ?? scene.scale.height;
+  return {
+    centerX: config?.centerX ?? width / 2,
+    centerY: config?.centerY ?? height / 2,
+    width,
+    height,
+  };
+}
+
+function getEdgeFade(
+  x: number,
+  y: number,
+  centerX: number,
+  centerY: number,
+  spreadW: number,
+  spreadH: number,
+  feather: number,
+): number {
+  const nx = Math.abs((x - centerX) / Math.max(1, spreadW * 0.5));
+  const ny = Math.abs((y - centerY) / Math.max(1, spreadH * 0.5));
+  const edge = Math.max(nx, ny);
+  const featherStart = Math.max(0.1, 1 - feather);
+  if (edge <= featherStart) return 1;
+  return Phaser.Math.Clamp((1 - edge) / Math.max(0.001, 1 - featherStart), 0, 1);
 }
 
 export function createStarfield(
   scene: Phaser.Scene,
   config?: StarfieldConfig,
 ): Phaser.GameObjects.Container {
-  const count = config?.count ?? 120;
   const drift = config?.drift ?? true;
   const depth = config?.depth ?? -100;
   const twinkle = config?.twinkle ?? true;
   const shimmer = config?.shimmer ?? true;
+  const haze = config?.haze ?? true;
+  const minZoom = Math.max(0.1, config?.minZoom ?? 1);
+  const overscan = config?.overscan ?? 320;
+  const edgeFeather = Phaser.Math.Clamp(config?.edgeFeather ?? 0.2, 0.05, 0.45);
+  const layers = config?.layers ?? DEFAULT_LAYERS;
 
   const theme = getTheme();
   const { ambient } = theme;
+  const bounds = resolveBounds(scene, config);
+  const visibleW = scene.scale.width / minZoom;
+  const visibleH = scene.scale.height / minZoom;
 
   const container = scene.add.container(0, 0);
   container.setDepth(depth);
@@ -31,76 +144,110 @@ export function createStarfield(
   // Ambient tweens that need explicit cleanup on scene shutdown
   const ambientTweens: Phaser.Tweens.Tween[] = [];
 
-  for (let i = 0; i < count; i++) {
-    const x = Math.random() * 1280;
-    const y = Math.random() * 720;
-    const baseAlpha = 0.15 + Math.random() * 0.55; // 0.15 – 0.7
-    const scale = 0.3 + Math.random() * 0.7; // 0.3 – 1.0
+  for (const layer of layers) {
+    const layerContainer = scene.add.container(0, 0);
+    layerContainer.setScrollFactor(layer.scrollFactor);
+    container.add(layerContainer);
 
-    const star = scene.add
-      .image(x, y, "glow-dot")
-      .setAlpha(baseAlpha)
-      .setScale(scale);
+    const layerOverscanX =
+      visibleW * (0.85 + (1 - layer.scrollFactor) * 1.65) + overscan;
+    const layerOverscanY =
+      visibleH * (0.85 + (1 - layer.scrollFactor) * 1.65) + overscan;
+    const spreadW = bounds.width + layerOverscanX * 2;
+    const spreadH = bounds.height + layerOverscanY * 2;
 
-    // Colour variation — most white, some blue, some yellow
-    const colorRoll = Math.random();
-    let isWhiteStar = true;
-    if (colorRoll > 0.85) {
-      star.setTint(0xaaccff); // blue
-      isWhiteStar = false;
-    } else if (colorRoll > 0.7) {
-      star.setTint(0xffffcc); // yellow
-      isWhiteStar = false;
+    if (haze && layer.hazeAlpha && layer.hazeScale && scene.textures.exists("glow-dot")) {
+      const hazeCount = layer.scrollFactor < 0.2 ? 3 : 2;
+      for (let i = 0; i < hazeCount; i++) {
+        const hazeTint = layer.tints[i % layer.tints.length] ?? 0xffffff;
+        const hazeX = bounds.centerX + (Math.random() - 0.5) * bounds.width * 0.65;
+        const hazeY = bounds.centerY + (Math.random() - 0.5) * bounds.height * 0.65;
+        const hazeSprite = scene.add
+          .image(hazeX, hazeY, "glow-dot")
+          .setTint(hazeTint)
+          .setAlpha(layer.hazeAlpha * (0.7 + Math.random() * 0.5))
+          .setScale(
+            Math.max(bounds.width, bounds.height) / 64 * layer.hazeScale,
+          )
+          .setBlendMode(Phaser.BlendModes.ADD);
+        layerContainer.add(hazeSprite);
+      }
     }
 
-    container.add(star);
+    for (let i = 0; i < layer.count; i++) {
+      const x = bounds.centerX + (Math.random() - 0.5) * spreadW;
+      const y = bounds.centerY + (Math.random() - 0.5) * spreadH;
+      const edgeFade = getEdgeFade(
+        x,
+        y,
+        bounds.centerX,
+        bounds.centerY,
+        spreadW,
+        spreadH,
+        edgeFeather,
+      );
+      const alphaRange = layer.maxAlpha - layer.minAlpha;
+      const baseAlpha =
+        (layer.minAlpha + Math.random() * alphaRange) * (0.3 + edgeFade * 0.7);
+      const scale = layer.minScale + Math.random() * (layer.maxScale - layer.minScale);
 
-    // ── Layer 1: positional drift (unchanged behaviour) ───────────────────
-    if (drift) {
-      const driftX = -3 + Math.random() * 6;
-      const driftY = -3 + Math.random() * 6;
-      const duration = 8000 + Math.random() * 7000; // 8 – 15 s
-      scene.tweens.add({
-        targets: star,
-        x: x + driftX,
-        y: y + driftY,
-        duration,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
-    }
+      const star = scene.add
+        .image(x, y, "glow-dot")
+        .setAlpha(baseAlpha)
+        .setScale(scale);
 
-    // ── Layer 2: staggered twinkle on ~35 % of stars ───────────────────────
-    if (twinkle && Math.random() > 0.65) {
-      const tw = addTwinkleTween(scene, star, {
-        minAlpha: Math.max(0.05, baseAlpha * 0.3),
-        maxAlpha: Math.min(0.95, baseAlpha * 1.65),
-        minDuration: ambient.starTwinkleDurationMin,
-        maxDuration: ambient.starTwinkleDurationMax,
-        // Random stagger offset so pulses stay desynchronised
-        delay: Math.random() * ambient.starTwinkleDurationMax,
-      });
-      ambientTweens.push(tw);
-    }
+      const tint = layer.tints[Math.floor(Math.random() * layer.tints.length)] ?? 0xffffff;
+      const isWhiteStar = tint === 0xffffff;
+      if (tint !== 0xffffff) {
+        star.setTint(tint);
+      }
 
-    // ── Layer 3: slow tint shimmer on ~15 % of white stars ────────────────
-    if (shimmer && isWhiteStar && Math.random() > 0.85) {
-      const shimmerObj = { t: 0 };
-      const dur = ambient.starShimmerDuration + Math.random() * 4000;
-      const tw = scene.tweens.add({
-        targets: shimmerObj,
-        t: 1,
-        duration: dur,
-        delay: Math.random() * dur,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-        onUpdate: () => {
-          star.setTint(lerpColor(0xffffff, 0xaaccff, shimmerObj.t));
-        },
-      });
-      ambientTweens.push(tw);
+      layerContainer.add(star);
+
+      if (drift) {
+        const driftX = (-2 + Math.random() * 4) * (0.8 + layer.scrollFactor * 0.6);
+        const driftY = (-2 + Math.random() * 4) * (0.8 + layer.scrollFactor * 0.6);
+        const duration = 7000 + Math.random() * 9000;
+        const tween = scene.tweens.add({
+          targets: star,
+          x: x + driftX,
+          y: y + driftY,
+          duration,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+        ambientTweens.push(tween);
+      }
+
+      if (twinkle && Math.random() > 0.65) {
+        const tw = addTwinkleTween(scene, star, {
+          minAlpha: Math.max(0.03, baseAlpha * 0.28),
+          maxAlpha: Math.min(0.95, baseAlpha * 1.55),
+          minDuration: ambient.starTwinkleDurationMin,
+          maxDuration: ambient.starTwinkleDurationMax,
+          delay: Math.random() * ambient.starTwinkleDurationMax,
+        });
+        ambientTweens.push(tw);
+      }
+
+      if (shimmer && isWhiteStar && Math.random() > 0.84) {
+        const shimmerObj = { t: 0 };
+        const dur = ambient.starShimmerDuration + Math.random() * 4000;
+        const tw = scene.tweens.add({
+          targets: shimmerObj,
+          t: 1,
+          duration: dur,
+          delay: Math.random() * dur,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+          onUpdate: () => {
+            star.setTint(lerpColor(0xffffff, 0xaaccff, shimmerObj.t));
+          },
+        });
+        ambientTweens.push(tw);
+      }
     }
   }
 

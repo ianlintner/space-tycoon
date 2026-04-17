@@ -23,13 +23,16 @@ import type { GameState, TurnResult } from "../data/types.ts";
 import { EventCategory } from "../data/types.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { findPath } from "../game/routes/HyperlaneRouter.ts";
+import {
+  buildGalaxyRouteTrafficVisuals,
+  buildTrafficPatrolWaypoints,
+} from "../game/routes/RouteManager.ts";
 
 // ── Camera constants ──────────────────────────────────────────────────────────
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 3.0;
 const ZOOM_STEP = 0.08;
 const DRAG_THRESHOLD = 5;
-
 function formatCash(amount: number): string {
   return "\u00A7" + amount.toLocaleString();
 }
@@ -117,13 +120,19 @@ export class SimPlaybackScene extends Phaser.Scene {
       systemLookup.set(sys.id, { x: sys.x, y: sys.y, color: sys.starColor });
     }
 
-    // Compute bounding box of player's active route endpoints for initial focus
+    // Compute bounding box of all active route endpoints for initial focus
     const routeSystemIds = new Set<string>();
     let rMinX = Infinity,
       rMaxX = -Infinity,
       rMinY = Infinity,
       rMaxY = -Infinity;
-    for (const route of state.activeRoutes) {
+      
+    const allActiveRoutes = [
+      ...this.newState.activeRoutes,
+      ...this.newState.aiCompanies.flatMap((c) => c.activeRoutes),
+    ];
+    
+    for (const route of allActiveRoutes) {
       for (const pid of [route.originPlanetId, route.destinationPlanetId]) {
         const sysId = planetSystemMap.get(pid);
         if (!sysId) continue;
@@ -139,11 +148,11 @@ export class SimPlaybackScene extends Phaser.Scene {
     const focusCx = isFinite(rMinX) ? (rMinX + rMaxX) / 2 : galCx;
     const focusCy = isFinite(rMinY) ? (rMinY + rMaxY) / 2 : galCy;
     const routeSpanW = isFinite(rMinX)
-      ? Math.max(rMaxX - rMinX + 400, 300)
-      : 500;
+      ? Math.max(rMaxX - rMinX + 400, galW * 0.5)
+      : galW * 0.8;
     const routeSpanH = isFinite(rMinY)
-      ? Math.max(rMaxY - rMinY + 300, 200)
-      : 400;
+      ? Math.max(rMaxY - rMinY + 300, galH * 0.5)
+      : galH * 0.8;
 
     // ── Camera setup ──────────────────────────────────────────────────────────
     const cam = this.cameras.main;
@@ -153,10 +162,10 @@ export class SimPlaybackScene extends Phaser.Scene {
     const vpH = L.gameHeight - L.contentTop - L.hudBottomBarHeight;
     cam.setViewport(vpX, vpY, vpW, vpH);
 
-    // Start zoomed in on route cluster (minimum 1.0×, max 2.0×)
+    // Start zoomed in on route cluster (minimum MIN_ZOOM, max 1.2)
     const fitZoomX = vpW / routeSpanW;
     const fitZoomY = vpH / routeSpanH;
-    const startZoom = Math.max(Math.min(fitZoomX, fitZoomY, 2.0), 1.0);
+    const startZoom = Math.max(Math.min(fitZoomX, fitZoomY, 1.2), MIN_ZOOM);
     cam.setZoom(startZoom);
     cam.centerOn(focusCx, focusCy);
 
@@ -242,7 +251,7 @@ export class SimPlaybackScene extends Phaser.Scene {
     if (starTweens.length > 0) registerAmbientCleanup(this, starTweens);
 
     // ── Hyperlane network ─────────────────────────────────────────────────────
-    const hyperlanes = state.hyperlanes ?? [];
+    const hyperlanes = this.newState.hyperlanes ?? [];
     const hlGraphics = this.add.graphics().setDepth(-10);
     for (const hl of hyperlanes) {
       const sA = systemLookup.get(hl.systemA);
@@ -312,7 +321,7 @@ export class SimPlaybackScene extends Phaser.Scene {
 
     // ── Route lines + animated ships (follow hyperlane network) ─────────────
     const routeGraphics = this.add.graphics().setDepth(0);
-    const borderPorts = state.borderPorts ?? [];
+    const borderPorts = this.newState.borderPorts ?? [];
 
     // Animate an array of targets along a series of waypoints, yoyoing forward
     // and back indefinitely. Each segment tweens linearly with duration
@@ -388,9 +397,23 @@ export class SimPlaybackScene extends Phaser.Scene {
       }
     };
 
-    for (const route of state.activeRoutes) {
-      const oSysId = planetSystemMap.get(route.originPlanetId);
-      const dSysId = planetSystemMap.get(route.destinationPlanetId);
+    const trafficVisuals = buildGalaxyRouteTrafficVisuals(this.newState);
+
+    const allRoutes = [
+      ...this.newState.activeRoutes,
+      ...this.newState.aiCompanies.flatMap((c) => c.activeRoutes),
+    ];
+
+    for (const visual of trafficVisuals) {
+      const route = allRoutes.find(
+        (activeRoute) => activeRoute.id === visual.routeId,
+      );
+      if (!route) continue;
+
+      const [oSysId, dSysId] = [
+        visual.pathSystemIds[0],
+        visual.pathSystemIds[visual.pathSystemIds.length - 1],
+      ];
       if (!oSysId || !dSysId) continue;
       const oSys = systemLookup.get(oSysId);
       const dSys = systemLookup.get(dSysId);
@@ -400,47 +423,51 @@ export class SimPlaybackScene extends Phaser.Scene {
       const dx = dSys.x;
       const dy = dSys.y;
       const halfDur = ANIM_DURATION / 2;
+      const routeDelay = 0;
       const routeRevenue = routeRevenueMap.get(route.id) ?? 0;
       const routeColor =
-        routeRevenue >= 1000
-          ? theme.colors.profit
-          : routeRevenue > 0
-            ? theme.colors.accent
-            : theme.colors.textDim;
+        visual.ownerId === "player"
+          ? routeRevenue >= 1000
+            ? theme.colors.profit
+            : routeRevenue > 0
+              ? theme.colors.accent
+              : theme.colors.textDim
+          : theme.colors.textDim;
 
       // Find the hyperlane path; fall back to direct line if none exists
       const path = findPath(oSysId, dSysId, hyperlanes, borderPorts);
       const routeSystemIdList =
-        path && path.systems.length >= 2 ? path.systems : [oSysId, dSysId];
+        path && path.systems.length >= 2 ? path.systems : visual.pathSystemIds;
       const waypoints: Array<{ x: number; y: number }> = [];
       for (const sid of routeSystemIdList) {
         const s = systemLookup.get(sid);
         if (s) waypoints.push({ x: s.x, y: s.y });
       }
-      if (waypoints.length < 2) continue;
+      const patrolWaypoints = buildTrafficPatrolWaypoints(route.id, waypoints);
+      if (patrolWaypoints.length < 2) continue;
 
       // Multi-segment route graphics (glow + solid line per segment)
       routeGraphics.lineStyle(6, routeColor, 0.1);
       routeGraphics.beginPath();
-      routeGraphics.moveTo(waypoints[0].x, waypoints[0].y);
-      for (let i = 1; i < waypoints.length; i++) {
-        routeGraphics.lineTo(waypoints[i].x, waypoints[i].y);
+      routeGraphics.moveTo(patrolWaypoints[0].x, patrolWaypoints[0].y);
+      for (let i = 1; i < patrolWaypoints.length; i++) {
+        routeGraphics.lineTo(patrolWaypoints[i].x, patrolWaypoints[i].y);
       }
       routeGraphics.strokePath();
       routeGraphics.lineStyle(2, routeColor, 0.75);
       routeGraphics.beginPath();
-      routeGraphics.moveTo(waypoints[0].x, waypoints[0].y);
-      for (let i = 1; i < waypoints.length; i++) {
-        routeGraphics.lineTo(waypoints[i].x, waypoints[i].y);
+      routeGraphics.moveTo(patrolWaypoints[0].x, patrolWaypoints[0].y);
+      for (let i = 1; i < patrolWaypoints.length; i++) {
+        routeGraphics.lineTo(patrolWaypoints[i].x, patrolWaypoints[i].y);
       }
       routeGraphics.strokePath();
       // Waypoint halos along the path (lighter at intermediate nodes)
-      for (let i = 0; i < waypoints.length; i++) {
-        const isEndpoint = i === 0 || i === waypoints.length - 1;
+      for (let i = 0; i < patrolWaypoints.length; i++) {
+        const isEndpoint = i === 0 || i === patrolWaypoints.length - 1;
         this.add
           .circle(
-            waypoints[i].x,
-            waypoints[i].y,
+            patrolWaypoints[i].x,
+            patrolWaypoints[i].y,
             isEndpoint ? 9 : 5,
             routeColor,
             isEndpoint ? 0.18 : 0.12,
@@ -449,106 +476,108 @@ export class SimPlaybackScene extends Phaser.Scene {
       }
 
       // Ship sprite or fallback pip
-      const firstShipId = route.assignedShipIds[0];
-      const firstShip = firstShipId
-        ? state.fleet.find((s) => s.id === firstShipId)
-        : undefined;
-      const shipIconKey = firstShip
-        ? getShipIconKey(firstShip.class)
-        : undefined;
-      const shipTint = firstShip
-        ? getShipColor(firstShip.class)
-        : theme.colors.accent;
-      const delay = Math.random() * halfDur * 0.5;
-      // Prefer animated 48×48 map sprite (32×32 display); fall back to icon image
-      const mapSprKey = firstShip ? getShipMapKey(firstShip.class) : undefined;
-      const mapAnimKey = firstShip
-        ? getShipMapAnimKey(firstShip.class)
-        : undefined;
-      if (mapSprKey && mapAnimKey && this.textures.exists(mapSprKey)) {
-        const sp = this.add
-          .sprite(ox, oy, mapSprKey, "1")
-          .setDisplaySize(32, 32)
-          .setTint(shipTint)
-          .setAlpha(0.95)
-          .setDepth(12);
-        sp.play(mapAnimKey);
-        const sg = this.add.circle(ox, oy, 16, shipTint, 0.15).setDepth(11);
-        runAlongPathYoyo(
-          [sp as unknown as Movable, sg as unknown as Movable],
-          waypoints,
-          halfDur,
-          delay,
-          [sp],
-        );
-        for (let t = 0; t < 3; t++) {
-          const trail = this.add
-            .circle(ox, oy, 3 - t, shipTint, 0.45 - t * 0.12)
-            .setDepth(10);
+      for (let unitIndex = 0; unitIndex < visual.visibleUnits; unitIndex++) {
+        const ship =
+          visual.assignedShips[unitIndex % visual.assignedShips.length];
+        const shipIconKey = getShipIconKey(ship.class);
+        const shipTint = getShipColor(ship.class);
+        const delay = Math.floor((unitIndex / visual.visibleUnits) * halfDur * 0.5);
+        const mapSprKey = getShipMapKey(ship.class);
+        const mapAnimKey = getShipMapAnimKey(ship.class);
+        const unitAlpha = Math.max(0.72, 0.95 - unitIndex * 0.06);
+
+        if (mapSprKey && mapAnimKey && this.textures.exists(mapSprKey)) {
+          const sp = this.add
+            .sprite(ox, oy, mapSprKey, "1")
+            .setDisplaySize(32, 32)
+            .setTint(shipTint)
+            .setAlpha(unitAlpha)
+            .setDepth(12 + unitIndex * 0.01);
+          sp.play(mapAnimKey);
+          const sg = this.add
+            .circle(ox, oy, 16, shipTint, Math.max(0.08, 0.15 - unitIndex * 0.02))
+            .setDepth(11 + unitIndex * 0.01);
           runAlongPathYoyo(
-            [trail as unknown as Movable],
-            waypoints,
+            [sp as unknown as Movable, sg as unknown as Movable],
+            patrolWaypoints,
             halfDur,
-            delay + 85 * (t + 1),
+            delay,
+            [sp],
+          );
+          for (let t = 0; t < 3; t++) {
+            const trail = this.add
+              .circle(ox, oy, 3 - t, shipTint, Math.max(0.08, 0.45 - t * 0.12))
+              .setDepth(10 + unitIndex * 0.01);
+            runAlongPathYoyo(
+              [trail as unknown as Movable],
+              patrolWaypoints,
+              halfDur,
+              delay + 85 * (t + 1),
+              [],
+            );
+          }
+        } else if (shipIconKey && this.textures.exists(shipIconKey)) {
+          const sp = this.add
+            .image(ox, oy, shipIconKey)
+            .setDisplaySize(22, 22)
+            .setTint(shipTint)
+            .setAlpha(unitAlpha)
+            .setDepth(12 + unitIndex * 0.01);
+          const sg = this.add
+            .circle(ox, oy, 13, shipTint, Math.max(0.08, 0.18 - unitIndex * 0.02))
+            .setDepth(11 + unitIndex * 0.01);
+          runAlongPathYoyo(
+            [sp as unknown as Movable, sg as unknown as Movable],
+            patrolWaypoints,
+            halfDur,
+            delay,
+            [sp],
+          );
+          for (let t = 0; t < 3; t++) {
+            const trail = this.add
+              .circle(ox, oy, 3 - t, shipTint, Math.max(0.08, 0.45 - t * 0.12))
+              .setDepth(10 + unitIndex * 0.01);
+            runAlongPathYoyo(
+              [trail as unknown as Movable],
+              patrolWaypoints,
+              halfDur,
+              delay + 85 * (t + 1),
+              [],
+            );
+          }
+        } else {
+          const pip = this.add
+            .circle(ox, oy, 5, shipTint, unitAlpha)
+            .setDepth(12 + unitIndex * 0.01);
+          const glow = this.add
+            .circle(ox, oy, 11, shipTint, Math.max(0.08, 0.2 - unitIndex * 0.03))
+            .setDepth(11 + unitIndex * 0.01);
+          runAlongPathYoyo(
+            [pip as unknown as Movable, glow as unknown as Movable],
+            patrolWaypoints,
+            halfDur,
+            delay,
             [],
           );
-        }
-      } else if (shipIconKey && this.textures.exists(shipIconKey)) {
-        // Fallback: small icon image with glow and trails
-        const sp = this.add
-          .image(ox, oy, shipIconKey)
-          .setDisplaySize(22, 22)
-          .setTint(shipTint)
-          .setAlpha(0.95)
-          .setDepth(12);
-        const sg = this.add.circle(ox, oy, 13, shipTint, 0.18).setDepth(11);
-        runAlongPathYoyo(
-          [sp as unknown as Movable, sg as unknown as Movable],
-          waypoints,
-          halfDur,
-          delay,
-          [sp],
-        );
-        for (let t = 0; t < 3; t++) {
-          const trail = this.add
-            .circle(ox, oy, 3 - t, shipTint, 0.45 - t * 0.12)
-            .setDepth(10);
-          runAlongPathYoyo(
-            [trail as unknown as Movable],
-            waypoints,
-            halfDur,
-            delay + 85 * (t + 1),
-            [],
-          );
-        }
-      } else {
-        const pip = this.add.circle(ox, oy, 5, shipTint).setDepth(12);
-        const glow = this.add.circle(ox, oy, 11, shipTint, 0.2).setDepth(11);
-        runAlongPathYoyo(
-          [pip as unknown as Movable, glow as unknown as Movable],
-          waypoints,
-          halfDur,
-          delay,
-          [],
-        );
-        for (let t = 0; t < 2; t++) {
-          const trail = this.add
-            .circle(ox, oy, 3 - t, shipTint, 0.4 - t * 0.15)
-            .setDepth(10);
-          runAlongPathYoyo(
-            [trail as unknown as Movable],
-            waypoints,
-            halfDur,
-            delay + 85 * (t + 1),
-            [],
-          );
+          for (let t = 0; t < 2; t++) {
+            const trail = this.add
+              .circle(ox, oy, 3 - t, shipTint, Math.max(0.08, 0.4 - t * 0.15))
+              .setDepth(10 + unitIndex * 0.01);
+            runAlongPathYoyo(
+              [trail as unknown as Movable],
+              patrolWaypoints,
+              halfDur,
+              delay + 85 * (t + 1),
+              [],
+            );
+          }
         }
       }
       // Revenue popup at midpoint
       if (routeRevenue > 0) {
         const midX = (ox + dx) / 2;
         const midY = (oy + dy) / 2;
-        this.time.delayedCall(halfDur + delay, () => {
+        this.time.delayedCall(halfDur + routeDelay, () => {
           if (this.animationComplete) return;
           new FloatingText(
             this,

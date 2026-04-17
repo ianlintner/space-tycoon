@@ -14,6 +14,7 @@ import {
   estimateRouteFuelCost,
   getVisibleRouteTrafficUnits,
   buildTrafficPatrolWaypoints,
+  buildSunAvoidingLocalRouteMotionPath,
 } from "../RouteManager.ts";
 import { CargoType, PlanetType } from "../../../data/types.ts";
 import type {
@@ -436,6 +437,19 @@ describe("RouteManager", () => {
       expect(expanded.every((waypoint) => waypoint.x === 100 && waypoint.y === 200)).toBe(false);
     });
 
+    it("builds sun-avoiding local motion paths", () => {
+      const path = buildSunAvoidingLocalRouteMotionPath(
+        "route-local",
+        { x: 120, y: 0 },
+        { x: -120, y: 0 },
+        { x: 0, y: 0 },
+      );
+
+      expect(path[0]).toEqual({ x: 120, y: 0, t: 0 });
+      expect(path[path.length - 1]).toEqual({ x: -120, y: 0, t: 1 });
+      expect(path.slice(1, -1).some((point) => Math.abs(point.y) > 20)).toBe(true);
+    });
+
     it("preserves stable ship ordering for class sampling", () => {
       const route = makeRoute({
         assignedShipIds: ["ship-3", "ship-1", "ship-2"],
@@ -539,6 +553,29 @@ describe("RouteManager", () => {
       expect(visuals.map((visual) => visual.ownerId)).toEqual(["player", "ai-empire"]);
       expect(visuals[1].assignedShips.map((ship) => ship.id)).toEqual(["ship-ai"]);
       expect(visuals[1].visualClassMix).toEqual(["fastCourier"]);
+    });
+
+    it("omits same-system assigned routes from galaxy traffic visuals", () => {
+      const route = makeRoute({
+        originPlanetId: "planet-1",
+        destinationPlanetId: "planet-2",
+        assignedShipIds: ["ship-1"],
+      });
+      const state = makeTrafficState({
+        galaxy: {
+          sectors: [],
+          empires: [],
+          systems: [makeSystem({ id: "system-1" })],
+          planets: [
+            makePlanet({ id: "planet-1", systemId: "system-1" }),
+            makePlanet({ id: "planet-2", systemId: "system-1" }),
+          ],
+        },
+        fleet: [makeShip({ id: "ship-1" })],
+        activeRoutes: [route],
+      });
+
+      expect(buildGalaxyRouteTrafficVisuals(state)).toEqual([]);
     });
 
     it("keeps assignment-only rule for AI galaxy traffic", () => {

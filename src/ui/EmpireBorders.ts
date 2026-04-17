@@ -155,7 +155,7 @@ export function drawEmpireBorders(
     cy /= empSystems.length;
 
     // Smooth the traced contour while preserving territory topology
-    const smoothBoundary = subsampleAndSmooth(boundary, 240);
+    const smoothBoundary = subsampleAndSmooth(boundary);
 
     if (smoothBoundary.length < 3) continue;
 
@@ -177,7 +177,10 @@ export function drawEmpireBorders(
 // ── Boundary tracing ────────────────────────────────────────────────────────
 
 function ptKey(p: { x: number; y: number }): string {
-  return `${p.x.toFixed(4)},${p.y.toFixed(4)}`;
+  // Prevent -0.0000 by forcing tiny values to 0
+  const x = Math.abs(p.x) < 1e-6 ? 0 : p.x;
+  const y = Math.abs(p.y) < 1e-6 ? 0 : p.y;
+  return `${x.toFixed(4)},${y.toFixed(4)}`;
 }
 
 function addDirectedEdge(
@@ -292,18 +295,54 @@ function traceEmpireBoundary(
 
 // ── Shape smoothing ─────────────────────────────────────────────────────────
 
-/** Subsample boundary points to keep only every Nth for performance, then smooth */
+/** Subsample boundary points based on distance to remove harsh grid lines, then smooth aggressively */
 function subsampleAndSmooth(
   points: Array<{ x: number; y: number }>,
-  targetCount: number,
 ): Array<{ x: number; y: number }> {
-  if (points.length <= targetCount) return chaikinSmooth(points, 2);
-  const step = points.length / targetCount;
-  const sampled: Array<{ x: number; y: number }> = [];
-  for (let i = 0; i < targetCount; i++) {
-    sampled.push(points[Math.floor(i * step)]);
+  if (points.length < 3) return points;
+
+  // Calculate total perimeter to ensure we don't undersample small territories
+  let perimeter = 0;
+  for (let i = 1; i < points.length; i++) {
+    perimeter += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
   }
-  return chaikinSmooth(sampled, 2);
+  perimeter += Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y);
+
+  // Distance-based sampling to remove grid artifacts and create a simpler polygon
+  // A larger step distance creates rounder, less detailed "bubbles".
+  // Ensure we get at least 8 points even for small territories to maintain a shape.
+  const stepDistance = Math.min(45, perimeter / 8); 
+  
+  const sampled: Array<{ x: number; y: number }> = [];
+  sampled.push(points[0]);
+  let currentDist = 0;
+
+  // Iterate up to points.length to evaluate the closing segment back to points[0]
+  for (let i = 1; i <= points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i % points.length];
+    const d = Math.hypot(curr.x - prev.x, curr.y - prev.y);
+    currentDist += d;
+
+    if (currentDist >= stepDistance) {
+      // Don't add a point that perfectly overlaps points[0] to avoid breaking the Chaikin smooth wrap
+      if (i === points.length && Math.hypot(curr.x - sampled[0].x, curr.y - sampled[0].y) < 1) {
+        // Skip
+      } else {
+        sampled.push(curr);
+      }
+      currentDist = 0;
+    }
+  }
+
+  // Ensure we have at least 3 points
+  if (sampled.length < 3) {
+    return chaikinSmooth(points, 5);
+  }
+
+  // Apply Chaikin's corner-cutting algorithm multiple times for a bubbly look
+  // 5 iterations turns a coarse polygon into a very smooth, organic shape.
+  return chaikinSmooth(sampled, 5);
 }
 
 /** Chaikin corner-cutting subdivision for smooth curves */
@@ -342,10 +381,7 @@ function renderTerritory(
   const { boundary, color, centroid } = territory;
   if (boundary.length < 3) return;
 
-  // Keep a smooth but stable contour that stays close to the ownership boundary
-  const smooth = subsampleAndSmooth(boundary, 200);
-  if (smooth.length < 3) return;
-
+  const smooth = boundary;
   const yo = cfg.yOffset;
 
   // ── Filled territory (very subtle, to avoid heavy blob overlap) ──

@@ -1,13 +1,12 @@
 import Phaser from "phaser";
 import { gameStore } from "../data/GameStore.ts";
 import {
+  createStarfield,
   getTheme,
   colorToString,
   Label,
   getLayout,
   addPulseTween,
-  addTwinkleTween,
-  registerAmbientCleanup,
   getShipIconKey,
   getShipColor,
   getShipMapKey,
@@ -91,100 +90,44 @@ export class GalaxyMapScene extends Phaser.Scene {
       if (sys.y > wMaxY) wMaxY = sys.y;
     }
 
-    // ── Parallax starfield (3 depth layers) ──
-    // Stars are scattered across a large area centred on the galaxy.
-    // Each layer scrolls at a different rate to create depth.
     const galCx = (wMinX + wMaxX) / 2;
     const galCy = (wMinY + wMaxY) / 2 + L.contentTop;
-    const galW = wMaxX - wMinX;
-    const galH = wMaxY - wMinY;
-
-    const PARALLAX_LAYERS: Array<{
-      count: number;
-      scrollFactor: number;
-      minAlpha: number;
-      maxAlpha: number;
-      minScale: number;
-      maxScale: number;
-      depth: number;
-      tints: number[];
-    }> = [
-      {
-        // Far — tiny dim specks, barely move
-        count: 100,
-        scrollFactor: 0.05,
-        minAlpha: 0.08,
-        maxAlpha: 0.25,
-        minScale: 0.15,
-        maxScale: 0.35,
-        depth: -300,
-        tints: [0xffffff, 0xffffff, 0xffffff, 0xaaccff],
+    createStarfield(this, {
+      depth: -320,
+      drift: true,
+      twinkle: true,
+      shimmer: true,
+      haze: true,
+      minZoom: MIN_ZOOM,
+      overscan: 520,
+      edgeFeather: 0.24,
+      worldBounds: {
+        minX: wMinX,
+        maxX: wMaxX,
+        minY: wMinY + L.contentTop,
+        maxY: wMaxY + L.contentTop,
       },
-      {
-        // Mid — moderate stars
-        count: 70,
-        scrollFactor: 0.15,
-        minAlpha: 0.12,
-        maxAlpha: 0.45,
-        minScale: 0.25,
-        maxScale: 0.55,
-        depth: -200,
-        tints: [0xffffff, 0xffffff, 0xaaccff, 0xffffcc],
-      },
-      {
-        // Near — brighter, move more with camera
-        count: 40,
-        scrollFactor: 0.3,
-        minAlpha: 0.2,
-        maxAlpha: 0.6,
-        minScale: 0.4,
-        maxScale: 0.8,
-        depth: -100,
-        tints: [0xffffff, 0xaaccff, 0xffffcc],
-      },
-    ];
+      centerX: galCx,
+      centerY: galCy,
+    });
 
-    const starTweens: Phaser.Tweens.Tween[] = [];
-    // Spread area: enough to cover viewport at any camera position and zoom
-    const spreadW = galW + 2400;
-    const spreadH = galH + 1600;
+    const addHudBackdrop = (
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      originX: number,
+      originY: number,
+    ): Phaser.GameObjects.Rectangle =>
+      this.add
+        .rectangle(x, y, width, height, theme.colors.background, 0.46)
+        .setStrokeStyle(1, theme.colors.panelBorder, 0.22)
+        .setOrigin(originX, originY)
+        .setScrollFactor(0)
+        .setDepth(900);
 
-    for (const layer of PARALLAX_LAYERS) {
-      for (let i = 0; i < layer.count; i++) {
-        const sx = galCx + (Math.random() - 0.5) * spreadW;
-        const sy = galCy + (Math.random() - 0.5) * spreadH;
-        const alpha =
-          layer.minAlpha + Math.random() * (layer.maxAlpha - layer.minAlpha);
-        const scale =
-          layer.minScale + Math.random() * (layer.maxScale - layer.minScale);
-        const tint =
-          layer.tints[Math.floor(Math.random() * layer.tints.length)];
-
-        const dot = this.add
-          .image(sx, sy, "glow-dot")
-          .setAlpha(alpha)
-          .setScale(scale)
-          .setTint(tint)
-          .setDepth(layer.depth)
-          .setScrollFactor(layer.scrollFactor);
-
-        // ~30% of stars twinkle
-        if (Math.random() > 0.7) {
-          const tw = addTwinkleTween(this, dot, {
-            minAlpha: Math.max(0.04, alpha * 0.3),
-            maxAlpha: Math.min(0.95, alpha * 1.7),
-            minDuration: 2000,
-            maxDuration: 6000,
-            delay: Math.random() * 5000,
-          });
-          starTweens.push(tw);
-        }
-      }
-    }
-
-    if (starTweens.length > 0) {
-      registerAmbientCleanup(this, starTweens);
-    }
+    addHudBackdrop(12, L.contentTop + 6, 156, 46, 0, 0);
+    addHudBackdrop(L.gameWidth - 16, L.contentTop + 6, 250, 48, 1, 0);
 
     // ── Empire territory borders (Stellaris-inspired) ──
     drawEmpireBorders(this, systems, empires, {
@@ -224,7 +167,9 @@ export class GalaxyMapScene extends Phaser.Scene {
       text: "Galaxy Map",
       style: "caption",
       color: theme.colors.textDim,
-    }).setScrollFactor(0);
+    })
+      .setScrollFactor(0)
+      .setDepth(901);
 
     new Label(this, {
       x: 20,
@@ -232,7 +177,9 @@ export class GalaxyMapScene extends Phaser.Scene {
       text: `Routes: ${slotsUsed}/${slotsTotal} ${slotBlocks}`,
       style: "caption",
       color: slotsUsed >= slotsTotal ? theme.colors.loss : theme.colors.textDim,
-    }).setScrollFactor(0);
+    })
+      .setScrollFactor(0)
+      .setDepth(901);
 
     this.add
       .text(
@@ -250,7 +197,8 @@ export class GalaxyMapScene extends Phaser.Scene {
       )
       .setOrigin(1, 0)
       .setAlpha(0.85)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(901);
 
     // ── Build empire accessibility lookup ──
     const empireAccessible = new Map<string, boolean>();
@@ -428,6 +376,13 @@ export class GalaxyMapScene extends Phaser.Scene {
         .setDepth(5 + unitIndex * 0.01);
     };
 
+    // Map AI company ID → empire hex color for route line tinting
+    const aiCompanyRouteColor = new Map<string, number>();
+    for (const company of state.aiCompanies) {
+      const empire = empireMap.get(company.empireId);
+      if (empire) aiCompanyRouteColor.set(company.id, empire.color);
+    }
+
     const createRouteTrafficLayer = (
       trafficVisuals: RouteTrafficVisual[],
     ): TrafficLayerHandle => {
@@ -468,7 +423,13 @@ export class GalaxyMapScene extends Phaser.Scene {
         const reverseWaypoints = [...forwardWaypoints].reverse();
         if (forwardWaypoints.length < 2) continue;
 
-        routeGraphics.lineStyle(1.5, theme.colors.accent, 0.55);
+        const isPlayer = visual.ownerId === "player";
+        const lineColor = isPlayer
+          ? theme.colors.accent
+          : (aiCompanyRouteColor.get(visual.ownerId) ?? 0x8899aa);
+        const lineAlpha = isPlayer ? 0.55 : 0.32;
+        const lineWidth = isPlayer ? 1.5 : 1;
+        routeGraphics.lineStyle(lineWidth, lineColor, lineAlpha);
         routeGraphics.beginPath();
         routeGraphics.moveTo(forwardWaypoints[0].x, forwardWaypoints[0].y);
         for (let i = 1; i < forwardWaypoints.length; i++) {

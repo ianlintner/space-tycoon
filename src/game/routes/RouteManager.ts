@@ -150,6 +150,10 @@ export interface RouteTrafficWaypoint {
   y: number;
 }
 
+export interface LocalRouteMotionPoint extends RouteTrafficWaypoint {
+  t: number;
+}
+
 interface RouteTrafficSource {
   ownerId: string;
   routes: ActiveRoute[];
@@ -196,6 +200,67 @@ export function buildTrafficPatrolWaypoints(
     x: center.x + Math.cos(baseAngle + offset) * radius,
     y: center.y + Math.sin(baseAngle + offset) * radius,
   }));
+}
+
+export function buildSunAvoidingLocalRouteMotionPath(
+  routeId: string,
+  origin: RouteTrafficWaypoint,
+  destination: RouteTrafficWaypoint,
+  sun: RouteTrafficWaypoint,
+): LocalRouteMotionPoint[] {
+  const directDx = destination.x - origin.x;
+  const directDy = destination.y - origin.y;
+  const directDistance = Math.hypot(directDx, directDy);
+
+  if (directDistance < 1) {
+    return [
+      { x: origin.x, y: origin.y, t: 0 },
+      { x: destination.x, y: destination.y, t: 1 },
+    ];
+  }
+
+  const sunToOriginX = origin.x - sun.x;
+  const sunToOriginY = origin.y - sun.y;
+  const sunToDestinationX = destination.x - sun.x;
+  const sunToDestinationY = destination.y - sun.y;
+  const originRadius = Math.hypot(sunToOriginX, sunToOriginY);
+  const destinationRadius = Math.hypot(sunToDestinationX, sunToDestinationY);
+  const avoidanceRadius = Math.max(originRadius, destinationRadius, directDistance * 0.8);
+
+  const originAngle = Math.atan2(sunToOriginY, sunToOriginX);
+  let angleDelta = Math.atan2(
+    Math.sin(Math.atan2(sunToDestinationY, sunToDestinationX) - originAngle),
+    Math.cos(Math.atan2(sunToDestinationY, sunToDestinationX) - originAngle),
+  );
+
+  if (Math.abs(angleDelta) < Math.PI / 10) {
+    angleDelta = (hashRouteId(routeId) % 2 === 0 ? 1 : -1) * Math.PI * 0.6;
+  }
+
+  const pointCount = 6;
+  const path: LocalRouteMotionPoint[] = [];
+  for (let index = 0; index < pointCount; index++) {
+    const t = index / (pointCount - 1);
+    const angle = originAngle + angleDelta * t;
+    const radius = originRadius + (destinationRadius - originRadius) * t;
+    const outwardBias = Math.sin(Math.PI * t) * Math.max(28, directDistance * 0.22);
+    const arcRadius = Math.max(radius, avoidanceRadius) + outwardBias;
+    const arcX = sun.x + Math.cos(angle) * arcRadius;
+    const arcY = sun.y + Math.sin(angle) * arcRadius;
+    const lineX = origin.x + directDx * t;
+    const lineY = origin.y + directDy * t;
+    const blend = index === 0 || index === pointCount - 1 ? 1 : 0.78;
+
+    path.push({
+      x: arcX + (lineX - arcX) * blend,
+      y: arcY + (lineY - arcY) * blend,
+      t,
+    });
+  }
+
+  path[0] = { x: origin.x, y: origin.y, t: 0 };
+  path[path.length - 1] = { x: destination.x, y: destination.y, t: 1 };
+  return path;
 }
 
 export function buildRouteTrafficVisuals(
@@ -252,6 +317,9 @@ function buildRouteTrafficVisualsFromSources(
         hyperlanes,
         borderPorts,
       );
+      if (originSystemId === destinationSystemId) {
+        return [];
+      }
       const pathSystemIds =
         path && path.systems.length >= 2
           ? path.systems

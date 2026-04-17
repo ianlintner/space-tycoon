@@ -357,6 +357,30 @@ describe("Empire Access", () => {
       expect(result).toContain("No available route slots");
     });
 
+    it("requires different planets even for same-system routes", () => {
+      const state = createTestState({
+        unlockedEmpireIds: ["empire-1", "empire-2"],
+      });
+
+      const result = validateRouteCreation("planet-1", "planet-1", "food", state);
+
+      expect(result).toContain("different planets");
+    });
+
+    it("blocks cross-system routes when no hyperlane path exists", () => {
+      const state = createTestState({
+        unlockedEmpireIds: ["empire-1", "empire-2"],
+        hyperlanes: [
+          { id: "hyperlane-23", systemA: "system-2", systemB: "system-3", distance: 8 },
+        ],
+        borderPorts: [],
+      });
+
+      const result = validateRouteCreation("planet-1", "planet-2", "food", state);
+
+      expect(result).toContain("No hyperlane path exists");
+    });
+
     it("blocks banned cargo on inter-empire routes", () => {
       const state = createTestState({
         unlockedEmpireIds: ["empire-1", "empire-2"],

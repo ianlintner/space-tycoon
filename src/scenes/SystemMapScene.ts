@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { gameStore } from "../data/GameStore.ts";
-import type { PlanetType } from "../data/types.ts";
-import type { Planet } from "../data/types.ts";
+import type { ActiveRoute, GameState, Planet, PlanetType, Ship } from "../data/types.ts";
 import {
   getTheme,
   colorToString,
@@ -13,10 +12,18 @@ import {
   addRotateTween,
   DEPTH_AMBIENT_MID,
   getLayout,
+  getShipColor,
+  getShipIconKey,
+  getShipMapAnimKey,
+  getShipMapKey,
 } from "../ui/index.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { SeededRNG } from "../utils/SeededRNG.ts";
 import { isEmpireAccessible } from "../game/empire/EmpireAccessManager.ts";
+import {
+  buildSunAvoidingLocalRouteMotionPath,
+  getVisibleRouteTrafficUnits,
+} from "../game/routes/RouteManager.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
 
@@ -53,6 +60,7 @@ const PLANET_ZONE_RANK: Record<PlanetType, number> = {
 export class SystemMapScene extends Phaser.Scene {
   private systemId = "";
   private portraitPanel: PortraitPanel | null = null;
+  private localTrafficLayer: LocalTrafficLayerHandle | null = null;
 
   constructor() {
     super({ key: "SystemMapScene" });
@@ -80,8 +88,22 @@ export class SystemMapScene extends Phaser.Scene {
       }
     });
 
-    // Starfield background
-    createStarfield(this);
+    // Starfield background with oversized layered coverage so the main scene
+    // reads as deep space instead of a clipped rectangle.
+    createStarfield(this, {
+      depth: -220,
+      drift: true,
+      twinkle: true,
+      shimmer: true,
+      haze: true,
+      width: L.gameWidth,
+      height: L.gameHeight,
+      centerX: L.gameWidth / 2,
+      centerY: L.gameHeight / 2,
+      minZoom: 1,
+      overscan: 260,
+      edgeFeather: 0.26,
+    });
 
     // Check if this system's empire is accessible
     const systemEmpireAccessible = isEmpireAccessible(system.empireId, state);
@@ -106,6 +128,10 @@ export class SystemMapScene extends Phaser.Scene {
     const cy = L.contentTop + L.contentHeight / 2;
 
     // Title: small caption label at top center of content area
+    this.add
+      .rectangle(cx, L.contentTop + 7, 220, 22, theme.colors.background, 0.42)
+      .setStrokeStyle(1, theme.colors.panelBorder, 0.2)
+      .setOrigin(0.5, 0);
     new Label(this, {
       x: cx,
       y: L.contentTop + 10,
@@ -113,6 +139,18 @@ export class SystemMapScene extends Phaser.Scene {
       style: "caption",
       color: theme.colors.textDim,
     }).setOrigin(0.5, 0);
+
+    this.add
+      .rectangle(
+        L.mainContentLeft + L.mainContentWidth - 8,
+        L.contentTop + 8,
+        360,
+        42,
+        theme.colors.background,
+        0.44,
+      )
+      .setStrokeStyle(1, theme.colors.panelBorder, 0.2)
+      .setOrigin(1, 0);
 
     this.add
       .text(
@@ -248,6 +286,22 @@ export class SystemMapScene extends Phaser.Scene {
       planetPositions.set(planet.id, { x: px, y: py });
     });
 
+    const refreshLocalTraffic = (nextState: GameState): void => {
+      this.localTrafficLayer?.destroy();
+      this.localTrafficLayer = createLocalRouteTrafficLayer(
+        this,
+        nextState,
+        system.id,
+        { x: cx, y: cy },
+        planetPositions,
+      );
+    };
+    refreshLocalTraffic(state);
+    const handleStateChanged = (nextState: unknown): void => {
+      refreshLocalTraffic(nextState as GameState);
+    };
+    gameStore.on("stateChanged", handleStateChanged);
+
     // Draw intra-system route lines
     const routeGraphics = this.add.graphics();
     routeGraphics.lineStyle(1, theme.colors.accent, 0.35);
@@ -256,9 +310,18 @@ export class SystemMapScene extends Phaser.Scene {
       const destPos = planetPositions.get(route.destinationPlanetId);
       if (!originPos || !destPos) continue;
 
+      const path = buildSunAvoidingLocalRouteMotionPath(
+        route.id,
+        originPos,
+        destPos,
+        { x: cx, y: cy },
+      );
+
       routeGraphics.beginPath();
-      routeGraphics.moveTo(originPos.x, originPos.y);
-      routeGraphics.lineTo(destPos.x, destPos.y);
+      routeGraphics.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) {
+        routeGraphics.lineTo(path[i].x, path[i].y);
+      }
       routeGraphics.strokePath();
     }
 
@@ -273,6 +336,17 @@ export class SystemMapScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
+    });
+
+    this.events.once("shutdown", () => {
+      gameStore.off("stateChanged", handleStateChanged);
+      this.localTrafficLayer?.destroy();
+      this.localTrafficLayer = null;
+    });
+    this.events.once("destroy", () => {
+      gameStore.off("stateChanged", handleStateChanged);
+      this.localTrafficLayer?.destroy();
+      this.localTrafficLayer = null;
     });
 
     // Draw concentric orbital rings
@@ -427,6 +501,188 @@ export class SystemMapScene extends Phaser.Scene {
       });
     }
   }
+}
+
+type LocalTrafficSprite =
+  | Phaser.GameObjects.Sprite
+  | Phaser.GameObjects.Image
+  | Phaser.GameObjects.Arc;
+
+type LocalMovable = {
+  x: number;
+  y: number;
+  active: boolean;
+  setPosition: (x: number, y: number) => unknown;
+  setRotation?: (r: number) => unknown;
+};
+
+interface LocalTrafficLayerHandle {
+  sprites: LocalTrafficSprite[];
+  tweens: Phaser.Tweens.Tween[];
+  destroy: () => void;
+}
+
+function getLocalRouteAssignments(
+  state: GameState,
+  systemId: string,
+): Array<{ route: ActiveRoute; assignedShips: Ship[]; visibleUnits: number }> {
+  const planetById = new Map(state.galaxy.planets.map((planet) => [planet.id, planet]));
+  const sources = [
+    { routes: state.activeRoutes, fleet: state.fleet },
+    ...state.aiCompanies.map((company) => ({
+      routes: company.activeRoutes,
+      fleet: company.fleet,
+    })),
+  ];
+
+  return sources.flatMap(({ routes, fleet }) => {
+    const fleetById = new Map(fleet.map((ship) => [ship.id, ship]));
+
+    return routes.flatMap((route) => {
+      const origin = planetById.get(route.originPlanetId);
+      const destination = planetById.get(route.destinationPlanetId);
+      if (!origin || !destination) return [];
+      if (origin.systemId !== systemId || destination.systemId !== systemId) return [];
+
+      const assignedShips = route.assignedShipIds.flatMap((shipId) => {
+        const ship = fleetById.get(shipId);
+        return ship ? [ship] : [];
+      });
+      if (assignedShips.length === 0) return [];
+
+      return [
+        {
+          route,
+          assignedShips,
+          visibleUnits: getVisibleRouteTrafficUnits(assignedShips.length),
+        },
+      ];
+    });
+  });
+}
+
+function createLocalRouteTrafficLayer(
+  scene: Phaser.Scene,
+  state: GameState,
+  systemId: string,
+  sun: { x: number; y: number },
+  planetPositions: Map<string, { x: number; y: number }>,
+): LocalTrafficLayerHandle {
+  const sprites: LocalTrafficSprite[] = [];
+  const tweens: Phaser.Tweens.Tween[] = [];
+
+  const createTrafficSprite = (
+    ship: Ship,
+    start: { x: number; y: number },
+    unitIndex: number,
+    visibleUnits: number,
+  ): LocalTrafficSprite => {
+    const shipTint = getShipColor(ship.class);
+    const mapSprKey = getShipMapKey(ship.class);
+    const mapAnimKey = getShipMapAnimKey(ship.class);
+    const shipIconKey = getShipIconKey(ship.class);
+
+    if (mapSprKey && mapAnimKey && scene.textures.exists(mapSprKey)) {
+      const sprite = scene.add
+        .sprite(start.x, start.y, mapSprKey, "1")
+        .setDisplaySize(24, 24)
+        .setTint(shipTint)
+        .setAlpha(Math.max(0.72, 0.92 - unitIndex * 0.04))
+        .setDepth(4 + unitIndex * 0.01);
+      sprite.play(mapAnimKey);
+      return sprite;
+    }
+
+    if (shipIconKey && scene.textures.exists(shipIconKey)) {
+      const size = 14 + Math.max(0, 3 - visibleUnits);
+      return scene.add
+        .image(start.x, start.y, shipIconKey)
+        .setDisplaySize(size, size)
+        .setTint(shipTint)
+        .setAlpha(Math.max(0.7, 0.88 - unitIndex * 0.05))
+        .setDepth(4 + unitIndex * 0.01);
+    }
+
+    return scene.add
+      .circle(start.x, start.y, 2.5, shipTint, 0.78)
+      .setDepth(4 + unitIndex * 0.01);
+  };
+
+  const animatePath = (
+    sprite: LocalTrafficSprite,
+    path: Array<{ x: number; y: number }>,
+    delayMs: number,
+  ): void => {
+    const loop = [...path, ...path.slice(0, -1).reverse()];
+    if (loop.length < 2) return;
+
+    let index = 0;
+    const step = (): void => {
+      if (!sprite.active) return;
+
+      const from = loop[index];
+      const to = loop[(index + 1) % loop.length];
+      const movable = sprite as unknown as LocalMovable;
+      movable.setPosition(from.x, from.y);
+      movable.setRotation?.(Math.atan2(to.y - from.y, to.x - from.x));
+
+      const distance = Math.hypot(to.x - from.x, to.y - from.y);
+      const tween = scene.tweens.add({
+        targets: sprite,
+        x: to.x,
+        y: to.y,
+        duration: Math.max(650, (distance / 80) * 1000),
+        ease: "Linear",
+        delay: index === 0 ? delayMs : 0,
+        onComplete: () => {
+          index = (index + 1) % loop.length;
+          step();
+        },
+      });
+      tweens.push(tween);
+    };
+
+    step();
+  };
+
+  for (const visual of getLocalRouteAssignments(state, systemId)) {
+    const origin = planetPositions.get(visual.route.originPlanetId);
+    const destination = planetPositions.get(visual.route.destinationPlanetId);
+    if (!origin || !destination) continue;
+
+    const path = buildSunAvoidingLocalRouteMotionPath(
+      visual.route.id,
+      origin,
+      destination,
+      sun,
+    ).map((point) => ({ x: point.x, y: point.y }));
+    if (path.length < 2) continue;
+
+    for (let unitIndex = 0; unitIndex < visual.visibleUnits; unitIndex++) {
+      const ship = visual.assignedShips[unitIndex % visual.assignedShips.length];
+      const sprite = createTrafficSprite(ship, path[0], unitIndex, visual.visibleUnits);
+      sprites.push(sprite);
+      animatePath(
+        sprite,
+        path,
+        Math.floor((unitIndex / visual.visibleUnits) * 1800),
+      );
+    }
+  }
+
+  return {
+    sprites,
+    tweens,
+    destroy: () => {
+      for (const tween of tweens) {
+        tween.remove();
+      }
+      for (const sprite of sprites) {
+        scene.tweens.killTweensOf(sprite);
+        sprite.destroy();
+      }
+    },
+  };
 }
 
 function getPlanetDiameter(planet: Planet): number {

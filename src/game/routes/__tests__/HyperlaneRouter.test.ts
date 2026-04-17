@@ -172,6 +172,13 @@ describe("HyperlaneRouter", () => {
       expect(dist).toBeCloseTo(5);
     });
 
+    it("keeps same-system routes valid without hyperlanes", () => {
+      const p1 = makePlanet("p1", "s1", 10, 20);
+      const p2 = makePlanet("p2", "s1", 20, 20);
+
+      expect(calculateHyperlaneDistance(p1, p2, systems, [], [])).toBe(10);
+    });
+
     it("returns hyperlane path distance for cross-system planets", () => {
       const p1 = makePlanet("p1", "A", 0, 0);
       const p2 = makePlanet("p2", "C", 10, 10);
