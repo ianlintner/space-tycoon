@@ -2,12 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   calculateDistance,
   calculateTripsPerTurn,
+  buildRouteTrafficVisuals,
   createRoute,
   assignShipToRoute,
   unassignShip,
   deleteRoute,
   estimateRouteRevenue,
   estimateRouteFuelCost,
+  getVisibleRouteTrafficUnits,
 } from "../RouteManager.ts";
 import { CargoType, PlanetType } from "../../../data/types.ts";
 import type {
@@ -291,6 +293,74 @@ describe("RouteManager", () => {
       expect(result.fleet.find((s) => s.id === "ship-2")!.assignedRouteId).toBe(
         "route-2",
       );
+    });
+  });
+
+  describe("buildRouteTrafficVisuals", () => {
+    it("returns no visuals for routes without assigned ships", () => {
+      const routes = [makeRoute({ assignedShipIds: [] })];
+
+      const visuals = buildRouteTrafficVisuals(routes, [], [makePlanet()], [], []);
+
+      expect(visuals).toEqual([]);
+    });
+
+    it("ignores orphaned assigned ship ids", () => {
+      const routes = [
+        makeRoute({ assignedShipIds: ["missing-ship", "ship-2"] }),
+      ];
+      const fleet = [makeShip({ id: "ship-2", class: "fastCourier" })];
+      const planets = [
+        makePlanet({ id: "planet-1", systemId: "system-1" }),
+        makePlanet({ id: "planet-2", systemId: "system-2" }),
+      ];
+
+      const visuals = buildRouteTrafficVisuals(routes, fleet, planets, [], []);
+
+      expect(visuals).toHaveLength(1);
+      expect(visuals[0].assignedShips.map((ship) => ship.id)).toEqual(["ship-2"]);
+      expect(visuals[0].visibleUnits).toBe(1);
+      expect(visuals[0].visualClassMix).toEqual(["fastCourier"]);
+      expect(visuals[0].pathSystemIds).toEqual(["system-1", "system-2"]);
+    });
+
+    it("increases visible units as assigned ship count grows", () => {
+      expect(getVisibleRouteTrafficUnits(1)).toBe(1);
+      expect(getVisibleRouteTrafficUnits(2)).toBe(2);
+      expect(getVisibleRouteTrafficUnits(3)).toBe(2);
+      expect(getVisibleRouteTrafficUnits(4)).toBe(3);
+      expect(getVisibleRouteTrafficUnits(6)).toBe(3);
+      expect(getVisibleRouteTrafficUnits(7)).toBe(4);
+    });
+
+    it("preserves stable ship ordering for class sampling", () => {
+      const route = makeRoute({
+        assignedShipIds: ["ship-3", "ship-1", "ship-2"],
+      });
+      const fleet = [
+        makeShip({ id: "ship-1", class: "cargoShuttle" }),
+        makeShip({ id: "ship-2", class: "megaHauler" }),
+        makeShip({ id: "ship-3", class: "fastCourier" }),
+      ];
+      const planets = [
+        makePlanet({ id: "planet-1", systemId: "system-1" }),
+        makePlanet({ id: "planet-2", systemId: "system-2" }),
+      ];
+
+      const visuals = buildRouteTrafficVisuals([route], fleet, planets, [], []);
+
+      expect(visuals).toHaveLength(1);
+      expect(visuals[0].assignedShips.map((ship) => ship.id)).toEqual([
+        "ship-3",
+        "ship-1",
+        "ship-2",
+      ]);
+      expect(visuals[0].visualClassMix).toEqual([
+        "fastCourier",
+        "cargoShuttle",
+        "megaHauler",
+      ]);
+      expect(visuals[0].visibleUnits).toBe(2);
     });
   });
 

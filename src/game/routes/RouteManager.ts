@@ -30,6 +30,7 @@ import {
 } from "../empire/EmpireAccessManager.ts";
 import {
   calculateHyperlaneDistance,
+  findPath,
   getReachableSystems,
 } from "./HyperlaneRouter.ts";
 
@@ -133,6 +134,81 @@ export function getUsedRouteSlots(state: GameState): number {
  */
 export function getFreeRouteSlots(state: GameState): number {
   return Math.max(0, getAvailableRouteSlots(state) - getUsedRouteSlots(state));
+}
+
+export interface RouteTrafficVisual {
+  routeId: string;
+  pathSystemIds: string[];
+  assignedShips: Ship[];
+  visibleUnits: number;
+  visualClassMix: ShipClass[];
+}
+
+export function getVisibleRouteTrafficUnits(assignedShipCount: number): number {
+  if (assignedShipCount <= 0) return 0;
+  if (assignedShipCount === 1) return 1;
+  if (assignedShipCount <= 3) return 2;
+  if (assignedShipCount <= 6) return 3;
+  return 4;
+}
+
+export function buildRouteTrafficVisuals(
+  routes: ActiveRoute[],
+  fleet: Ship[],
+  planets: Planet[],
+  hyperlanes: Hyperlane[],
+  borderPorts: BorderPort[],
+): RouteTrafficVisual[] {
+  const fleetById = new Map(fleet.map((ship) => [ship.id, ship]));
+  const planetSystemById = new Map(
+    planets.map((planet) => [planet.id, planet.systemId]),
+  );
+
+  return routes.flatMap((route) => {
+    if (route.assignedShipIds.length === 0) {
+      return [];
+    }
+
+    const assignedShips = route.assignedShipIds.flatMap((shipId) => {
+      const ship = fleetById.get(shipId);
+      return ship ? [ship] : [];
+    });
+
+    if (assignedShips.length === 0) {
+      return [];
+    }
+
+    const originSystemId = planetSystemById.get(route.originPlanetId);
+    const destinationSystemId = planetSystemById.get(route.destinationPlanetId);
+    if (!originSystemId || !destinationSystemId) {
+      return [];
+    }
+
+    const path = findPath(
+      originSystemId,
+      destinationSystemId,
+      hyperlanes,
+      borderPorts,
+    );
+    const pathSystemIds =
+      path && path.systems.length >= 2
+        ? path.systems
+        : [originSystemId, destinationSystemId];
+
+    if (pathSystemIds.length < 2) {
+      return [];
+    }
+
+    return [
+      {
+        routeId: route.id,
+        pathSystemIds,
+        assignedShips,
+        visibleUnits: getVisibleRouteTrafficUnits(assignedShips.length),
+        visualClassMix: assignedShips.map((ship) => ship.class),
+      },
+    ];
+  });
 }
 
 // ── Inter-Empire Cargo Lock Tracking ──────────────────────────────────

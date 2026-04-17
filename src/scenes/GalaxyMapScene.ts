@@ -12,7 +12,6 @@ import {
   getShipColor,
   getShipMapKey,
   getShipMapAnimKey,
-  SHIP_CLASS_LIST,
 } from "../ui/index.ts";
 import { drawEmpireBorders } from "../ui/EmpireBorders.ts";
 import {
@@ -24,16 +23,14 @@ import {
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { isEmpireAccessible } from "../game/empire/EmpireAccessManager.ts";
 import {
+  buildRouteTrafficVisuals,
   getAvailableRouteSlots,
   getUsedRouteSlots,
 } from "../game/routes/RouteManager.ts";
-import {
-  findPath,
-  getReachableSystems,
-} from "../game/routes/HyperlaneRouter.ts";
+import type { RouteTrafficVisual } from "../game/routes/RouteManager.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
-import type { Empire, GameState } from "../data/types.ts";
+import type { Empire, GameState, Ship } from "../data/types.ts";
 
 // ── Camera zoom / pan constants ─────────────────────────────────────────────
 
@@ -43,12 +40,32 @@ const ZOOM_STEP = 0.08;
 const DEFAULT_ZOOM = 0.55;
 const DRAG_THRESHOLD = 5; // px before a click becomes a drag
 
+type Waypoint = { x: number; y: number };
+type Movable = {
+  x: number;
+  y: number;
+  active: boolean;
+  setRotation: (r: number) => unknown;
+};
+
+type TrafficDisplayObject =
+  | Phaser.GameObjects.Sprite
+  | Phaser.GameObjects.Image
+  | Phaser.GameObjects.Arc;
+
+type TrafficLayerHandle = {
+  routeGraphics: Phaser.GameObjects.Graphics;
+  sprites: TrafficDisplayObject[];
+  timers: Phaser.Time.TimerEvent[];
+};
+
 export class GalaxyMapScene extends Phaser.Scene {
   private isDragging = false;
   private dragStartX = 0;
   private dragStartY = 0;
   private camStartX = 0;
   private camStartY = 0;
+  private routeTrafficLayer: TrafficLayerHandle | null = null;
 
   constructor() {
     super({ key: "GalaxyMapScene" });
@@ -59,8 +76,6 @@ export class GalaxyMapScene extends Phaser.Scene {
     const theme = getTheme();
     const state = gameStore.getState();
     const { systems, planets, empires } = state.galaxy;
-    const routes = state.activeRoutes;
-
     // ── World extents (from galaxy data) ──
     let wMinX = Infinity;
     let wMaxX = -Infinity;
@@ -325,13 +340,6 @@ export class GalaxyMapScene extends Phaser.Scene {
     // Animates a sprite through a sequence of waypoints at a fixed cruising
     // speed (pixels/second). Each segment uses a linear tween and chains into
     // the next on completion, so ships follow the hyperlane network exactly.
-    type Waypoint = { x: number; y: number };
-    type Movable = {
-      x: number;
-      y: number;
-      active: boolean;
-      setRotation: (r: number) => unknown;
-    };
     const tweenAlongPath = (
       sprite: Movable,
       waypoints: Waypoint[],
@@ -380,258 +388,168 @@ export class GalaxyMapScene extends Phaser.Scene {
       return wps;
     };
 
-    // ── Active route lines + ship sprites (follow hyperlane paths) ──────────
-    const routeGraphics = this.add.graphics();
-    routeGraphics.lineStyle(1, theme.colors.accent, 0.4);
-    const { fleet } = state;
-    for (const route of routes) {
-      const originSysId = planetSystemMap.get(route.originPlanetId);
-      const destSysId = planetSystemMap.get(route.destinationPlanetId);
-      if (!originSysId || !destSysId) continue;
-      const originSys = systemMap.get(originSysId);
-      const destSys = systemMap.get(destSysId);
-      if (!originSys || !destSys) continue;
-
-      // Find hyperlane path between endpoints. If no path exists (e.g. a
-      // closed border port blocks the only route), fall back to a straight
-      // two-point waypoint list so the ship still animates.
-      const path = findPath(originSysId, destSysId, hyperlanes, borderPorts);
-      const forwardSystemIds =
-        path && path.systems.length >= 2
-          ? path.systems
-          : [originSysId, destSysId];
-      const forwardWaypoints = systemsToWaypoints(forwardSystemIds);
-      const reverseWaypoints = [...forwardWaypoints].reverse();
-      if (forwardWaypoints.length < 2) continue;
-
-      // Faint overlay line showing each hyperlane segment this route uses
-      // (makes the actual travel path visible to the player).
-      routeGraphics.lineStyle(1.5, theme.colors.accent, 0.55);
-      routeGraphics.beginPath();
-      routeGraphics.moveTo(forwardWaypoints[0].x, forwardWaypoints[0].y);
-      for (let i = 1; i < forwardWaypoints.length; i++) {
-        routeGraphics.lineTo(forwardWaypoints[i].x, forwardWaypoints[i].y);
-      }
-      routeGraphics.strokePath();
-
-      // Determine ship class for sprite — use first assigned ship
-      const firstShipId = route.assignedShipIds[0];
-      const firstShip = firstShipId
-        ? fleet.find((s) => s.id === firstShipId)
-        : undefined;
-      const shipIconKey = firstShip
-        ? getShipIconKey(firstShip.class)
-        : undefined;
-      const shipTint = firstShip
-        ? getShipColor(firstShip.class)
-        : theme.colors.accent;
-      const mapSprKey = firstShip ? getShipMapKey(firstShip.class) : undefined;
-      const mapAnimKey = firstShip
-        ? getShipMapAnimKey(firstShip.class)
-        : undefined;
-
-      const startWp = forwardWaypoints[0];
-
-      // Patrol pattern: forward → pause → reverse → pause → repeat. Each
-      // traversal follows the hyperlane path exactly.
-      const makePatrol = (
-        sprite: Movable,
-        displayShipSprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image,
-      ) => {
-        const patrol = (forward: boolean): void => {
-          if (!displayShipSprite.active) return;
-          const wps = forward ? forwardWaypoints : reverseWaypoints;
-          // Snap to starting waypoint so we don't drift after reverse
-          displayShipSprite.setPosition(wps[0].x, wps[0].y);
-          tweenAlongPath(sprite, wps, 90, () => {
-            if (!displayShipSprite.active) return;
-            this.time.delayedCall(
-              600 + Math.random() * 1400,
-              () => patrol(!forward),
-            );
-          });
-        };
-        this.time.delayedCall(Math.random() * 2500, () => patrol(true));
-      };
+    const createTrafficSprite = (
+      ship: Ship,
+      startWp: Waypoint,
+      unitIndex: number,
+      visibleUnits: number,
+    ): TrafficDisplayObject => {
+      const shipIconKey = getShipIconKey(ship.class);
+      const shipTint = getShipColor(ship.class);
+      const mapSprKey = getShipMapKey(ship.class);
+      const mapAnimKey = getShipMapAnimKey(ship.class);
 
       if (mapSprKey && mapAnimKey && this.textures.exists(mapSprKey)) {
-        // Animated 48×48 sprite displayed at 28×28 with engine-glow frames
         const shipSprite = this.add
           .sprite(startWp.x, startWp.y, mapSprKey, "1")
           .setDisplaySize(28, 28)
           .setTint(shipTint)
-          .setAlpha(0.9)
-          .setDepth(5);
+          .setAlpha(Math.max(0.72, 0.92 - unitIndex * 0.04))
+          .setDepth(5 + unitIndex * 0.01);
         shipSprite.play(mapAnimKey);
-        makePatrol(shipSprite as unknown as Movable, shipSprite);
-      } else if (shipIconKey && this.textures.exists(shipIconKey)) {
-        // Fallback: small icon image
-        const shipSprite = this.add
+        return shipSprite;
+      }
+
+      if (shipIconKey && this.textures.exists(shipIconKey)) {
+        const size = 16 + Math.max(0, 3 - visibleUnits);
+        return this.add
           .image(startWp.x, startWp.y, shipIconKey)
-          .setDisplaySize(16, 16)
+          .setDisplaySize(size, size)
           .setTint(shipTint)
-          .setAlpha(0.85);
-        makePatrol(shipSprite as unknown as Movable, shipSprite);
-      } else {
-        // Fallback circle pip for routes without assigned ships
-        const pip = this.add.circle(
-          startWp.x,
-          startWp.y,
-          2,
-          theme.colors.accent,
-          0.7,
-        );
-        // Pip doesn't rotate but we still follow the path
-        const pipMovable: Movable = {
-          get x() {
-            return pip.x;
-          },
-          set x(v: number) {
-            pip.x = v;
-          },
-          get y() {
-            return pip.y;
-          },
-          set y(v: number) {
-            pip.y = v;
-          },
-          get active() {
-            return pip.active;
-          },
-          setRotation: () => undefined,
-        };
+          .setAlpha(Math.max(0.7, 0.88 - unitIndex * 0.05))
+          .setDepth(5 + unitIndex * 0.01);
+      }
+
+      return this.add
+        .circle(startWp.x, startWp.y, 2, shipTint, 0.75)
+        .setDepth(5 + unitIndex * 0.01);
+    };
+
+    const createRouteTrafficLayer = (
+      trafficVisuals: RouteTrafficVisual[],
+    ): TrafficLayerHandle => {
+      const routeGraphics = this.add.graphics().setDepth(3);
+      const sprites: TrafficDisplayObject[] = [];
+      const timers: Phaser.Time.TimerEvent[] = [];
+
+      const schedule = (delay: number, callback: () => void): void => {
+        timers.push(this.time.delayedCall(delay, callback));
+      };
+
+      const makePatrol = (
+        sprite: TrafficDisplayObject,
+        forwardWaypoints: Waypoint[],
+        reverseWaypoints: Waypoint[],
+        initialForward: boolean,
+        initialDelay: number,
+      ): void => {
+        const movable = sprite as unknown as Movable;
         const patrol = (forward: boolean): void => {
-          if (!pip.active) return;
+          if (!sprite.active) return;
           const wps = forward ? forwardWaypoints : reverseWaypoints;
-          pip.setPosition(wps[0].x, wps[0].y);
-          tweenAlongPath(pipMovable, wps, 90, () => {
-            if (!pip.active) return;
-            this.time.delayedCall(
-              600 + Math.random() * 1400,
-              () => patrol(!forward),
-            );
+          sprite.setPosition(wps[0].x, wps[0].y);
+          tweenAlongPath(movable, wps, 90, () => {
+            if (!sprite.active) return;
+            schedule(900, () => patrol(!forward));
           });
         };
-        this.time.delayedCall(Math.random() * 2500, () => patrol(true));
-      }
-    }
 
-    this.tweens.add({
-      targets: routeGraphics,
-      alpha: {
-        from: theme.ambient.routePulseAlphaMin,
-        to: theme.ambient.routePulseAlphaMax,
-      },
-      duration: theme.ambient.routePulseDuration,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
+        schedule(initialDelay, () => patrol(initialForward));
+      };
 
-    // ── Ambient wandering fleet ships (follow hyperlane paths) ──────────────
-    // Up to 5 ships pick random accessible star systems and cruise between
-    // them along the actual hyperlane network, observing "galactic traffic
-    // laws" — no more going wherever they please.
-    const accessibleSystems = systems.filter(
-      (s) => empireAccessible.get(s.empireId) ?? false,
-    );
-    const accessibleIdSet = new Set(accessibleSystems.map((s) => s.id));
-    if (accessibleSystems.length >= 2 && hyperlanes.length > 0) {
-      const WANDERER_COUNT = Math.min(
-        5,
-        Math.floor(accessibleSystems.length / 3) + 1,
-      );
-      for (let wi = 0; wi < WANDERER_COUNT; wi++) {
-        const cls =
-          SHIP_CLASS_LIST[Math.floor(Math.random() * SHIP_CLASS_LIST.length)];
-        const mapKey = getShipMapKey(cls);
-        const mapAnimKey = getShipMapAnimKey(cls);
-        if (!this.textures.exists(mapKey)) continue;
+      for (const visual of trafficVisuals) {
+        const forwardWaypoints = systemsToWaypoints(visual.pathSystemIds);
+        const reverseWaypoints = [...forwardWaypoints].reverse();
+        if (forwardWaypoints.length < 2) continue;
 
-        // Pick a starting system that has at least one reachable neighbor
-        let startSys = accessibleSystems[
-          Math.floor(Math.random() * accessibleSystems.length)
-        ];
-        let reachable = getReachableSystems(
-          startSys.id,
-          hyperlanes,
-          borderPorts,
-        );
-        let attempts = 0;
-        while (
-          attempts < 8 &&
-          ![...reachable].some(
-            (sid) => accessibleIdSet.has(sid) && sid !== startSys.id,
-          )
-        ) {
-          startSys =
-            accessibleSystems[Math.floor(Math.random() * accessibleSystems.length)];
-          reachable = getReachableSystems(
-            startSys.id,
-            hyperlanes,
-            borderPorts,
-          );
-          attempts++;
+        routeGraphics.lineStyle(1.5, theme.colors.accent, 0.55);
+        routeGraphics.beginPath();
+        routeGraphics.moveTo(forwardWaypoints[0].x, forwardWaypoints[0].y);
+        for (let i = 1; i < forwardWaypoints.length; i++) {
+          routeGraphics.lineTo(forwardWaypoints[i].x, forwardWaypoints[i].y);
         }
+        routeGraphics.strokePath();
 
-        const tint = getShipColor(cls);
-        const wanderer = this.add
-          .sprite(startSys.x, startSys.y + L.contentTop, mapKey, "0")
-          .setDisplaySize(24, 24)
-          .setTint(tint)
-          .setAlpha(0.55)
-          .setDepth(4);
-        wanderer.play(mapAnimKey);
-
-        let currentSysId = startSys.id;
-
-        const doWander = (): void => {
-          if (!wanderer.active) return;
-          // Find systems reachable from our current position via open lanes
-          const reachHere = getReachableSystems(
-            currentSysId,
-            hyperlanes,
-            borderPorts,
+        const startWp = forwardWaypoints[0];
+        for (let unitIndex = 0; unitIndex < visual.visibleUnits; unitIndex++) {
+          const ship = visual.assignedShips[unitIndex % visual.assignedShips.length];
+          const sprite = createTrafficSprite(
+            ship,
+            startWp,
+            unitIndex,
+            visual.visibleUnits,
           );
-          const validTargets = [...reachHere].filter(
-            (sid) => accessibleIdSet.has(sid) && sid !== currentSysId,
-          );
-          if (validTargets.length === 0) {
-            // Stranded — try again in a few seconds
-            this.time.delayedCall(3000, doWander);
-            return;
-          }
-          const targetSysId =
-            validTargets[Math.floor(Math.random() * validTargets.length)];
-          const path = findPath(
-            currentSysId,
-            targetSysId,
-            hyperlanes,
-            borderPorts,
-          );
-          if (!path || path.systems.length < 2) {
-            this.time.delayedCall(2000, doWander);
-            return;
-          }
-          const waypoints = systemsToWaypoints(path.systems);
-          if (waypoints.length < 2) {
-            this.time.delayedCall(2000, doWander);
-            return;
-          }
-          // Snap to first waypoint (should already be there)
-          wanderer.setPosition(waypoints[0].x, waypoints[0].y);
-          tweenAlongPath(wanderer as unknown as Movable, waypoints, 80, () => {
-            if (!wanderer.active) return;
-            currentSysId = targetSysId;
-            // Brief dock pause, then pick a new destination
-            this.time.delayedCall(1500 + Math.random() * 3000, doWander);
-          });
-        };
+          sprites.push(sprite);
 
-        // Stagger each wanderer's initial departure
-        this.time.delayedCall(wi * 1500 + Math.random() * 3000, doWander);
+          const phaseDelay = Math.floor((unitIndex / visual.visibleUnits) * 2200);
+          makePatrol(
+            sprite,
+            forwardWaypoints,
+            reverseWaypoints,
+            unitIndex % 2 === 0,
+            phaseDelay,
+          );
+        }
       }
-    }
+
+      this.tweens.add({
+        targets: routeGraphics,
+        alpha: {
+          from: theme.ambient.routePulseAlphaMin,
+          to: theme.ambient.routePulseAlphaMax,
+        },
+        duration: theme.ambient.routePulseDuration,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+
+      return { routeGraphics, sprites, timers };
+    };
+
+    const destroyRouteTrafficLayer = (): void => {
+      if (!this.routeTrafficLayer) return;
+
+      for (const timer of this.routeTrafficLayer.timers) {
+        timer.remove(false);
+      }
+      this.tweens.killTweensOf(this.routeTrafficLayer.routeGraphics);
+      this.routeTrafficLayer.routeGraphics.destroy();
+
+      for (const sprite of this.routeTrafficLayer.sprites) {
+        this.tweens.killTweensOf(sprite);
+        sprite.destroy();
+      }
+
+      this.routeTrafficLayer = null;
+    };
+
+    const refreshRouteTrafficLayer = (currentState: GameState): void => {
+      destroyRouteTrafficLayer();
+      const trafficVisuals = buildRouteTrafficVisuals(
+        currentState.activeRoutes,
+        currentState.fleet,
+        currentState.galaxy.planets,
+        currentState.hyperlanes ?? [],
+        currentState.borderPorts ?? [],
+      );
+      this.routeTrafficLayer = createRouteTrafficLayer(trafficVisuals);
+    };
+
+    refreshRouteTrafficLayer(state);
+
+    const handleStateChanged = (nextState: unknown): void => {
+      refreshRouteTrafficLayer(nextState as GameState);
+    };
+    gameStore.on("stateChanged", handleStateChanged);
+    this.events.once("shutdown", () => {
+      gameStore.off("stateChanged", handleStateChanged);
+      destroyRouteTrafficLayer();
+    });
+    this.events.once("destroy", () => {
+      gameStore.off("stateChanged", handleStateChanged);
+      destroyRouteTrafficLayer();
+    });
 
     // ── Star systems ──
     const planetCountsBySystem = new Map<string, number>();
