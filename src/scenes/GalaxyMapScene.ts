@@ -27,6 +27,10 @@ import {
   getAvailableRouteSlots,
   getUsedRouteSlots,
 } from "../game/routes/RouteManager.ts";
+import {
+  findPath,
+  getReachableSystems,
+} from "../game/routes/HyperlaneRouter.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
 import type { Empire, GameState } from "../data/types.ts";
@@ -317,7 +321,66 @@ export class GalaxyMapScene extends Phaser.Scene {
       }
     }
 
-    // ── Active route lines + ship sprites ──
+    // ── Hyperlane-following ship movement helper ─────────────────────────────
+    // Animates a sprite through a sequence of waypoints at a fixed cruising
+    // speed (pixels/second). Each segment uses a linear tween and chains into
+    // the next on completion, so ships follow the hyperlane network exactly.
+    type Waypoint = { x: number; y: number };
+    type Movable = {
+      x: number;
+      y: number;
+      active: boolean;
+      setRotation: (r: number) => unknown;
+    };
+    const tweenAlongPath = (
+      sprite: Movable,
+      waypoints: Waypoint[],
+      speedPxPerSec: number,
+      onComplete: () => void,
+    ): void => {
+      if (!sprite.active || waypoints.length < 2) {
+        onComplete();
+        return;
+      }
+      let idx = 0;
+      const step = () => {
+        if (!sprite.active) return;
+        if (idx >= waypoints.length - 1) {
+          onComplete();
+          return;
+        }
+        const from = waypoints[idx];
+        const to = waypoints[idx + 1];
+        const a = Math.atan2(to.y - from.y, to.x - from.x);
+        sprite.setRotation(a);
+        const dist = Math.hypot(to.x - from.x, to.y - from.y);
+        const dur = Math.max(500, (dist / speedPxPerSec) * 1000);
+        this.tweens.add({
+          targets: sprite,
+          x: to.x,
+          y: to.y,
+          duration: dur,
+          ease: "Linear",
+          onComplete: () => {
+            idx++;
+            step();
+          },
+        });
+      };
+      step();
+    };
+
+    /** Convert a list of system IDs into world-space waypoints. */
+    const systemsToWaypoints = (systemIds: string[]): Waypoint[] => {
+      const wps: Waypoint[] = [];
+      for (const sid of systemIds) {
+        const s = systemMap.get(sid);
+        if (s) wps.push({ x: s.x, y: s.y + L.contentTop });
+      }
+      return wps;
+    };
+
+    // ── Active route lines + ship sprites (follow hyperlane paths) ──────────
     const routeGraphics = this.add.graphics();
     routeGraphics.lineStyle(1, theme.colors.accent, 0.4);
     const { fleet } = state;
@@ -329,12 +392,29 @@ export class GalaxyMapScene extends Phaser.Scene {
       const destSys = systemMap.get(destSysId);
       if (!originSys || !destSys) continue;
 
+      // Find hyperlane path between endpoints. If no path exists (e.g. a
+      // closed border port blocks the only route), fall back to a straight
+      // two-point waypoint list so the ship still animates.
+      const path = findPath(originSysId, destSysId, hyperlanes, borderPorts);
+      const forwardSystemIds =
+        path && path.systems.length >= 2
+          ? path.systems
+          : [originSysId, destSysId];
+      const forwardWaypoints = systemsToWaypoints(forwardSystemIds);
+      const reverseWaypoints = [...forwardWaypoints].reverse();
+      if (forwardWaypoints.length < 2) continue;
+
+      // Faint overlay line showing each hyperlane segment this route uses
+      // (makes the actual travel path visible to the player).
+      routeGraphics.lineStyle(1.5, theme.colors.accent, 0.55);
       routeGraphics.beginPath();
-      routeGraphics.moveTo(originSys.x, originSys.y + L.contentTop);
-      routeGraphics.lineTo(destSys.x, destSys.y + L.contentTop);
+      routeGraphics.moveTo(forwardWaypoints[0].x, forwardWaypoints[0].y);
+      for (let i = 1; i < forwardWaypoints.length; i++) {
+        routeGraphics.lineTo(forwardWaypoints[i].x, forwardWaypoints[i].y);
+      }
       routeGraphics.strokePath();
 
-      // Determine ship class for icon — use first assigned ship, fallback to pip
+      // Determine ship class for sprite — use first assigned ship
       const firstShipId = route.assignedShipIds[0];
       const firstShip = firstShipId
         ? fleet.find((s) => s.id === firstShipId)
@@ -345,84 +425,94 @@ export class GalaxyMapScene extends Phaser.Scene {
       const shipTint = firstShip
         ? getShipColor(firstShip.class)
         : theme.colors.accent;
-
-      const ox = originSys.x;
-      const oy = originSys.y + L.contentTop;
-      const dx = destSys.x;
-      const dy = destSys.y + L.contentTop;
-
-      // Calculate angle from origin to destination for rotation
-      const angle = Math.atan2(dy - oy, dx - ox);
-
-      // Prefer the large animated map sprite; fall back to small icon if unavailable
       const mapSprKey = firstShip ? getShipMapKey(firstShip.class) : undefined;
-      const mapAnimKey = firstShip ? getShipMapAnimKey(firstShip.class) : undefined;
+      const mapAnimKey = firstShip
+        ? getShipMapAnimKey(firstShip.class)
+        : undefined;
+
+      const startWp = forwardWaypoints[0];
+
+      // Patrol pattern: forward → pause → reverse → pause → repeat. Each
+      // traversal follows the hyperlane path exactly.
+      const makePatrol = (
+        sprite: Movable,
+        displayShipSprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image,
+      ) => {
+        const patrol = (forward: boolean): void => {
+          if (!displayShipSprite.active) return;
+          const wps = forward ? forwardWaypoints : reverseWaypoints;
+          // Snap to starting waypoint so we don't drift after reverse
+          displayShipSprite.setPosition(wps[0].x, wps[0].y);
+          tweenAlongPath(sprite, wps, 90, () => {
+            if (!displayShipSprite.active) return;
+            this.time.delayedCall(
+              600 + Math.random() * 1400,
+              () => patrol(!forward),
+            );
+          });
+        };
+        this.time.delayedCall(Math.random() * 2500, () => patrol(true));
+      };
 
       if (mapSprKey && mapAnimKey && this.textures.exists(mapSprKey)) {
         // Animated 48×48 sprite displayed at 28×28 with engine-glow frames
         const shipSprite = this.add
-          .sprite(ox, oy, mapSprKey, "1")
+          .sprite(startWp.x, startWp.y, mapSprKey, "1")
           .setDisplaySize(28, 28)
           .setTint(shipTint)
           .setAlpha(0.9)
-          .setRotation(angle)
           .setDepth(5);
         shipSprite.play(mapAnimKey);
-
-        this.tweens.add({
-          targets: shipSprite,
-          x: dx,
-          y: dy,
-          duration: theme.ambient.routeFlowDuration,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut",
-          delay: Math.random() * theme.ambient.routeFlowDuration,
-          onYoyo: () => {
-            shipSprite.setRotation(angle + Math.PI);
-          },
-          onRepeat: () => {
-            shipSprite.setRotation(angle);
-          },
-        });
+        makePatrol(shipSprite as unknown as Movable, shipSprite);
       } else if (shipIconKey && this.textures.exists(shipIconKey)) {
-        // Fallback: small 24×24 icon image
+        // Fallback: small icon image
         const shipSprite = this.add
-          .image(ox, oy, shipIconKey)
+          .image(startWp.x, startWp.y, shipIconKey)
           .setDisplaySize(16, 16)
           .setTint(shipTint)
-          .setAlpha(0.85)
-          .setRotation(angle);
-
-        this.tweens.add({
-          targets: shipSprite,
-          x: dx,
-          y: dy,
-          duration: theme.ambient.routeFlowDuration,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut",
-          delay: Math.random() * theme.ambient.routeFlowDuration,
-          onYoyo: () => {
-            shipSprite.setRotation(angle + Math.PI);
-          },
-          onRepeat: () => {
-            shipSprite.setRotation(angle);
-          },
-        });
+          .setAlpha(0.85);
+        makePatrol(shipSprite as unknown as Movable, shipSprite);
       } else {
         // Fallback circle pip for routes without assigned ships
-        const pip = this.add.circle(ox, oy, 2, theme.colors.accent, 0.7);
-        this.tweens.add({
-          targets: pip,
-          x: dx,
-          y: dy,
-          duration: theme.ambient.routeFlowDuration,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.easeInOut",
-          delay: Math.random() * theme.ambient.routeFlowDuration,
-        });
+        const pip = this.add.circle(
+          startWp.x,
+          startWp.y,
+          2,
+          theme.colors.accent,
+          0.7,
+        );
+        // Pip doesn't rotate but we still follow the path
+        const pipMovable: Movable = {
+          get x() {
+            return pip.x;
+          },
+          set x(v: number) {
+            pip.x = v;
+          },
+          get y() {
+            return pip.y;
+          },
+          set y(v: number) {
+            pip.y = v;
+          },
+          get active() {
+            return pip.active;
+          },
+          setRotation: () => undefined,
+        };
+        const patrol = (forward: boolean): void => {
+          if (!pip.active) return;
+          const wps = forward ? forwardWaypoints : reverseWaypoints;
+          pip.setPosition(wps[0].x, wps[0].y);
+          tweenAlongPath(pipMovable, wps, 90, () => {
+            if (!pip.active) return;
+            this.time.delayedCall(
+              600 + Math.random() * 1400,
+              () => patrol(!forward),
+            );
+          });
+        };
+        this.time.delayedCall(Math.random() * 2500, () => patrol(true));
       }
     }
 
@@ -438,14 +528,19 @@ export class GalaxyMapScene extends Phaser.Scene {
       ease: "Sine.easeInOut",
     });
 
-    // ── Ambient wandering fleet ships ──
-    // Up to 5 ships pick random accessible star systems and drift between them
-    // even when there are no active player routes — brings the galaxy to life.
+    // ── Ambient wandering fleet ships (follow hyperlane paths) ──────────────
+    // Up to 5 ships pick random accessible star systems and cruise between
+    // them along the actual hyperlane network, observing "galactic traffic
+    // laws" — no more going wherever they please.
     const accessibleSystems = systems.filter(
       (s) => empireAccessible.get(s.empireId) ?? false,
     );
-    if (accessibleSystems.length >= 2) {
-      const WANDERER_COUNT = Math.min(5, Math.floor(accessibleSystems.length / 3) + 1);
+    const accessibleIdSet = new Set(accessibleSystems.map((s) => s.id));
+    if (accessibleSystems.length >= 2 && hyperlanes.length > 0) {
+      const WANDERER_COUNT = Math.min(
+        5,
+        Math.floor(accessibleSystems.length / 3) + 1,
+      );
       for (let wi = 0; wi < WANDERER_COUNT; wi++) {
         const cls =
           SHIP_CLASS_LIST[Math.floor(Math.random() * SHIP_CLASS_LIST.length)];
@@ -453,57 +548,88 @@ export class GalaxyMapScene extends Phaser.Scene {
         const mapAnimKey = getShipMapAnimKey(cls);
         if (!this.textures.exists(mapKey)) continue;
 
-        const startSys =
-          accessibleSystems[Math.floor(Math.random() * accessibleSystems.length)];
-        const tint = getShipColor(cls);
+        // Pick a starting system that has at least one reachable neighbor
+        let startSys = accessibleSystems[
+          Math.floor(Math.random() * accessibleSystems.length)
+        ];
+        let reachable = getReachableSystems(
+          startSys.id,
+          hyperlanes,
+          borderPorts,
+        );
+        let attempts = 0;
+        while (
+          attempts < 8 &&
+          ![...reachable].some(
+            (sid) => accessibleIdSet.has(sid) && sid !== startSys.id,
+          )
+        ) {
+          startSys =
+            accessibleSystems[Math.floor(Math.random() * accessibleSystems.length)];
+          reachable = getReachableSystems(
+            startSys.id,
+            hyperlanes,
+            borderPorts,
+          );
+          attempts++;
+        }
 
+        const tint = getShipColor(cls);
         const wanderer = this.add
           .sprite(startSys.x, startSys.y + L.contentTop, mapKey, "0")
           .setDisplaySize(24, 24)
           .setTint(tint)
-          .setAlpha(0.5)
+          .setAlpha(0.55)
           .setDepth(4);
         wanderer.play(mapAnimKey);
 
-        const doWander = () => {
+        let currentSysId = startSys.id;
+
+        const doWander = (): void => {
           if (!wanderer.active) return;
-          // Pick a random target system sufficiently far from current position
-          let nextSys =
-            accessibleSystems[Math.floor(Math.random() * accessibleSystems.length)];
-          let tries = 0;
-          while (
-            tries < 10 &&
-            Math.hypot(
-              nextSys.x - wanderer.x,
-              nextSys.y + L.contentTop - wanderer.y,
-            ) < 80
-          ) {
-            nextSys =
-              accessibleSystems[Math.floor(Math.random() * accessibleSystems.length)];
-            tries++;
+          // Find systems reachable from our current position via open lanes
+          const reachHere = getReachableSystems(
+            currentSysId,
+            hyperlanes,
+            borderPorts,
+          );
+          const validTargets = [...reachHere].filter(
+            (sid) => accessibleIdSet.has(sid) && sid !== currentSysId,
+          );
+          if (validTargets.length === 0) {
+            // Stranded — try again in a few seconds
+            this.time.delayedCall(3000, doWander);
+            return;
           }
-          const tx = nextSys.x;
-          const ty = nextSys.y + L.contentTop;
-          const wAngle = Math.atan2(ty - wanderer.y, tx - wanderer.x);
-          wanderer.setRotation(wAngle);
-          const dist = Math.hypot(tx - wanderer.x, ty - wanderer.y);
-          // ~80 pixels/second average cruising speed
-          const dur = Math.max(2500, (dist / 80) * 1000);
-          this.tweens.add({
-            targets: wanderer,
-            x: tx,
-            y: ty,
-            duration: dur,
-            ease: "Linear",
-            onComplete: () => {
-              // Brief pause at destination, then pick a new target
-              this.time.delayedCall(1000 + Math.random() * 3000, doWander);
-            },
+          const targetSysId =
+            validTargets[Math.floor(Math.random() * validTargets.length)];
+          const path = findPath(
+            currentSysId,
+            targetSysId,
+            hyperlanes,
+            borderPorts,
+          );
+          if (!path || path.systems.length < 2) {
+            this.time.delayedCall(2000, doWander);
+            return;
+          }
+          const waypoints = systemsToWaypoints(path.systems);
+          if (waypoints.length < 2) {
+            this.time.delayedCall(2000, doWander);
+            return;
+          }
+          // Snap to first waypoint (should already be there)
+          wanderer.setPosition(waypoints[0].x, waypoints[0].y);
+          tweenAlongPath(wanderer as unknown as Movable, waypoints, 80, () => {
+            if (!wanderer.active) return;
+            currentSysId = targetSysId;
+            // Brief dock pause, then pick a new destination
+            this.time.delayedCall(1500 + Math.random() * 3000, doWander);
           });
         };
 
         // Stagger each wanderer's initial departure
-        this.time.delayedCall(wi * 1200 + Math.random() * 3000, doWander);
+        this.time.delayedCall(wi * 1500 + Math.random() * 3000, doWander);
       }
     }
 
