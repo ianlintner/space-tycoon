@@ -210,39 +210,47 @@ interface ExternalBgmTrack {
   label: string;
 }
 
+/**
+ * Base URL for audio assets.
+ *
+ * In production, set the VITE_AUDIO_BASE_URL environment variable to the
+ * Azure Blob Storage / CDN origin (no trailing slash), e.g.:
+ *   https://catherding.blob.core.windows.net/audio
+ *   https://cdn.cat-herding.net/audio
+ *
+ * In local dev (VITE_AUDIO_BASE_URL unset), audio is served from the Vite
+ * dev server relative to the page — public/concepts/audio/*.mp3.
+ *
+ * The env var is injected at build time by Vite (import.meta.env).
+ */
+const AUDIO_BASE_URL: string = (() => {
+  // VITE_AUDIO_BASE_URL is injected at build time by Vite.
+  // Set it to the Azure Blob / CDN origin in production, e.g.:
+  //   https://catherding.blob.core.windows.net/audio
+  //   https://cdn.cat-herding.net/audio
+  // Leave unset for local dev — falls back to same-origin /concepts/audio.
+  const envUrl = import.meta.env.VITE_AUDIO_BASE_URL as string | undefined;
+  if (envUrl && envUrl.trim() !== "") {
+    return envUrl.replace(/\/$/, ""); // strip trailing slash
+  }
+  // Local dev / same-origin fallback
+  return `${location.origin}/concepts/audio`;
+})();
+
+/** Build a full URL for an audio filename. */
+function audioUrl(filename: string): string {
+  return `${AUDIO_BASE_URL}/${filename}`;
+}
+
 const EXTERNAL_BGM_PLAYLIST: ExternalBgmTrack[] = [
-  {
-    url: "/concepts/audio/Beyond_the_Gateway.mp3",
-    label: "Beyond the Gateway",
-  },
-  {
-    url: "/concepts/audio/Coffee_in_the_Airlock.mp3",
-    label: "Coffee in the Airlock",
-  },
-  {
-    url: "/concepts/audio/Porchlight_in_the_Nebula.mp3",
-    label: "Porchlight in the Nebula",
-  },
-  {
-    url: "/concepts/audio/approachingparsecseven.mp3",
-    label: "Approaching Parsec Seven",
-  },
-  {
-    url: "/concepts/audio/Terminal_Sunrise.mp3",
-    label: "Terminal Sunrise",
-  },
-  {
-    url: "/concepts/audio/highscore.mp3",
-    label: "High Score",
-  },
-  {
-    url: "/concepts/audio/holdingorbit.mp3",
-    label: "Holding Orbit",
-  },
-  {
-    url: "/concepts/audio/lastport.mp3",
-    label: "Last Port",
-  },
+  { url: audioUrl("Beyond_the_Gateway.mp3"),        label: "Beyond the Gateway" },
+  { url: audioUrl("Coffee_in_the_Airlock.mp3"),      label: "Coffee in the Airlock" },
+  { url: audioUrl("Porchlight_in_the_Nebula.mp3"),   label: "Porchlight in the Nebula" },
+  { url: audioUrl("approachingparsecseven.mp3"),     label: "Approaching Parsec Seven" },
+  { url: audioUrl("Terminal_Sunrise.mp3"),           label: "Terminal Sunrise" },
+  { url: audioUrl("highscore.mp3"),                  label: "High Score" },
+  { url: audioUrl("holdingorbit.mp3"),               label: "Holding Orbit" },
+  { url: audioUrl("lastport.mp3"),                   label: "Last Port" },
 ];
 
 /** Fisher-Yates shuffle (in-place). */

@@ -2,7 +2,10 @@ import { defineConfig } from "vite";
 import path from "path";
 
 export default defineConfig({
-  base: "./",
+  // "/" = absolute paths; required for Azure Static Web Apps custom domain.
+  // Local dev and GitHub Pages previously used "./" (relative) but SWA at
+  // the domain root needs absolute so asset paths resolve correctly.
+  base: "/",
   resolve: {
     alias: {
       "@spacebiz/ui": path.resolve(
