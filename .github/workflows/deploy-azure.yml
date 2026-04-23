@@ -52,9 +52,11 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: "/"          # repo root (source)
-          output_location: "dist"    # Vite build output
-          skip_app_build: true       # we already built above
+          # Point directly at the pre-built dist/ folder.
+          # output_location must be empty string when app_location IS the output.
+          app_location: "dist"
+          output_location: ""
+          skip_app_build: true
 
   # Close pull-request preview environments
   close-pr-preview:
