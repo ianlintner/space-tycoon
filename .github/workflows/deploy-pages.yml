@@ -1,10 +1,51 @@
-# GitHub Pages deployment is superseded by deploy-azure.yml which deploys
-# to space-tycoon.cat-herding.net via Azure Static Web Apps.
-# This file is kept disabled (no trigger) so it can be re-enabled if needed.
-#
-# To re-enable: restore the `on:` block below.
-#
-# on:
-#   push:
-#     branches: [main]
-#   workflow_dispatch:
+name: Deploy GitHub Pages (redirect)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Redirect Page
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Generate redirect site
+        run: |
+          mkdir -p _redirect_site
+          cp .github/pages-redirect/index.html _redirect_site/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_redirect_site
+
+  deploy:
+    name: Deploy
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
