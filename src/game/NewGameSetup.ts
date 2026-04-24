@@ -3,7 +3,6 @@ import { generateGalaxy } from "../generation/GalaxyGenerator.ts";
 import { initializeMarkets } from "../generation/MarketInitializer.ts";
 import {
   ShipClass,
-  GameSize,
   AIPersonality,
   GalaxyShape,
 } from "../data/types.ts";
@@ -14,18 +13,21 @@ import type {
   StorytellerState,
   AICompany,
   ActiveRoute,
-  GameSize as GameSizeT,
   GalaxyShape as GalaxyShapeT,
   TechState,
 } from "../data/types.ts";
 import { initAdviserState } from "./adviser/AdviserEngine.ts";
 import {
   SHIP_TEMPLATES,
-  GAME_SIZE_CONFIGS,
+  GAME_LENGTH_PRESETS,
   AI_STARTING_CASH,
   BASE_ROUTE_SLOTS,
   HOME_EMPIRE_BONUS_SLOTS,
+  SAVE_VERSION,
+  ACTION_POINTS_PER_TURN,
+  LOCAL_ROUTE_SLOTS,
 } from "../data/constants.ts";
+import type { GamePreset } from "../data/constants.ts";
 import { findAdjacentEmpires } from "./empire/EmpireAccessManager.ts";
 import { generateEmpireTradePolicies } from "./empire/EmpirePolicyGenerator.ts";
 import { generateCEOName, pickRandomPortrait } from "../data/portraits.ts";
@@ -206,15 +208,15 @@ function createAICompanies(
 export function createNewGame(
   seed: number,
   companyName: string = "Star Freight Corp",
-  gameSize: GameSizeT = GameSize.Small,
+  gamePreset: GamePreset = "standard",
   galaxyShape: GalaxyShapeT = GalaxyShape.Spiral,
 ): NewGameResult {
   const rng = new SeededRNG(seed);
 
-  const config = GAME_SIZE_CONFIGS[gameSize];
+  const config = GAME_LENGTH_PRESETS[gamePreset];
 
   // Generate galaxy with empires
-  const galaxyData = generateGalaxy(seed, gameSize, galaxyShape);
+  const galaxyData = generateGalaxy(seed, gamePreset, galaxyShape);
 
   // Initialize markets (use a new RNG derived from the seed so market
   // generation doesn't depend on galaxy generation RNG state)
@@ -239,6 +241,7 @@ export function createNewGame(
     headwindBias: 0,
     turnsInDebt: 0,
     consecutiveProfitTurns: 0,
+    turnsSinceLastDecision: 0,
   };
 
   // Select starting system options
@@ -317,7 +320,7 @@ export function createNewGame(
     turn: 1,
     maxTurns: config.maxTurns,
     phase: "planning",
-    gameSize,
+    gameSize: gamePreset,
     galaxyShape,
     cash: config.startingCash,
     loans: [],
@@ -348,12 +351,24 @@ export function createNewGame(
     gameOverReason: null,
     adviser: initAdviserState(),
     routeSlots: BASE_ROUTE_SLOTS + HOME_EMPIRE_BONUS_SLOTS,
+    localRouteSlots: LOCAL_ROUTE_SLOTS,
     unlockedEmpireIds,
     contracts: [],
     tech,
     empireTradePolicies,
     interEmpireCargoLocks: [],
     stationHub,
+    // Phase 6: Interaction Overhaul
+    saveVersion: SAVE_VERSION,
+    actionPoints: { current: ACTION_POINTS_PER_TURN, max: ACTION_POINTS_PER_TURN },
+    turnBrief: [],
+    pendingChoiceEvents: [],
+    activeEventChains: [],
+    captains: [],
+    routeMarket: [],
+    researchEvents: [],
+    unlockedNavTabs: ["map", "routes", "fleet", "finance"],
+    reputationTier: "unknown",
   };
 
   return { state, startingSystemOptions };
