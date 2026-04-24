@@ -26,5 +26,13 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    exclude: [
+      "node_modules",
+      "dist",
+      "e2e",
+      "playwright-report",
+      "test-results",
+      ".claude/worktrees/**",
+    ],
   },
 });

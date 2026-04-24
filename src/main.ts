@@ -692,6 +692,26 @@ function mountGame(): void {
     activeGame?.scale.refresh();
   });
 
+  // QA testing façade (`window.__sft`).
+  //
+  // DEV builds always install it. Prod builds install only when `?debug=1` is
+  // in the URL — keeps the testing chunk out of normal prod page loads while
+  // still shipping it in `dist/` for ops/QA opt-in use.
+  const qaOptIn =
+    typeof location !== "undefined" &&
+    new URLSearchParams(location.search).get("debug") === "1";
+  const sftMode: "dev" | "debug" | null = import.meta.env.DEV
+    ? "dev"
+    : qaOptIn
+      ? "debug"
+      : null;
+  if (sftMode && activeGame) {
+    const game = activeGame;
+    void import("./testing/index.ts").then((m) =>
+      m.installTestAPI(game, sftMode),
+    );
+  }
+
   // Recalculate virtual resolution on significant viewport changes (orientation flip)
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   window.addEventListener("resize", () => {

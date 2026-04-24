@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { getTheme, colorToString } from "./Theme.ts";
 import { playUiSfx } from "./UiSound.ts";
 import { autoButtonWidth, fitTextWithEllipsis } from "./TextMetrics.ts";
+import { registerWidget, slugifyLabel } from "./WidgetHooks.ts";
 
 export interface ButtonConfig {
   x: number;
@@ -11,6 +12,13 @@ export interface ButtonConfig {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  /**
+   * Stable id for QA automation / LLM console drivers. When omitted, the id
+   * is derived from the label (e.g. "Build Route" -> "btn-build-route"). Only
+   * effective when the testing fa\u00e7ade (`src/testing`) is loaded; otherwise
+   * the registration call is a no-op.
+   */
+  testId?: string;
   /**
    * When true and no explicit `width` is provided, the button will
    * automatically size itself to fit the label text exactly.
@@ -130,6 +138,23 @@ export class Button extends Phaser.GameObjects.Container {
     }
 
     scene.add.existing(this);
+
+    const unregister = registerWidget({
+      testId: config.testId ?? slugifyLabel(config.label, "button"),
+      kind: "button",
+      label: config.label,
+      scene,
+      invoke: () => {
+        if (!this.isDisabled && this.visible) {
+          this.onClickFn();
+        }
+      },
+      isEnabled: () => !this.isDisabled,
+      isVisible: () => this.visible,
+    });
+    if (unregister) {
+      this.once("destroy", unregister);
+    }
   }
 
   private startIdleShimmer(): void {

@@ -13,3 +13,8 @@ qa-*.png
 .hive/issues.jsonl
 *.log
 page*.yml
+
+# Playwright
+playwright-report/
+test-results/
+.playwright-mcp/

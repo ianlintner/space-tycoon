@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { getTheme, colorToString } from "./Theme.ts";
 import { autoButtonWidth } from "./TextMetrics.ts";
+import { registerWidget } from "./WidgetHooks.ts";
 
 export interface ModalConfig {
   title: string;
@@ -11,6 +12,8 @@ export interface ModalConfig {
   onCancel?: () => void;
   width?: number;
   height?: number;
+  /** Test id prefix. The modal registers `${testId}-ok`, `${testId}-cancel`, `${testId}-close`. */
+  testId?: string;
 }
 
 export class Modal extends Phaser.GameObjects.Container {
@@ -298,6 +301,61 @@ export class Modal extends Phaser.GameObjects.Container {
     this.scene.input.keyboard?.on("keydown", this.handleKeyDown, this);
 
     scene.add.existing(this);
+
+    const prefix = config.testId ?? "modal";
+    const unregisterFns: Array<() => void> = [];
+    const unregOk = registerWidget({
+      testId: `${prefix}-ok`,
+      kind: "modal-ok",
+      label: okText,
+      scene,
+      invoke: () => {
+        if (!this.isShowing) return;
+        config.onOk?.();
+        if (this.scene) this.hide();
+      },
+      isEnabled: () => this.isShowing,
+      isVisible: () => this.isShowing,
+    });
+    if (unregOk) unregisterFns.push(unregOk);
+
+    if (hasCancelBtn) {
+      const unregCancel = registerWidget({
+        testId: `${prefix}-cancel`,
+        kind: "modal-cancel",
+        label: cancelText,
+        scene,
+        invoke: () => {
+          if (!this.isShowing) return;
+          config.onCancel?.();
+          if (this.scene) this.hide();
+        },
+        isEnabled: () => this.isShowing,
+        isVisible: () => this.isShowing,
+      });
+      if (unregCancel) unregisterFns.push(unregCancel);
+    }
+
+    const unregClose = registerWidget({
+      testId: `${prefix}-close`,
+      kind: "modal-close",
+      label: "×",
+      scene,
+      invoke: () => {
+        if (!this.isShowing) return;
+        config.onCancel?.();
+        if (this.scene) this.hide();
+      },
+      isEnabled: () => this.isShowing,
+      isVisible: () => this.isShowing,
+    });
+    if (unregClose) unregisterFns.push(unregClose);
+
+    if (unregisterFns.length > 0) {
+      this.once("destroy", () => {
+        for (const fn of unregisterFns) fn();
+      });
+    }
   }
 
   show(): void {
