@@ -774,6 +774,7 @@ class RouteBuilderPanel {
       routePreview,
       previewShip as Ship,
       state.market,
+      state,
     );
     const fuel = estimateRouteFuelCost(
       routePreview,

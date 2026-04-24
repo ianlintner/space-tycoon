@@ -207,3 +207,134 @@ top of the right-side HUD nav badge. Pad the adviser's right edge.
   to be user-facing vs. a dev tool.
 - Galaxy Map: no visible "player home" marker or camera centering on
   start. Worth a dedicated UX pass.
+
+---
+
+## Gameplay-Critical Bugs (discovered via source-code deep-dive — 2026-04-24)
+
+These are **separate from the visual issues above** and go beyond UI polish.
+They affect the core game loop and economy balance.
+
+Severity: **P0** blocks/breaks gameplay, **P1** major balance/logic bug.
+
+---
+
+### G1 (P0): Starter fleet is always empty — no ships at game start
+
+- **Files:** `src/data/constants.ts` lines 201, 217, 233; `src/game/NewGameSetup.ts` lines 273–282
+- **Symptom:** Fleet screen shows "No ships in your fleet" on every new game.
+  The Route Finder shows 0 idle ships. Players cannot trade without buying a ship first,
+  but the UI gives no guidance about this.
+- **Root cause:** All three game-length presets (`quick`, `standard`, `epic`) have
+  `startingShips: 0`. The loop in `NewGameSetup.ts` that would create a Cargo Shuttle
+  (i=0) and Passenger Shuttle (i=1) never executes.
+- **Test confirmation:** `NewGameSetup.test.ts:43–48` asserts `fleet.length === 0`
+  and documents "players auto-buy ships" as intended behaviour — but no in-game
+  onboarding explains this, leaving new players stuck.
+- **Fix options:**
+  - **Option A** — Restore starter ships: set `startingShips: 2` in `quick` and
+    `standard` presets; update the test to expect `fleet.length >= 2`.
+  - **Option B** — Keep empty fleet but add explicit onboarding: show a mandatory
+    "Buy your first ship to get started" prompt in the Fleet scene when fleet is empty,
+    and update the Adviser intro script to guide the player to the Fleet screen before
+    Routes.
+
+---
+
+### G2 (P0): Route profit values are 50–400× too high for short-distance routes
+
+- **Files:** `src/game/routes/RouteManager.ts` lines 89–96; `src/data/constants.ts` line 48
+- **Symptom:** Route Finder shows §4.4M profit for a dist=1.1 route at game start.
+  Even dist=5 routes show §500k–§1M profit. The entire economy is warped.
+- **Root cause:** `calculateTripsPerTurn` uses `floor(TURN_DURATION / roundTripTime)`
+  with no upper cap. `TURN_DURATION=100` and the galaxy generator places planets
+  1–5 canvas pixels from their star, so intra-system distances are ~1–7 px. This
+  produces 28–200 trips/turn. There is **no `MAX_TRIPS_PER_TURN` ceiling** anywhere.
+- **Concrete example:** dist=1.1, shipSpeed=4 → roundTripTime=0.55 → **181 trips/turn**
+  → 181 × 80 cargo × §50 price = §724,000 per turn for one ship on one route.
+- **The `INTRA_SYSTEM_REVENUE_MULTIPLIER=0.5` band-aid** (`constants.ts` line 54)
+  was added to partially dampen this but halving §724k still gives §362k — still
+  wildly inflated.
+- **Fix (recommended — add a trips cap):**
+  ```ts
+  // RouteManager.ts line 95 — add a cap
+  export const MAX_TRIPS_PER_TURN = 10; // ships make at most 10 round trips per turn
+  // in calculateTripsPerTurn:
+  return Math.min(MAX_TRIPS_PER_TURN, Math.max(1, Math.floor(TURN_DURATION / roundTripTime)));
+  ```
+  A cap of 10 means a dist=1.1 route gets the same 10 trips as a dist=5 route —
+  short routes remain profitable but not broken. Adjust `MAX_TRIPS_PER_TURN` to
+  taste after playtesting.
+- **Alternative fix:** Scale up all galaxy distances by 50× in `GalaxyGenerator.ts`
+  so a "short" intra-system distance becomes ~50–250 instead of 1–5, bringing
+  trips/turn to 1–4 naturally.
+
+---
+
+### G3 (P1): `estimateRouteRevenue` disagrees with actual simulation revenue
+
+- **Files:** `src/game/routes/RouteManager.ts` lines 596–618; `src/game/simulation/TurnSimulator.ts` lines 170–174
+- **Symptom:** The profit shown in the Route Finder and Active Routes tab is
+  systematically wrong — 2× over for intra-system routes, up to 1.5× under
+  for long inter-system routes.
+- **Root cause:** `estimateRouteRevenue()` (used by the UI) omits both modifiers
+  that the actual simulation applies:
+  - `INTRA_SYSTEM_REVENUE_MULTIPLIER = 0.5` (halves local route revenue in sim)
+  - `distancePremium` bonus up to `+50%` for long routes (added in sim, missing from estimate)
+- **Fix:** Update `estimateRouteRevenue` to apply the same multiplier logic:
+  ```ts
+  // RouteManager.ts ~line 617 — match TurnSimulator.ts logic
+  const isLocal = isLocalRoute(route, state);
+  const distancePremium = isLocal
+    ? 0
+    : Math.min(DISTANCE_PREMIUM_CAP, route.distance * DISTANCE_PREMIUM_RATE);
+  const multiplier = isLocal ? INTRA_SYSTEM_REVENUE_MULTIPLIER : 1 + distancePremium;
+  return Math.round(trips * capacity * price * multiplier * 100) / 100;
+  ```
+  This requires passing `state` (or at minimum the route's origin/dest for `isLocalRoute`)
+  into `estimateRouteRevenue`. The function signature change will require updates in
+  `RoutesScene.ts` and any other callers.
+
+---
+
+### G4 (P1): Route Finder uses raw `currentPrice` instead of `calculatePrice()`
+
+- **File:** `src/game/routes/RouteManager.ts` line 765; `src/game/simulation/TurnSimulator.ts` line 146
+- **Symptom:** Route Finder profit estimates diverge further from actuals when market
+  saturation is nonzero, because the UI reads `destEntry.currentPrice` directly while
+  the simulation calls `calculatePrice(destEntry, route.cargoType)` which applies
+  saturation and demand adjustments.
+- **Fix:** Replace `destEntry.currentPrice` with `calculatePrice(destEntry, route.cargoType)`
+  in `scanAllRouteOpportunities` at line 765.
+
+---
+
+### G5 (P1): Profit column has no "per turn" qualifier — players misread it as per-trip
+
+- **File:** `src/scenes/RoutesScene.ts` line 311
+- **Symptom:** Column header reads `"Profit"` with no time qualifier. Since each turn
+  represents a long period with many trips, the per-turn value is much larger than
+  per-trip, and new players assume it's the per-trip revenue.
+- **Fix:** Change label to `"Profit/turn"` or add a subtitle row to the table header.
+
+---
+
+### G6 (P1): favicon.ico missing — console 404 error on every page load
+
+- **File:** `public/favicon.ico` (missing)
+- **Symptom:** Browser console shows two 404 errors for `/favicon.ico` on load.
+- **Fix:** Add a favicon. Simplest: copy/create a 32×32 `.ico` file in `public/`.
+  Or add `<link rel="icon" href="data:,">` to `index.html` to suppress the request.
+
+---
+
+## Fix priority order (gameplay bugs)
+
+| Priority | Bug | Effort | Impact |
+|---|---|---|---|
+| **P0** | G2: Add `MAX_TRIPS_PER_TURN` cap | Small (2 lines + constant) | Fixes economy completely |
+| **P0** | G1: Add fleet onboarding OR restore starter ships | Small-medium | Unblocks new players |
+| **P1** | G3: Fix `estimateRouteRevenue` multipliers | Medium (signature change) | Accurate profit display |
+| **P1** | G4: Use `calculatePrice()` in Route Finder | Tiny (1 line) | More accurate estimates |
+| **P1** | G5: Add "/turn" to Profit column header | Tiny (1 char) | Clearer UI |
+| **P1** | G6: Add favicon | Tiny | Clean console |

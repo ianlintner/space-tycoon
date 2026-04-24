@@ -308,7 +308,7 @@ export class RoutesScene extends Phaser.Scene {
         },
         {
           key: "profit",
-          label: "Profit",
+          label: "Profit/turn",
           width: 80,
           align: "right",
           sortable: true,
@@ -934,7 +934,7 @@ export class RoutesScene extends Phaser.Scene {
       let profit: number | string = "\u2014";
 
       if (firstShip && route.cargoType) {
-        const rev = estimateRouteRevenue(route, firstShip, state.market);
+        const rev = estimateRouteRevenue(route, firstShip, state.market, state);
         const fuel = estimateRouteFuelCost(
           route,
           firstShip,
@@ -1057,7 +1057,7 @@ export class RoutesScene extends Phaser.Scene {
       this.assignShipButton.setLabel("Assign Ship");
     } else {
       const revenue = route.cargoType
-        ? estimateRouteRevenue(route, firstShip, state.market)
+        ? estimateRouteRevenue(route, firstShip, state.market, state)
         : null;
       const fuel = route.cargoType
         ? estimateRouteFuelCost(route, firstShip, state.market.fuelPrice)

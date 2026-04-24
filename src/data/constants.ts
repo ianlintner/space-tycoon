@@ -46,6 +46,8 @@ export const OVERHAUL_COST_RATIO = 0.3;
 export const OVERHAUL_RESTORE_CONDITION = 90;
 export const BREAKDOWN_THRESHOLD = 50;
 export const TURN_DURATION = 100;
+/** Hard cap on trips per turn to prevent intra-system routes from being exploited */
+export const MAX_TRIPS_PER_TURN = 10;
 // Local (intra-system) route slot pool — separate from main route slots
 export const LOCAL_ROUTE_SLOTS = 2;
 // Local routes are capped at 50% of equivalent inter-system revenue
