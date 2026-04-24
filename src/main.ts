@@ -692,6 +692,11 @@ function mountGame(): void {
     activeGame?.scale.refresh();
   });
 
+  if (import.meta.env.DEV && activeGame) {
+    const game = activeGame;
+    void import("./testing/index.ts").then((m) => m.installTestAPI(game));
+  }
+
   // Recalculate virtual resolution on significant viewport changes (orientation flip)
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   window.addEventListener("resize", () => {
