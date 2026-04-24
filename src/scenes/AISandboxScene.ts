@@ -30,6 +30,7 @@ import {
   AUTOSAVE_INTERVAL,
 } from "../game/simulation/SandboxSaveManager.ts";
 import type { SandboxSaveData } from "../game/simulation/SandboxSaveManager.ts";
+import { logs } from "../testing/log.ts";
 
 // ── Speed mapping (turn delay in ms) ──────────────────────────
 
@@ -479,13 +480,13 @@ export class AISandboxScene extends Phaser.Scene {
           baseDelay,
         )
         .catch((err) => {
-          console.error("[AISandbox] resumeAsync error:", err);
+          logs.sim.error("AISandbox resumeAsync error", { err });
           this.running = false;
           this.statusLabel.setText("Error \u2014 see console");
         });
     } else {
       this.runner.runAsync(config, baseDelay).catch((err) => {
-        console.error("[AISandbox] runAsync error:", err);
+        logs.sim.error("AISandbox runAsync error", { err });
         this.running = false;
         this.statusLabel.setText("Error \u2014 see console");
       });
@@ -651,7 +652,7 @@ export class AISandboxScene extends Phaser.Scene {
       saveSandbox(data);
     } catch (err) {
       // localStorage might be full or data non-serializable — non-critical
-      console.warn("[AISandbox] save failed:", err);
+      logs.sim.warn("AISandbox save failed", { err });
     }
   }
 
@@ -665,7 +666,7 @@ export class AISandboxScene extends Phaser.Scene {
         this.lastAutoSaveTurn = this.currentTurn;
       }
     } catch (err) {
-      console.warn("[AISandbox] auto-save error:", err);
+      logs.sim.warn("AISandbox auto-save error", { err });
     }
   }
 
