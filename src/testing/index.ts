@@ -14,7 +14,12 @@ declare global {
 
 let installed = false;
 
-export function installTestAPI(game: Phaser.Game): SftTestAPI {
+export type SftInstallMode = "dev" | "debug";
+
+export function installTestAPI(
+  game: Phaser.Game,
+  mode: SftInstallMode = "dev",
+): SftTestAPI {
   if (!installed) {
     setWidgetHook(widgetRegistry.hook);
     startInvariantListener();
@@ -24,7 +29,12 @@ export function installTestAPI(game: Phaser.Game): SftTestAPI {
   if (typeof window !== "undefined") {
     window.__sft = api;
   }
-  logs.sft.info(`QA console API installed (v${api.version})`, {
+  if (mode === "debug") {
+    console.warn(
+      "⚠️ SFT QA console enabled via ?debug=1 — not for untrusted users",
+    );
+  }
+  logs.sft.info(`QA console API installed (v${api.version}, mode=${mode})`, {
     scenes: game.scene.scenes.map((s) => s.scene.key),
   });
   return api;

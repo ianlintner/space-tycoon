@@ -151,6 +151,30 @@ Every failure throws `SftTestError` with a structured shape:
 
 Always inspect `.code`, not `.message` — messages may evolve, codes are stable.
 
+## Production opt-in (`?debug=1`)
+
+DEV builds always ship `__sft`. Production builds ship it behind an opt-in
+URL flag: visit any page with `?debug=1` appended and the façade installs,
+printing a loud warning:
+
+```
+⚠️ SFT QA console enabled via ?debug=1 — not for untrusted users
+```
+
+The testing module is a dynamic import, so Vite code-splits it into its own
+chunk. A normal prod visit (no `?debug`) never fetches that chunk — verify
+in DevTools Network panel.
+
+Security caveats:
+
+- The opt-in is trivially reverse-engineerable. Don't treat the production
+  build as an access control boundary; expose only QA-safe actions on the
+  prod façade if you need deeper sandboxing.
+- Invariants stay in non-strict mode under `?debug=1` — they never throw in
+  production even when violated.
+- `__sft.version` is unchanged, but the install log includes `mode=debug`
+  so consumers can detect they're on an opt-in build.
+
 ## Contract stability
 
 The API surface is semver: breaking changes bump `__sft.version`'s major. Adding
