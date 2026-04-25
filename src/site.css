@@ -695,7 +695,8 @@ canvas {
   color: var(--text);
 }
 
-.game-frame:fullscreen {
+.game-frame:fullscreen,
+.game-frame.is-browser-fullscreen {
   width: 100vw;
   height: 100vh;
   height: 100dvh;
@@ -707,6 +708,13 @@ canvas {
 .game-frame:fullscreen .game-frame__screen,
 .game-frame.is-browser-fullscreen .game-frame__screen {
   padding: 0.2rem;
+}
+
+/* Clear the .viewport base class's aspect-ratio: 16/9 in fullscreen so the
+   canvas can fill 16:10-ish MacBook panels without top/bottom letterboxing. */
+.game-frame:fullscreen .viewport,
+.game-frame.is-browser-fullscreen .viewport {
+  aspect-ratio: auto;
 }
 
 .game-frame:fullscreen .viewport,
