@@ -656,10 +656,15 @@ function updateFooterYear(): void {
   }
 }
 
-// Cache the last applied dimensions so we can no-op when the resize event
-// fires for the same size (common during scroll-bar toggling reflows).
-let lastAppliedWidth = 0;
-let lastAppliedHeight = 0;
+// Cache the last source dimensions (the canvas parent's box) so we can
+// no-op when nothing actually changed. Tracking the source — not the
+// rounded virtual game size — matters for fullscreen on 16:10-ish MacBook
+// panels: the virtual size can round to the same value across small parent
+// changes, but Phaser's FIT-mode layout still needs a refresh to recompute
+// the canvas display rect against the new container aspect. Skipping that
+// refresh leaves residual top/bottom letterboxing.
+let lastSourceWidth = 0;
+let lastSourceHeight = 0;
 
 function resizeGameToViewport(): void {
   if (!activeGame) {
@@ -668,8 +673,8 @@ function resizeGameToViewport(): void {
 
   // Prefer the canvas parent's bounding box. Reading window.innerWidth/Height
   // includes scrollbar width on some browsers, which flips when the canvas
-  // resize itself toggles a page scrollbar — that's the feedback loop we
-  // want to break. Fall back to the window when the parent isn't laid out yet.
+  // resize itself toggles a page scrollbar — that's the feedback loop the
+  // source-dim dedupe below also breaks.
   const parent = document.getElementById("game-container");
   const parentRect = parent?.getBoundingClientRect();
   const parentW = parentRect && parentRect.width > 0 ? parentRect.width : 0;
@@ -677,25 +682,26 @@ function resizeGameToViewport(): void {
   const sourceW = parentW > 0 ? parentW : window.innerWidth || 1280;
   const sourceH = parentH > 0 ? parentH : window.innerHeight || 720;
 
-  const size = calculateGameSize(sourceW, sourceH);
+  // Round to integers so sub-pixel reflows don't fire a resize per frame
+  // (browsers can report fractional getBoundingClientRect values).
+  const sourceWInt = Math.round(sourceW);
+  const sourceHInt = Math.round(sourceH);
 
-  // Skip the round-trip if the resulting virtual size hasn't changed by at
-  // least 1px in either axis. Phaser's scale.resize triggers a layout pass
-  // and emits its own internal events; calling it for a no-op size starts the
-  // exact thrash we're trying to avoid.
-  if (
-    size.width === lastAppliedWidth &&
-    size.height === lastAppliedHeight
-  ) {
+  if (sourceWInt === lastSourceWidth && sourceHInt === lastSourceHeight) {
     return;
   }
-  lastAppliedWidth = size.width;
-  lastAppliedHeight = size.height;
+  lastSourceWidth = sourceWInt;
+  lastSourceHeight = sourceHInt;
 
+  const size = calculateGameSize(sourceW, sourceH);
   updateLayout(size.width, size.height);
-  // scale.resize internally refreshes the layout — calling scale.refresh()
-  // afterwards is redundant and triggers an extra layout pass.
   activeGame.scale.resize(size.width, size.height);
+  // Force Phaser to recompute the FIT-scaled display rect against the new
+  // parent box. scale.resize alone doesn't always refresh the layout when
+  // the virtual size happens to round to the previous value but the
+  // container's aspect changed (e.g., entering Mac fullscreen on a 16:10.4
+  // panel after sizing on a 16:9 window).
+  activeGame.scale.refresh();
 }
 
 function setupFullscreenControl(): void {
@@ -767,8 +773,15 @@ function mountGame(): void {
   ]);
 
   activeGame = new Phaser.Game(config);
+  // The initial calculateGameSize() in createGameConfig() uses window
+  // dimensions, but the game-container's actual box is usually narrower
+  // (constrained by a column on the marketing page). Fire one extra resize
+  // pass after the first paint so the canvas snaps to the real container
+  // aspect — without this the canvas can stay locked to the wider window
+  // ratio and letterbox inside its column.
   window.requestAnimationFrame(() => {
     activeGame?.scale.refresh();
+    resizeGameToViewport();
   });
 
   // QA testing façade (`window.__sft`).
@@ -827,7 +840,7 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     activeGame?.destroy(true);
     activeGame = null;
-    lastAppliedWidth = 0;
-    lastAppliedHeight = 0;
+    lastSourceWidth = 0;
+    lastSourceHeight = 0;
   });
 }
