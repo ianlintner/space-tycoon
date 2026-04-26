@@ -144,13 +144,10 @@ jobs:
           # AZURE_API_BASE: ${{ secrets.AZURE_API_BASE }}
           # Direct Anthropic (if not using Azure AI Foundry):
           # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Fleet registry OAuth2 client_credentials wiring (only consumed
-          # when fleet_registry.enabled=true in config.yml). Safe to leave
-          # unset otherwise — caretaker just skips the heartbeat.
-          OAUTH2_CLIENT_ID: ${{ secrets.OAUTH2_CLIENT_ID }}
-          OAUTH2_CLIENT_SECRET: ${{ secrets.OAUTH2_CLIENT_SECRET }}
-          OAUTH2_TOKEN_URL: ${{ vars.OAUTH2_TOKEN_URL }}
-          OAUTH2_SCOPE: ${{ vars.OAUTH2_SCOPE }}
+          # Fleet registry HMAC secret (only consumed when
+          # fleet_registry.enabled=true in config.yml). Safe to leave unset
+          # otherwise — caretaker just skips the heartbeat.
+          CARETAKER_FLEET_SECRET: ${{ secrets.CARETAKER_FLEET_SECRET }}
         run: |
           caretaker doctor \
             --config .github/maintainer/config.yml \
@@ -176,12 +173,8 @@ jobs:
           CARETAKER_EVENT_PAYLOAD: ${{ toJSON(github.event) }}
           CARETAKER_RUN_MODE: ${{ github.event.inputs.mode || 'full' }}
           CARETAKER_EVENT_TYPE: ${{ github.event_name }}
-          # Fleet registry OAuth2 client_credentials wiring (only consumed when
-          # fleet_registry.enabled=true in config.yml).
-          OAUTH2_CLIENT_ID: ${{ secrets.OAUTH2_CLIENT_ID }}
-          OAUTH2_CLIENT_SECRET: ${{ secrets.OAUTH2_CLIENT_SECRET }}
-          OAUTH2_TOKEN_URL: ${{ vars.OAUTH2_TOKEN_URL }}
-          OAUTH2_SCOPE: ${{ vars.OAUTH2_SCOPE }}
+          # Fleet registry HMAC secret. Only used when fleet_registry.enabled=true.
+          CARETAKER_FLEET_SECRET: ${{ secrets.CARETAKER_FLEET_SECRET }}
         run: |
           caretaker run \
             --config .github/maintainer/config.yml \
@@ -251,12 +244,8 @@ jobs:
                 "head_branch": "${{ github.ref_name }}"
               }
             }
-          # Fleet registry OAuth2 client_credentials wiring (self-heal also
-          # emits a heartbeat). Only used when fleet_registry.enabled=true.
-          OAUTH2_CLIENT_ID: ${{ secrets.OAUTH2_CLIENT_ID }}
-          OAUTH2_CLIENT_SECRET: ${{ secrets.OAUTH2_CLIENT_SECRET }}
-          OAUTH2_TOKEN_URL: ${{ vars.OAUTH2_TOKEN_URL }}
-          OAUTH2_SCOPE: ${{ vars.OAUTH2_SCOPE }}
+          # Fleet registry HMAC secret (self-heal also emits a heartbeat).
+          CARETAKER_FLEET_SECRET: ${{ secrets.CARETAKER_FLEET_SECRET }}
         run: |
           caretaker run \
             --config .github/maintainer/config.yml \
