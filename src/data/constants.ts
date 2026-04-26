@@ -9,6 +9,7 @@ import {
   type Technology,
   type HubRoomDefinition,
   type NavTabId,
+  type RouteScope,
 } from "./types";
 
 // ── Save Version ───────────────────────────────────────────────
@@ -48,15 +49,101 @@ export const BREAKDOWN_THRESHOLD = 50;
 export const TURN_DURATION = 100;
 /** Hard cap on trips per turn to prevent intra-system routes from being exploited */
 export const MAX_TRIPS_PER_TURN = 10;
-// Local (intra-system) route slot pool — separate from main route slots
+// Local (intra-system) route slot pool — separate from main route slots.
+// @deprecated Use BASE_SYSTEM_ROUTE_SLOTS — kept as alias for older fixtures.
 export const LOCAL_ROUTE_SLOTS = 2;
-// Local routes are capped at 50% of equivalent inter-system revenue
+/**
+ * @deprecated Replaced by SCOPE_DEMAND_MULTIPLIERS, which applies a per-cargo
+ * scope multiplier instead of a flat 50% cap on intra-system revenue. Kept
+ * exported so legacy fixtures still compile, but no longer used in revenue
+ * calculations.
+ */
 export const LOCAL_ROUTE_REVENUE_CAP = 0.5;
-// INTRA_SYSTEM_REVENUE_MULTIPLIER is now set to the cap for backwards compatibility
+/** @deprecated alias of LOCAL_ROUTE_REVENUE_CAP — replaced by scope multipliers. */
 export const INTRA_SYSTEM_REVENUE_MULTIPLIER = LOCAL_ROUTE_REVENUE_CAP;
 // Longer routes command higher freight rates (per distance unit, capped)
 export const DISTANCE_PREMIUM_RATE = 0.0015;
 export const DISTANCE_PREMIUM_CAP = 0.5;
+
+// ── Route Scope Slot Pools ─────────────────────────────────────
+//
+// Routes are classified by scope (see `getRouteScope` in RouteManager.ts) and
+// each scope draws from its own slot pool. Each pool grows through a different
+// in-game mechanic so the player has distinct paths to expansion:
+//
+//   • System  — fixed (training-wheel tier; no growth path).
+//   • Empire  — grows via Logistics tech and Hub Ore Processing (engineering).
+//   • Galactic — grows via empire unlocks (diplomacy/contracts).
+//
+// Mid- and long-range slots are intentionally weighted higher than system
+// slots so the meta-game pulls toward longer hauls. See SCOPE_DEMAND_MULTIPLIERS
+// for the matching revenue curves.
+
+/** Intra-system slot pool (origin and destination share a star system). */
+export const BASE_SYSTEM_ROUTE_SLOTS = 2;
+/** Intra-empire interstellar slot pool. Backed by `routeSlots` on GameState. */
+export const BASE_EMPIRE_ROUTE_SLOTS = 3;
+/**
+ * Inter-empire (galactic) slot pool. Bumped to 3 in the alpha rebalance so the
+ * highest-margin tier starts with real capacity instead of feeling rationed.
+ * Each subsequent empire unlock adds another slot here (see ContractManager).
+ */
+export const BASE_GALACTIC_ROUTE_SLOTS = 3;
+
+// ── Future seam: Ship-Class × Scope haul-band system ───────────
+//
+// Planned for a follow-up pass (Aerobiz-inspired): each ship class will have
+// an "optimal haul band" matching one or two scopes, with efficiency falling
+// off sharply outside that band. The intent is to make ship procurement a
+// tactical choice keyed to which slot pool the player is filling.
+//
+// When that lands, expect:
+//
+//   1. A `RECOMMENDED_SHIP_CLASSES_BY_SCOPE: Record<RouteScope, ShipClass[]>`
+//      table next to SCOPE_DEMAND_MULTIPLIERS, surfaced as tooltips on the
+//      route slot HUD and the ship purchase panel.
+//   2. A per-class `optimalHaulBand: { min: number; max: number }` field on
+//      ShipTemplate, with revenue/fuel modifiers when distance falls outside.
+//   3. The route market generator and route opportunity scanner switching
+//      ship-pick logic to weight this band, replacing today's pure
+//      profit-per-turn ranking.
+//
+// For this pass the seam is data-only (the comment + the three slot pools);
+// nothing consumes the haul-band concept yet.
+
+// ── Per-Cargo Scope Demand Multipliers ─────────────────────────
+//
+// Replaces the old flat `INTRA_SYSTEM_REVENUE_MULTIPLIER` (0.5 across all cargo)
+// with a per-cargo curve that encodes "what people pay extra for, by distance":
+//
+//   • Heavy / bulk cargo (rawMaterials, food, hazmat) is more valuable LOCAL
+//     and within an empire — nobody hauls iron ore across the galaxy.
+//   • Luxury and technology become MORE valuable the further they travel —
+//     scarcity pricing for exotic goods.
+//   • Passengers favor inter-empire travel slightly (immigration / tourism)
+//     but punish intra-system "shuttle to the next moon" routes.
+//
+// The number is a multiplier on revenue for that cargo on that scope, applied
+// after price × capacity × trips and the distance premium.
+export const SCOPE_DEMAND_MULTIPLIERS: Record<
+  CargoType,
+  Record<RouteScope, number>
+> = {
+  [CargoType.Passengers]: { system: 0.5, empire: 1.0, galactic: 1.3 },
+  [CargoType.RawMaterials]: { system: 0.7, empire: 1.1, galactic: 0.5 },
+  [CargoType.Food]: { system: 0.7, empire: 1.1, galactic: 0.6 },
+  [CargoType.Technology]: { system: 0.4, empire: 1.0, galactic: 1.5 },
+  [CargoType.Luxury]: { system: 0.3, empire: 0.9, galactic: 1.7 },
+  [CargoType.Hazmat]: { system: 0.6, empire: 1.1, galactic: 0.6 },
+  [CargoType.Medical]: { system: 0.6, empire: 1.0, galactic: 1.2 },
+};
+
+/** Target distribution of route market entries across scopes per generation. */
+export const ROUTE_MARKET_SCOPE_QUOTA: Record<RouteScope, number> = {
+  system: 0.2,
+  empire: 0.4,
+  galactic: 0.4,
+};
 
 // ── Route License Fees ─────────────────────────────────────────
 
@@ -75,6 +162,11 @@ export const FLEET_OVERHEAD_PER_SHIP = 0.05;
 
 export const BASE_ROUTE_SLOTS = 3;
 export const HOME_EMPIRE_BONUS_SLOTS = 1;
+/**
+ * @deprecated Slot bonuses are now declared per-contract via
+ * `Contract.rewardSlotBonus`. This constant is kept for back-compat with
+ * fixtures that still reference it; new code should not read it.
+ */
 export const SLOT_PER_EMPIRE_UNLOCK = 1;
 
 // ── Empire Access ──────────────────────────────────────────────

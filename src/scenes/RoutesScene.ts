@@ -42,6 +42,8 @@ import {
   getUsedRouteSlots,
   getAvailableLocalRouteSlots,
   getUsedLocalRouteSlots,
+  getAvailableGalacticRouteSlots,
+  getUsedGalacticRouteSlots,
 } from "../game/routes/RouteManager.ts";
 import type { RouteOpportunity } from "../game/routes/RouteManager.ts";
 import {
@@ -736,11 +738,14 @@ export class RoutesScene extends Phaser.Scene {
     const filterLabel = this.finderCargoFilter
       ? getCargoLabel(this.finderCargoFilter)
       : "all cargo";
-    const slotsUsed = getUsedRouteSlots(state) + getUsedLocalRouteSlots(state);
-    const slotsTotal =
-      getAvailableRouteSlots(state) + getAvailableLocalRouteSlots(state);
+    const sysUsed = getUsedLocalRouteSlots(state);
+    const sysTot = getAvailableLocalRouteSlots(state);
+    const empUsed = getUsedRouteSlots(state);
+    const empTot = getAvailableRouteSlots(state);
+    const galUsed = getUsedGalacticRouteSlots(state);
+    const galTot = getAvailableGalacticRouteSlots(state);
     this.finderSummary.setText(
-      `${profitableCount} ${filterLabel} routes found \u2022 Slots ${slotsUsed}/${slotsTotal} \u2022 ${availableShips} idle ships \u2022 §${state.cash.toLocaleString("en-US")} cash \u2022 Enter to create`,
+      `${profitableCount} ${filterLabel} routes found \u2022 Sys ${sysUsed}/${sysTot} \u00B7 Emp ${empUsed}/${empTot} \u00B7 Gal ${galUsed}/${galTot} \u2022 ${availableShips} idle ships \u2022 §${state.cash.toLocaleString("en-US")} cash \u2022 Enter to create`,
     );
 
     // When the user has narrowed the set with any filter, raise the cap so
