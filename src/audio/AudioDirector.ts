@@ -417,10 +417,17 @@ class AudioDirector {
   async resume(): Promise<void> {
     this.ensureInitialized();
     if (!this.ctx) return;
+
+    // Invoke play() synchronously inside the user-gesture task so Chrome's
+    // autoplay policy keeps user activation. Awaiting ctx.resume() first
+    // revokes activation and causes play() to reject with NotAllowedError.
+    const bgmPromise = this.playExternalBgmIfNeeded();
+
     if (this.ctx.state === "suspended") {
       await this.ctx.resume();
     }
-    await this.playExternalBgmIfNeeded();
+
+    await bgmPromise;
   }
 
   setMusicState(state: MusicState): void {
@@ -1021,7 +1028,7 @@ class AudioDirector {
         EXTERNAL_BGM_PLAYLIST[this.externalBgmTrackIndex].url,
       );
       bgm.loop = false;
-      bgm.preload = "metadata"; // fetch only headers at init; stream on play
+      bgm.preload = "none"; // fetch happens lazily inside load()/play()
       bgm.volume = 0;
       bgm.addEventListener("ended", () => this.onExternalTrackEnded());
       this.externalBgm = bgm;
