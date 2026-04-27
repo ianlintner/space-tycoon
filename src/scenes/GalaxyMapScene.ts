@@ -31,10 +31,7 @@ import {
 } from "../game/routes/RouteManager.ts";
 import type { RouteTrafficVisual } from "../game/routes/RouteManager.ts";
 import { GalaxyView3D } from "./galaxy3d/GalaxyView3D.ts";
-import type {
-  ProjectedScreen,
-  Vec3,
-} from "./galaxy3d/GalaxyView3D.ts";
+import type { ProjectedScreen, Vec3 } from "./galaxy3d/GalaxyView3D.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
 import type { Empire, GameState, Ship, StarSystem } from "../data/types.ts";
