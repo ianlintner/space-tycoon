@@ -1,7 +1,7 @@
 import "./site.css";
 import * as Phaser from "phaser";
 import { createGameConfig, calculateGameSize } from "./game/config.ts";
-import { updateLayout } from "./ui/Layout.ts";
+import { updateLayout } from "@spacebiz/ui";
 import { BootScene } from "./scenes/BootScene.ts";
 import { MainMenuScene } from "./scenes/MainMenuScene.ts";
 import { GalaxySetupScene } from "./scenes/GalaxySetupScene.ts";
