@@ -1,6 +1,6 @@
 import * as Phaser from "phaser";
-import type { AdviserMood } from "../data/types.ts";
-import { getTheme } from "./Theme.ts";
+import type { AdviserMood } from "../../../../src/data/types.ts";
+import { getTheme } from "@spacebiz/ui";
 import type { PortraitExpression } from "./PortraitExpression.ts";
 
 // ── Pixel grid helpers (same pattern as PortraitGenerator) ─

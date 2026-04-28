@@ -75,9 +75,6 @@ export type { PulseConfig, TwinkleConfig, FloatConfig } from "./AmbientFX.ts";
 export { FloatingText } from "./FloatingText.ts";
 export type { FloatingTextConfig } from "./FloatingText.ts";
 
-export { MilestoneOverlay } from "./MilestoneOverlay.ts";
-export type { MilestoneType } from "./MilestoneOverlay.ts";
-
 // Scene utilities
 export { SceneUiDirector, SceneUiLayer } from "./SceneUiDirector.ts";
 
@@ -93,31 +90,3 @@ export type { IconButtonConfig } from "./IconButton.ts";
 
 export { StatusBadge } from "./StatusBadge.ts";
 export type { StatusBadgeConfig, BadgeVariant } from "./StatusBadge.ts";
-
-// Cargo icon utilities
-export {
-  generateCargoIcons,
-  getCargoIconKey,
-  getCargoColor,
-  getCargoLabel,
-  getCargoShortLabel,
-  CARGO_COLORS,
-  CARGO_LABELS,
-  CARGO_SHORT_LABELS,
-  CARGO_ICON_PREFIX,
-  CARGO_TYPE_LIST,
-} from "./CargoIcons.ts";
-export type { CargoTypeValue } from "./CargoIcons.ts";
-
-// Ship icon utilities
-export {
-  generateShipIcons,
-  getShipIconKey,
-  getShipColor,
-  getShipLabel,
-  SHIP_COLORS,
-  SHIP_LABELS,
-  SHIP_ICON_PREFIX,
-  SHIP_CLASS_LIST,
-} from "./ShipIcons.ts";
-export type { ShipClassValue } from "./ShipIcons.ts";

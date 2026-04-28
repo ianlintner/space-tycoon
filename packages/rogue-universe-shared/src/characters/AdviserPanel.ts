@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { getTheme, colorToString } from "./Theme.ts";
+import { getTheme, colorToString } from "@spacebiz/ui";
 import {
   getMoodAccentColor,
   ADVISER_SHEET_KEY,
@@ -8,7 +8,10 @@ import {
   generateAdviserSpritesheet,
   drawRexPortrait,
 } from "./AdviserPortrait.ts";
-import type { AdviserMessage, AdviserMood } from "../data/types.ts";
+import type {
+  AdviserMessage,
+  AdviserMood,
+} from "../../../../src/data/types.ts";
 
 export interface AdviserPanelConfig {
   x: number;

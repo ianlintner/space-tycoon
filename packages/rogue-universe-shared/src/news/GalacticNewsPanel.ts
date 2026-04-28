@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
-import { Panel, getTheme, colorToString } from "./index.ts";
-import type { TickerItem } from "../generation/news/types.ts";
-import { CATEGORY_META } from "../generation/news/categories.ts";
+import { Panel, getTheme, colorToString } from "@spacebiz/ui";
+import type { TickerItem } from "../../../../src/generation/news/types.ts";
+import { CATEGORY_META } from "../../../../src/generation/news/categories.ts";
 
 export interface GalacticNewsPanelConfig {
   x: number;

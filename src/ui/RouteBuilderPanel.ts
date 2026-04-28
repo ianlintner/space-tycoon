@@ -35,7 +35,7 @@ import { DEPTH_MODAL } from "./DepthLayers.ts";
 import type { SceneUiDirector } from "./SceneUiDirector.ts";
 import type { SceneUiLayer } from "./SceneUiDirector.ts";
 import { getTheme } from "./Theme.ts";
-import { getCargoIconKey, getCargoColor } from "@spacebiz/ui";
+import { getCargoIconKey, getCargoColor } from "@rogue-universe/shared";
 import {
   CARGO_VALUES,
   getCargoAtIndex,

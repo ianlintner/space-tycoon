@@ -1,7 +1,11 @@
 import type * as Phaser from "phaser";
-import { SeededRNG } from "../utils/SeededRNG.ts";
-import type { EventCategory, PlanetType, ShipClass } from "../data/types.ts";
-import { getTheme, lerpColor } from "./Theme.ts";
+import { SeededRNG } from "../../../../src/utils/SeededRNG.ts";
+import type {
+  EventCategory,
+  PlanetType,
+  ShipClass,
+} from "../../../../src/data/types.ts";
+import { getTheme, lerpColor } from "@spacebiz/ui";
 
 // Re-export expression types from the Phaser-free module so callers can
 // import from either PortraitGenerator or PortraitExpression as needed.

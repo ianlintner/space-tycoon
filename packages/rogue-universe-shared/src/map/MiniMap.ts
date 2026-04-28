@@ -4,8 +4,8 @@ import type {
   Planet,
   ActiveRoute,
   PlanetType,
-} from "../data/types.ts";
-import { getTheme, colorToString } from "./Theme.ts";
+} from "../../../../src/data/types.ts";
+import { getTheme, colorToString } from "@spacebiz/ui";
 
 const PLANET_TYPE_COLORS: Record<PlanetType, number> = {
   terran: 0x4b86d6,
