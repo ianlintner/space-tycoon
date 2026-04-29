@@ -7,7 +7,7 @@ import type {
   CargoType as CargoTypeValue,
 } from "../data/types.ts";
 import { PLANET_CARGO_PROFILES } from "../data/constants.ts";
-import { getTheme } from "./Theme.ts";
+import { getTheme } from "@spacebiz/ui";
 
 const PLANET_TYPE_COLORS: Record<PlanetType, number> = {
   terran: 0x4b86d6,
