@@ -74,6 +74,10 @@ export class StyleguideScene extends Phaser.Scene {
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
     this.events.once(Phaser.Scenes.Events.DESTROY, () => this.cleanup());
+
+    // Signal to E2E tests that the styleguide is ready
+    (window as unknown as { __styleguideReady: boolean }).__styleguideReady =
+      true;
   }
 
   /* ── Chrome ────────────────────────────────────────────────── */
