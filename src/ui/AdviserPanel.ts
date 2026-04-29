@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { getTheme, colorToString } from "./Theme.ts";
+import { getTheme, colorToString } from "@spacebiz/ui";
 import {
   getMoodAccentColor,
   ADVISER_SHEET_KEY,
