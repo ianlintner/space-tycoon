@@ -1,14 +1,11 @@
 import * as Phaser from "phaser";
-import { Panel } from "./Panel.ts";
-import { Label } from "./Label.ts";
-import { getTheme } from "./Theme.ts";
+import { Panel, Label, getTheme, getLayout } from "@spacebiz/ui";
 import { drawPortrait } from "./PortraitGenerator.ts";
 import type {
   PortraitType,
   PortraitData,
   AlienRole,
 } from "./PortraitGenerator.ts";
-import { getLayout } from "./Layout.ts";
 import type {
   Planet,
   Ship,
