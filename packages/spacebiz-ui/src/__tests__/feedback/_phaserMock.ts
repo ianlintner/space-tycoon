@@ -171,6 +171,14 @@ export class MockGameObject extends MiniEmitter {
   setColor(_c: string): this {
     return this;
   }
+  getBounds(): { x: number; y: number; width: number; height: number } {
+    return {
+      x: this.x,
+      y: this.y,
+      width: this.width,
+      height: this.height,
+    };
+  }
   destroy(_fromScene?: boolean): void {
     if (this.destroyed) return;
     this.destroyed = true;
