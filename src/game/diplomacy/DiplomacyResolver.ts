@@ -461,3 +461,68 @@ export function resolveSurveil(
     success,
   };
 }
+
+const THROTTLE_BASE = 2;
+const THROTTLE_HIGH = 3;
+const REPUTATION_THROTTLE_THRESHOLD = 75;
+
+export function resolveDiplomacyAction(
+  state: GameState,
+  action: QueuedDiplomacyAction,
+  rng: SeededRNG,
+): ResolutionOutcome {
+  switch (action.kind) {
+    case "giftEmpire":
+      return resolveGiftEmpire(state, action, rng);
+    case "giftRival":
+      return resolveGiftRival(state, action, rng);
+    case "lobbyFor":
+    case "lobbyAgainst":
+      return resolveLobby(state, action, rng);
+    case "proposeNonCompete":
+      return resolveNonCompete(state, action, rng);
+    case "surveil":
+      return resolveSurveil(state, action, rng);
+  }
+}
+
+export interface QueueProcessingResult {
+  readonly nextState: GameState;
+  readonly modalEntries: readonly ModalEntry[];
+  readonly digestEntries: readonly DigestEntry[];
+}
+
+export function processQueuedDiplomacyActions(
+  state: GameState,
+  rng: SeededRNG,
+): QueueProcessingResult {
+  const cap =
+    (state.reputation ?? 0) >= REPUTATION_THROTTLE_THRESHOLD
+      ? THROTTLE_HIGH
+      : THROTTLE_BASE;
+  const queued = dip(state).queuedActions;
+  const toResolve = queued.slice(0, cap);
+  const deferred = queued.slice(cap);
+
+  let cur: GameState = {
+    ...state,
+    diplomacy: { ...dip(state), queuedActions: [] },
+  };
+  const allModal: ModalEntry[] = [];
+  const allDigest: DigestEntry[] = [];
+
+  for (const action of toResolve) {
+    const out = resolveDiplomacyAction(cur, action, rng);
+    cur = out.nextState;
+    allModal.push(...out.modalEntries);
+    allDigest.push(...out.digestEntries);
+  }
+
+  for (const action of deferred) {
+    allDigest.push({
+      text: `Diplomatic action ${action.kind} on ${action.targetId} deferred (turn cap reached).`,
+    });
+  }
+
+  return { nextState: cur, modalEntries: allModal, digestEntries: allDigest };
+}
