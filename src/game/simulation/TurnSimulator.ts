@@ -73,6 +73,9 @@ import {
 } from "../hub/HubBonusCalculator.ts";
 import { tickRouteMarket } from "../routes/RouteMarket.ts";
 import { computeReputationTier } from "../reputation/ReputationEffects.ts";
+import { processQueuedDiplomacyActions } from "../diplomacy/DiplomacyResolver.ts";
+import { selectDiplomacyOffer } from "../diplomacy/DiplomacyAI.ts";
+import { tickDiplomacyState } from "../diplomacy/DiplomacyTick.ts";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -656,6 +659,72 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
       };
     }
   }
+
+  // ----- Step 8b-i: Process player-initiated diplomacy actions -----
+  {
+    const result = processQueuedDiplomacyActions(nextState, rng);
+    nextState = result.nextState;
+
+    // Surface modal outcomes via pendingChoiceEvents using a minimal
+    // ChoiceEvent shape (single "Continue" option, no effects).
+    for (const m of result.modalEntries) {
+      nextState = {
+        ...nextState,
+        pendingChoiceEvents: [
+          ...nextState.pendingChoiceEvents,
+          {
+            id: `dipl-out-${nextState.turn}-${m.targetId}-${nextState.pendingChoiceEvents.length}`,
+            eventId: `diplomacy:outcome:${m.headline}`,
+            prompt: `${m.headline} — ${m.flavor}`,
+            options: [
+              {
+                id: "ack",
+                label: "Continue",
+                outcomeDescription: "",
+                effects: [],
+              },
+            ],
+            turnCreated: nextState.turn,
+          },
+        ],
+      };
+    }
+
+    // Append digest entries to the turn report.
+    if (result.digestEntries.length > 0) {
+      const prevDigest =
+        (nextState.turnReport?.diplomacyDigest as string[] | undefined) ?? [];
+      nextState = {
+        ...nextState,
+        turnReport: {
+          ...(nextState.turnReport ?? {}),
+          diplomacyDigest: [
+            ...prevDigest,
+            ...result.digestEntries.map((d) => d.text),
+          ],
+        },
+      };
+    }
+  }
+
+  // ----- Step 8b-ii: AI-initiated diplomacy offer (shares dilemma slot) -----
+  {
+    const noChoiceFiredYetThisTurn =
+      !hasChoiceFromChainsThisTurn &&
+      nextState.pendingChoiceEvents.length === state.pendingChoiceEvents.length;
+    if (noChoiceFiredYetThisTurn) {
+      const offer = selectDiplomacyOffer(rng, nextState);
+      if (offer) {
+        nextState = {
+          ...nextState,
+          pendingChoiceEvents: [...nextState.pendingChoiceEvents, offer],
+        };
+      }
+    }
+  }
+
+  // ----- Step 8b-iii: Tick diplomacy (drift, expire, decrement, reset) -----
+  nextState = tickDiplomacyState(nextState);
 
   // ----- Step 8b: Process contracts -----
   const contractResult = processContracts(nextState);

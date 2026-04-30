@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { GameStore } from "../GameStore";
+import { GameStore, gameStore } from "../GameStore";
 import type { GameState } from "../types";
 
 describe("GameStore", () => {
@@ -85,5 +85,22 @@ describe("GameStore", () => {
     ];
     expect(state.seed).toBe(42);
     expect(changedKeys.size).toBeGreaterThan(10);
+  });
+});
+
+describe("GameStore.createDefaultState", () => {
+  it("seeds an empty DiplomacyState", () => {
+    gameStore.reset();
+    const s = gameStore.getState();
+    expect(s.diplomacy).toBeDefined();
+    expect(s.diplomacy!.rivalStanding).toEqual({});
+    expect(s.diplomacy!.crossEmpireRivalStanding).toEqual({});
+    expect(s.diplomacy!.empireTags).toEqual({});
+    expect(s.diplomacy!.rivalTags).toEqual({});
+    expect(s.diplomacy!.empireAmbassadors).toEqual({});
+    expect(s.diplomacy!.rivalLiaisons).toEqual({});
+    expect(s.diplomacy!.cooldowns).toEqual({});
+    expect(s.diplomacy!.queuedActions).toEqual([]);
+    expect(s.diplomacy!.actionsResolvedThisTurn).toBe(0);
   });
 });
