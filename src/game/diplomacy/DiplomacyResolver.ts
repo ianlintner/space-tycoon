@@ -32,6 +32,11 @@ export interface ResolutionOutcome {
   readonly success: boolean;
 }
 
+const LOBBY_BASE_SUCCESS = 0.6;
+const LOBBY_OWE_FAVOR_BONUS = 0.15;
+const LOBBY_DELTA = 10;
+const LOBBY_COOLDOWN = 4;
+
 const GIFT_EMPIRE_BASE_DELTA = 8;
 const GIFT_RIVAL_BASE_DELTA = 6;
 const GIFT_EMPIRE_COOLDOWN = 3;
@@ -221,6 +226,73 @@ export function resolveGiftRival(
           state.turn + GIFT_RIVAL_COOLDOWN,
         ),
         actionsResolvedThisTurn: prevDip.actionsResolvedThisTurn + 1,
+      },
+    },
+    modalEntries: modal,
+    digestEntries: digest,
+    success,
+  };
+}
+
+export function resolveLobby(
+  state: GameState,
+  action: QueuedDiplomacyAction,
+  rng: SeededRNG,
+): ResolutionOutcome {
+  const empireId = action.targetId;
+  const rivalId = action.subjectId;
+  if (!rivalId) {
+    throw new Error("resolveLobby requires subjectId (target rival)");
+  }
+  const direction = action.kind === "lobbyFor" ? +1 : -1;
+  const d = dip(state);
+  const empireTags = d.empireTags[empireId] ?? [];
+  const oweBonus = hasTagOfKind(empireTags, "OweFavor")
+    ? LOBBY_OWE_FAVOR_BONUS
+    : 0;
+  const success = rng.chance(LOBBY_BASE_SUCCESS + oweBonus);
+
+  const empireMap = d.crossEmpireRivalStanding[empireId] ?? {};
+  const before = empireMap[rivalId] ?? 50;
+  let next = before;
+  let cashAfter = state.cash - action.cashCost;
+  const modal: ModalEntry[] = [];
+  const digest: DigestEntry[] = [];
+
+  if (success) {
+    next = clamp(before + direction * LOBBY_DELTA);
+    digest.push({
+      text: `${empireId} ${direction > 0 ? "warmer" : "cooler"} toward ${rivalId} (${before} → ${next}).`,
+    });
+    if (isTierTransition(before, next)) {
+      modal.push({
+        speakerKind: "empireAmbassador",
+        targetId: empireId,
+        headline: "Tier shift",
+        flavor: `Their stance toward ${rivalId} has shifted.`,
+      });
+    }
+  } else {
+    cashAfter = state.cash - Math.floor(action.cashCost * 0.5);
+    digest.push({ text: `Lobbying ${empireId} on ${rivalId}: no effect.` });
+  }
+
+  return {
+    nextState: {
+      ...state,
+      cash: cashAfter,
+      diplomacy: {
+        ...d,
+        crossEmpireRivalStanding: {
+          ...d.crossEmpireRivalStanding,
+          [empireId]: { ...empireMap, [rivalId]: next },
+        },
+        cooldowns: setCooldown(
+          d.cooldowns,
+          cooldownKey(action.kind, empireId, rivalId),
+          state.turn + LOBBY_COOLDOWN,
+        ),
+        actionsResolvedThisTurn: d.actionsResolvedThisTurn + 1,
       },
     },
     modalEntries: modal,
