@@ -379,9 +379,10 @@ function readSurveilValue(
     case "cash":
       return String(rival.cash ?? 0);
     case "topContractByValue": {
-      const top = (rival.activeRoutes ?? [])
-        .map((r: { value?: number }) => r.value ?? 0)
-        .sort((a: number, b: number) => b - a)[0];
+      const routes = (rival.activeRoutes ?? []) as readonly {
+        value?: number;
+      }[];
+      const top = routes.map((r) => r.value ?? 0).sort((a, b) => b - a)[0];
       return top !== undefined ? String(top) : "none";
     }
     case "topEmpireStanding": {
