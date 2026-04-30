@@ -75,7 +75,18 @@ function createDefaultState(): GameState {
     researchEvents: [],
     unlockedNavTabs: ["map", "routes", "fleet", "finance"],
     reputationTier: "unknown",
-    empireReputation: {},
+    diplomacy: {
+      empireStanding: {},
+      rivalStanding: {},
+      crossEmpireRivalStanding: {},
+      empireTags: {},
+      rivalTags: {},
+      empireAmbassadors: {},
+      rivalLiaisons: {},
+      cooldowns: {},
+      queuedActions: [],
+      actionsResolvedThisTurn: 0,
+    },
   };
 }
 
