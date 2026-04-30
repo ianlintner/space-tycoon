@@ -109,6 +109,7 @@ export class DiplomacyScene extends Phaser.Scene {
   private targetTable!: DataTable;
   private actionPanel!: Panel;
   private actionButtons: Button[] = [];
+  private tagDetailLabels: Phaser.GameObjects.Text[] = [];
   private actionStatusLabel!: Label;
   private headerCounter!: Label;
   private queuedSummary!: Label;
@@ -308,6 +309,9 @@ export class DiplomacyScene extends Phaser.Scene {
     // Clear previous buttons.
     for (const b of this.actionButtons) b.destroy();
     this.actionButtons = [];
+    // Clear previous tag detail rows.
+    for (const t of this.tagDetailLabels) t.destroy();
+    this.tagDetailLabels = [];
 
     const state = gameStore.getState();
     if (!this.selection) {
@@ -350,18 +354,21 @@ export class DiplomacyScene extends Phaser.Scene {
       activeTags = getActiveTagBadges(d.rivalTags[id] ?? [], state.turn);
     }
 
-    const headerWithTags =
-      activeTags.length > 0
-        ? `${header}\nTags: ${activeTags.map((t) => t.label).join(" · ")}`
-        : header;
-    this.actionStatusLabel.setText(headerWithTags);
+    this.actionStatusLabel.setText(header);
 
     const { absX, absY, contentWidth } = this.getActionPanelGeometry();
+    const tagRowGap = 18;
+    const tagRowsBottom = this.renderTagDetailRows(
+      activeTags,
+      absX,
+      absY,
+      contentWidth - 16,
+      tagRowGap,
+    );
+
     const btnH = 36;
     const btnGap = 6;
-    // When tags are shown, push the action buttons down by one line so they
-    // don't collide with the wrapped header.
-    const yOffset = activeTags.length > 0 ? 18 : 0;
+    const yOffset = tagRowsBottom > absY ? tagRowsBottom - absY + 8 : 0;
 
     actions.forEach((action, i) => {
       const evalState = evaluateActionState(action, id, state);
@@ -491,6 +498,43 @@ export class DiplomacyScene extends Phaser.Scene {
       },
     });
     this.actionButtons.push(cancelBtn);
+  }
+
+  /**
+   * Renders one Phaser.Text per active tag below the action header. Each row
+   * shows `<label> — <tooltip>` colored by the tag's intent. Returns the y
+   * coordinate of the bottom of the last rendered row, so the caller can
+   * push subsequent UI (action buttons) down beneath.
+   */
+  private renderTagDetailRows(
+    tags: ReturnType<typeof getActiveTagBadges>,
+    x: number,
+    yStart: number,
+    maxWidth: number,
+    rowHeight: number,
+  ): number {
+    if (tags.length === 0) return yStart;
+    const theme = getTheme();
+    const colorByIntent: Record<"good" | "bad" | "neutral", number> = {
+      good: theme.colors.profit,
+      bad: theme.colors.warning,
+      neutral: theme.colors.accent,
+    };
+    let y = yStart;
+    for (const t of tags) {
+      const text = `${t.label} — ${t.tooltip}`;
+      const lbl = this.add.text(x, y, text, {
+        fontFamily: "sans-serif",
+        fontSize: "11px",
+        color: colorToHex(colorByIntent[t.intent]),
+        wordWrap: { width: maxWidth },
+      });
+      this.tagDetailLabels.push(lbl);
+      // wrap may produce multiple visual lines; advance y by the actual
+      // rendered height plus a small gap.
+      y += Math.max(rowHeight, lbl.height + 2);
+    }
+    return y;
   }
 
   private getActionPanelGeometry(): {
