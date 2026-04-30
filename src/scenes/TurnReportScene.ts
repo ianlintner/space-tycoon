@@ -618,6 +618,42 @@ export class TurnReportScene extends Phaser.Scene {
     }
 
     // -----------------------------------------------------------------------
+    // Diplomatic Activity (renders only when the simulator produced digest
+    // entries this turn). Wave 1 surfaces a simple bulleted list; richer
+    // formatting (icons, click-throughs to standing changes) ships in wave 2.
+    // -----------------------------------------------------------------------
+    const diplomacyDigest = state.turnReport?.diplomacyDigest ?? [];
+    if (diplomacyDigest.length > 0) {
+      const dipLineHeight = 18;
+      const dipPanelHeight = Math.max(
+        56,
+        38 + diplomacyDigest.length * dipLineHeight + 8,
+      );
+      const dipY = bottomY + TR_BOTTOM_H + TR_GAP;
+      const dipPanel = new Panel(this, {
+        x: L.mainContentLeft,
+        y: dipY,
+        width: L.mainContentWidth,
+        height: dipPanelHeight,
+        title: "Diplomatic Activity",
+      });
+      const dipContent = dipPanel.getContentArea();
+      diplomacyDigest.forEach((line, idx) => {
+        const lineLabel = this.add.text(
+          dipContent.x + 8,
+          dipContent.y + 4 + idx * dipLineHeight,
+          `• ${line}`,
+          {
+            fontSize: `${theme.fonts.body.size}px`,
+            fontFamily: theme.fonts.body.family,
+            color: colorToString(theme.colors.text),
+          },
+        );
+        dipPanel.add(lineLabel);
+      });
+    }
+
+    // -----------------------------------------------------------------------
     // Quarter summary is non-blocking — players can navigate freely while it
     // is open, and the persistent End Quarter button in the HUD advances the
     // turn when they're ready. The only forced flow is GameOver.

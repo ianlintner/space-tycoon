@@ -702,6 +702,7 @@ export interface EventEffect {
   value: number;
   empireId?: string;
   empireId2?: string;
+  surface?: "modal" | "digest";
 }
 
 export interface EventChoice {
@@ -1071,6 +1072,86 @@ export interface CharacterPortrait {
   category: PortraitCategory;
 }
 
+// ────────────────────────────── Diplomacy ──────────────────────────────────
+
+export type StandingTag =
+  | { kind: "OweFavor"; expiresOnTurn: number }
+  | { kind: "RecentlyGifted"; expiresOnTurn: number }
+  | {
+      kind: "SuspectedSpy";
+      suspectId: "player" | string;
+      expiresOnTurn: number;
+    }
+  | {
+      kind: "NonCompete";
+      protectedEmpireIds: readonly string[];
+      expiresOnTurn: number;
+    }
+  | {
+      kind: "LeakedIntel";
+      lens: "cash" | "topContractByValue" | "topEmpireStanding";
+      value: string;
+      expiresOnTurn: number;
+    };
+
+export type AmbassadorPersonality =
+  | "formal"
+  | "mercenary"
+  | "suspicious"
+  | "warm";
+
+export interface Ambassador {
+  name: string;
+  portrait: CharacterPortrait;
+  personality: AmbassadorPersonality;
+}
+
+export type DiplomacyActionKind =
+  | "giftEmpire"
+  | "giftRival"
+  | "lobbyFor"
+  | "lobbyAgainst"
+  | "proposeNonCompete"
+  | "surveil";
+
+export type SurveilLens = "cash" | "topContractByValue" | "topEmpireStanding";
+
+export interface QueuedDiplomacyAction {
+  id: string;
+  kind: DiplomacyActionKind;
+  targetId: string;
+  subjectId?: string;
+  subjectIdSecondary?: string;
+  surveilLens?: SurveilLens;
+  cashCost: number;
+}
+
+export interface DiplomacyState {
+  /** Per-rival standing 0..100. Empire-side standing lives on `GameState.empireReputation`. */
+  rivalStanding: Record<string, number>;
+  /** Per-empire view of each rival (for lobby targeting). */
+  crossEmpireRivalStanding: Record<string, Record<string, number>>;
+  empireTags: Record<string, readonly StandingTag[]>;
+  rivalTags: Record<string, readonly StandingTag[]>;
+  empireAmbassadors: Record<string, Ambassador>;
+  rivalLiaisons: Record<string, Ambassador>;
+  cooldowns: Record<string, number>;
+  queuedActions: readonly QueuedDiplomacyAction[];
+  actionsResolvedThisTurn: number;
+}
+
+export const EMPTY_DIPLOMACY_STATE: DiplomacyState = Object.freeze({
+  rivalStanding: {},
+  crossEmpireRivalStanding: {},
+  empireTags: {},
+  rivalTags: {},
+  empireAmbassadors: {},
+  rivalLiaisons: {},
+  cooldowns: {},
+  queuedActions: Object.freeze([]) as readonly QueuedDiplomacyAction[],
+  actionsResolvedThisTurn: 0,
+}) as DiplomacyState;
+
 export interface GameState {
   seed: number;
   turn: number;
@@ -1172,4 +1253,17 @@ export interface GameState {
    * for v6-save compat.
    */
   activeAuctions?: CharterAuction[];
+
+  diplomacy?: DiplomacyState;
+
+  /**
+   * Optional per-turn report bag, populated during simulation and read by the
+   * Turn Report screen. Currently used to surface a diplomacy digest. Kept as
+   * an open record so other systems can append additional fields in future
+   * waves without churning the type signature.
+   */
+  turnReport?: {
+    diplomacyDigest?: string[];
+    [k: string]: unknown;
+  };
 }

@@ -1,4 +1,5 @@
 import type { GameState } from "./types";
+import { EMPTY_DIPLOMACY_STATE } from "./types";
 import { GameEventEmitter } from "../utils/EventEmitter";
 import {
   STARTING_CASH,
@@ -76,6 +77,7 @@ function createDefaultState(): GameState {
     unlockedNavTabs: ["map", "routes", "fleet", "finance"],
     reputationTier: "unknown",
     empireReputation: {},
+    diplomacy: { ...EMPTY_DIPLOMACY_STATE },
   };
 }
 
