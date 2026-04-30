@@ -3,11 +3,15 @@ import {
   saveGame,
   loadGame,
   hasSaveGame,
+  hasAutoSave,
   deleteSave,
   autoSave,
   loadAutoSave,
   deleteAutoSave,
   loadGameIntoStore,
+  loadAutoSaveIntoStore,
+  getSaveMeta,
+  getAutoSaveMeta,
 } from "../SaveManager.ts";
 import { gameStore } from "../../data/GameStore.ts";
 import type { GameState } from "../../data/types.ts";
@@ -328,6 +332,96 @@ describe("SaveManager", () => {
     it("returns false when no save exists", () => {
       const result = loadGameIntoStore();
       expect(result).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // hasAutoSave / loadAutoSaveIntoStore
+  // -------------------------------------------------------------------------
+  describe("hasAutoSave", () => {
+    it("returns false when no auto-save exists", () => {
+      expect(hasAutoSave()).toBe(false);
+    });
+
+    it("returns true after autoSave", () => {
+      autoSave(createTestState());
+      expect(hasAutoSave()).toBe(true);
+    });
+
+    it("returns false after deleteAutoSave", () => {
+      autoSave(createTestState());
+      deleteAutoSave();
+      expect(hasAutoSave()).toBe(false);
+    });
+
+    it("ignores manual saves", () => {
+      saveGame(createTestState());
+      expect(hasAutoSave()).toBe(false);
+    });
+  });
+
+  describe("loadAutoSaveIntoStore", () => {
+    it("restores auto-save into gameStore and returns true", () => {
+      const state = createTestState({
+        cash: 222222,
+        companyName: "Auto Stored",
+      });
+      autoSave(state);
+
+      const result = loadAutoSaveIntoStore();
+
+      expect(result).toBe(true);
+      expect(gameStore.getState().cash).toBe(222222);
+      expect(gameStore.getState().companyName).toBe("Auto Stored");
+    });
+
+    it("returns false when no auto-save exists", () => {
+      expect(loadAutoSaveIntoStore()).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getSaveMeta / getAutoSaveMeta
+  // -------------------------------------------------------------------------
+  describe("getSaveMeta / getAutoSaveMeta", () => {
+    it("returns null when no save exists", () => {
+      expect(getSaveMeta()).toBeNull();
+      expect(getAutoSaveMeta()).toBeNull();
+    });
+
+    it("returns timestamp + turn for the manual save", () => {
+      const before = Date.now();
+      saveGame(createTestState({ turn: 9 }));
+      const after = Date.now();
+
+      const meta = getSaveMeta();
+      expect(meta).not.toBeNull();
+      expect(meta!.turn).toBe(9);
+      expect(meta!.timestamp).toBeGreaterThanOrEqual(before);
+      expect(meta!.timestamp).toBeLessThanOrEqual(after);
+    });
+
+    it("returns timestamp + turn for the auto-save", () => {
+      autoSave(createTestState({ turn: 14 }));
+      const meta = getAutoSaveMeta();
+      expect(meta).not.toBeNull();
+      expect(meta!.turn).toBe(14);
+    });
+
+    it("manual + auto-save metadata are independent", () => {
+      saveGame(createTestState({ turn: 3 }));
+      autoSave(createTestState({ turn: 11 }));
+
+      expect(getSaveMeta()!.turn).toBe(3);
+      expect(getAutoSaveMeta()!.turn).toBe(11);
+    });
+
+    it("returns null when the envelope is malformed", () => {
+      storage["sft_save"] = "not-json";
+      storage["sft_autosave"] = JSON.stringify({ wrong: "shape" });
+
+      expect(getSaveMeta()).toBeNull();
+      expect(getAutoSaveMeta()).toBeNull();
     });
   });
 });
