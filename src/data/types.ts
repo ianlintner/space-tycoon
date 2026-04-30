@@ -1255,4 +1255,15 @@ export interface GameState {
   activeAuctions?: CharterAuction[];
 
   diplomacy?: DiplomacyState;
+
+  /**
+   * Optional per-turn report bag, populated during simulation and read by the
+   * Turn Report screen. Currently used to surface a diplomacy digest. Kept as
+   * an open record so other systems can append additional fields in future
+   * waves without churning the type signature.
+   */
+  turnReport?: {
+    diplomacyDigest?: string[];
+    [k: string]: unknown;
+  };
 }
