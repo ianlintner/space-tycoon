@@ -67,7 +67,7 @@ export function loadGame(): GameState | null {
 
 /** Returns true when a valid manual save exists in localStorage. */
 export function hasSaveGame(): boolean {
-  return readSave(SAVE_KEY) !== null;
+  return readSaveMeta(SAVE_KEY) !== null;
 }
 
 /** Remove the manual save from localStorage. */
@@ -93,7 +93,7 @@ export function deleteAutoSave(): void {
 
 /** Returns true when an auto-save envelope exists (and is parseable). */
 export function hasAutoSave(): boolean {
-  return readSave(AUTOSAVE_KEY) !== null;
+  return readSaveMeta(AUTOSAVE_KEY) !== null;
 }
 
 /** Lightweight metadata pulled from a save envelope without rehydrating the full state. */

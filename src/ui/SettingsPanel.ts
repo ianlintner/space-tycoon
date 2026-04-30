@@ -1,5 +1,6 @@
 import * as Phaser from "phaser";
-import { Button, Label, Panel, getTheme, getLayout } from "./index.ts";
+import { Button, Label, Modal, Panel, getTheme, getLayout } from "./index.ts";
+import { formatTurnShort } from "../utils/turnFormat.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 
 type AudioDirector = ReturnType<typeof getAudioDirector>;
@@ -137,6 +138,53 @@ export class SettingsPanel {
   /** Destroy on scene shutdown. */
   destroy(): void {
     this.close();
+  }
+
+  /**
+   * Show a confirmation Modal for destructive actions (Load / Delete).
+   * The Modal renders above the panel via depth, so we don't tear the
+   * settings panel down — just stack on top until the user picks.
+   */
+  private confirmDestructive(opts: {
+    title: string;
+    body: string;
+    okText: string;
+    testId: string;
+    onOk: () => void;
+  }): void {
+    const modal = new Modal(this.scene, {
+      title: opts.title,
+      body: opts.body,
+      okText: opts.okText,
+      cancelText: "Cancel",
+      testId: opts.testId,
+      onOk: () => {
+        modal.destroy();
+        opts.onOk();
+      },
+      onCancel: () => {
+        modal.destroy();
+      },
+    });
+    // Stack above SettingsPanel children. Modal defaults to depth 1000;
+    // panel children are unlayered, so this is sufficient — but bump
+    // explicitly so future depth changes don't surprise us.
+    modal.setDepth(2000);
+    modal.show();
+    this.audio.sfx("ui_modal_open");
+  }
+
+  /**
+   * After a successful Load, restart the owning scene so it rebuilds
+   * against the freshly-loaded GameStore state. Uses the actual scene
+   * key rather than a hardcoded "GameHUDScene" so the panel can be
+   * reused from other scenes without silent breakage.
+   */
+  private reloadOwningScene(): void {
+    const sceneKey = this.scene.scene.key;
+    this.close();
+    this.scene.scene.stop(sceneKey);
+    this.scene.scene.start(sceneKey);
   }
 
   private setActiveTab(id: SettingsTabId): void {
@@ -650,16 +698,18 @@ export class SettingsPanel {
       label: "Load",
       onClick: () => {
         if (!hasSaveGame()) return;
-        // Confirm via a quick visual: close panel and re-launch HUD with
-        // the loaded state. The scene-level "load" path already hard-resets
-        // to GameHUDScene from MainMenu — replicate that here so an in-game
-        // Load behaves the same.
-        if (loadGameIntoStore()) {
-          this.audio.sfx("ui_confirm");
-          this.close();
-          this.scene.scene.stop("GameHUDScene");
-          this.scene.scene.start("GameHUDScene");
-        }
+        this.confirmDestructive({
+          title: "Load Save?",
+          body: "Loading will replace your current progress with the last manual save. Any work since you last saved will be lost.",
+          okText: "Load",
+          testId: "modal-settings-load",
+          onOk: () => {
+            if (loadGameIntoStore()) {
+              this.audio.sfx("ui_confirm");
+              this.reloadOwningScene();
+            }
+          },
+        });
       },
     });
 
@@ -671,9 +721,17 @@ export class SettingsPanel {
       label: "Delete",
       onClick: () => {
         if (!hasSaveGame()) return;
-        deleteSave();
-        this.audio.sfx("ui_error");
-        this.refreshSaveValues();
+        this.confirmDestructive({
+          title: "Delete Manual Save?",
+          body: "This permanently removes your manual save. The auto-save is unaffected. This cannot be undone.",
+          okText: "Delete",
+          testId: "modal-settings-delete-manual",
+          onOk: () => {
+            deleteSave();
+            this.audio.sfx("ui_error");
+            this.refreshSaveValues();
+          },
+        });
       },
     });
     trackedAdd(this.saveButton, this.loadButton, this.deleteSaveButton);
@@ -706,12 +764,18 @@ export class SettingsPanel {
       label: "Load Auto",
       onClick: () => {
         if (!hasAutoSave()) return;
-        if (loadAutoSaveIntoStore()) {
-          this.audio.sfx("ui_confirm");
-          this.close();
-          this.scene.scene.stop("GameHUDScene");
-          this.scene.scene.start("GameHUDScene");
-        }
+        this.confirmDestructive({
+          title: "Load Auto-Save?",
+          body: "Loading the auto-save will replace your current progress. Anything you've done since the start of the current turn will be lost.",
+          okText: "Load Auto",
+          testId: "modal-settings-load-auto",
+          onOk: () => {
+            if (loadAutoSaveIntoStore()) {
+              this.audio.sfx("ui_confirm");
+              this.reloadOwningScene();
+            }
+          },
+        });
       },
     });
     this.deleteAutoSaveButton = new Button(this.scene, {
@@ -722,9 +786,17 @@ export class SettingsPanel {
       label: "Delete",
       onClick: () => {
         if (!hasAutoSave()) return;
-        deleteAutoSave();
-        this.audio.sfx("ui_error");
-        this.refreshSaveValues();
+        this.confirmDestructive({
+          title: "Delete Auto-Save?",
+          body: "This permanently removes the auto-save. Your manual save is unaffected. A new auto-save will be written at the end of the next turn.",
+          okText: "Delete",
+          testId: "modal-settings-delete-auto",
+          onOk: () => {
+            deleteAutoSave();
+            this.audio.sfx("ui_error");
+            this.refreshSaveValues();
+          },
+        });
       },
     });
     trackedAdd(this.loadAutoSaveButton, this.deleteAutoSaveButton);
@@ -779,11 +851,8 @@ function prettyStyle(style: "ambient" | "ftl" | "score" | "retro"): string {
 
 function formatSaveStatus(prefix: string, meta: SaveMeta | null): string {
   if (meta === null) return `${prefix}: none`;
-  const turn = meta.turn;
-  const quarter = ((turn - 1) % 4) + 1;
-  const year = Math.ceil(turn / 4);
   const ago = formatRelativeTime(meta.timestamp);
-  return `${prefix}: Q${quarter} Y${year} (${ago})`;
+  return `${prefix}: ${formatTurnShort(meta.turn)} (${ago})`;
 }
 
 function formatRelativeTime(timestamp: number): string {

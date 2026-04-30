@@ -10,6 +10,7 @@ import {
   AdviserPanel,
 } from "../ui/index.ts";
 import { SettingsPanel } from "../ui/SettingsPanel.ts";
+import { formatTurnShort, formatTurnLong } from "../utils/turnFormat.ts";
 import { HorizontalNewsTicker } from "@rogue-universe/shared";
 import { gameStore } from "../data/GameStore.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
@@ -281,12 +282,10 @@ export class GameHUDScene extends Phaser.Scene {
     });
 
     // Turn display (centered)
-    const quarter = ((state.turn - 1) % 4) + 1;
-    const year = Math.ceil(state.turn / 4);
     this.turnLabel = new Label(this, {
       x: L.gameWidth / 2,
       y: L.hudTopBarHeight / 2,
-      text: `Q${quarter} Year ${year}`,
+      text: formatTurnLong(state.turn),
       style: "value",
     });
     this.turnLabel.setOrigin(0.5, 0.5);
@@ -611,12 +610,10 @@ export class GameHUDScene extends Phaser.Scene {
     const endTurnX = L.gameWidth - endTurnSize - 12;
     // Turn info display — sits to the LEFT of the ▶ button with a 12px gap,
     // not stacked above it (previous placement collided with the button).
-    const currentQuarter = ((state.turn - 1) % 4) + 1;
-    const currentYear = Math.ceil(state.turn / 4);
     this.bottomTurnInfoLabel = new Label(this, {
       x: endTurnX - 12,
       y: bottomBarY + endTurnSize / 2,
-      text: `Q${currentQuarter} Y${currentYear}`,
+      text: formatTurnShort(state.turn),
       style: "caption",
     });
     this.bottomTurnInfoLabel.setOrigin(1, 0.5);
@@ -748,10 +745,8 @@ export class GameHUDScene extends Phaser.Scene {
 
     this.companyLabel.setText(state.companyName);
 
-    const quarter = ((state.turn - 1) % 4) + 1;
-    const year = Math.ceil(state.turn / 4);
-    this.turnLabel.setText(`Q${quarter} Year ${year}`);
-    this.bottomTurnInfoLabel.setText(`Q${quarter} Y${year}`);
+    this.turnLabel.setText(formatTurnLong(state.turn));
+    this.bottomTurnInfoLabel.setText(formatTurnShort(state.turn));
 
     // AP badge update
     const apCurrent = state.actionPoints?.current ?? 0;
@@ -1105,17 +1100,15 @@ export class GameHUDScene extends Phaser.Scene {
     const state = gameStore.getState();
 
     if (state.phase === "simulation") {
-      const q = ((state.turn - 1) % 4) + 1;
-      const y = Math.ceil(state.turn / 4);
-      this.actionPromptLabel.setText(`▶ Simulating Q${q} Y${y}...`);
+      this.actionPromptLabel.setText(
+        `▶ Simulating ${formatTurnShort(state.turn)}...`,
+      );
       this.actionPromptLabel.setLabelColor(theme.colors.accent);
       return;
     }
     if (state.phase === "review") {
-      const q = ((state.turn - 1) % 4) + 1;
-      const y = Math.ceil(state.turn / 4);
       this.actionPromptLabel.setText(
-        `✅ Quarter complete (Q${q} Y${y}) — review results`,
+        `✅ Quarter complete (${formatTurnShort(state.turn)}) — review results`,
       );
       this.actionPromptLabel.setLabelColor(theme.colors.textDim);
       return;

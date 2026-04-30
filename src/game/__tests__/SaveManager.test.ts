@@ -378,6 +378,30 @@ describe("SaveManager", () => {
     it("returns false when no auto-save exists", () => {
       expect(loadAutoSaveIntoStore()).toBe(false);
     });
+
+    it("runs the same migration path as manual loads", () => {
+      // Write an auto-save envelope missing newer fields (`adviser`,
+      // `stationHub`) — the schema before migration was added. The
+      // shared migrateSave() path should backfill on load.
+      const state = createTestState();
+      const legacy = JSON.parse(JSON.stringify(state)) as Record<
+        string,
+        unknown
+      >;
+      delete legacy.adviser;
+      delete legacy.stationHub;
+      storage["sft_autosave"] = JSON.stringify({
+        version: 1,
+        timestamp: Date.now(),
+        turn: legacy.turn,
+        state: legacy,
+      });
+
+      expect(loadAutoSaveIntoStore()).toBe(true);
+      const restored = gameStore.getState();
+      expect(restored.adviser).toBeDefined();
+      expect(restored.stationHub).toBeNull();
+    });
   });
 
   // -------------------------------------------------------------------------
