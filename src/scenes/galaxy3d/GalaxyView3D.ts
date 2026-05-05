@@ -70,6 +70,21 @@ export function setGalaxy3DVisible(visible: boolean): void {
   });
 }
 
+/**
+ * Dim or restore every 3D galaxy canvas via CSS opacity. Used by modals and
+ * overlays — Phaser rectangles cannot occlude this canvas (zIndex 2 > 0), so
+ * DOM-level opacity is the only way to visually recede the galaxy behind dialogs.
+ */
+export function setGalaxy3DDimmed(dimmed: boolean, opacity = 0.12): void {
+  const els = document.querySelectorAll<HTMLCanvasElement>(
+    `.${GALAXY_3D_CANVAS_CLASS}`,
+  );
+  els.forEach((el) => {
+    el.style.transition = "opacity 0.25s ease";
+    el.style.opacity = dimmed ? String(opacity) : "1";
+  });
+}
+
 const HYPERLANE_OPEN_COLOR = 0x6dc8ff;
 const HYPERLANE_RESTRICTED_COLOR = 0xffaa00;
 const HYPERLANE_CLOSED_COLOR = 0xff4444;

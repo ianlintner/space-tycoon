@@ -11,8 +11,10 @@ import {
   attachReflowHandler,
   GROUP_TAB_STRIP_HEIGHT,
   DEPTH_MODAL,
+  SceneUiDirector,
 } from "../ui/index.ts";
 import { colorToString } from "@spacebiz/ui";
+import { TutorialRunner } from "../game/adviser/TutorialRunner.ts";
 import { SettingsPanel } from "../ui/SettingsPanel.ts";
 import { formatTurnShort, formatTurnLong } from "../utils/turnFormat.ts";
 import { HorizontalNewsTicker } from "@rogue-universe/shared";
@@ -131,6 +133,8 @@ export class GameHUDScene extends Phaser.Scene {
   private navBadges = new Map<string, Phaser.GameObjects.Arc>();
   private endTurnModal: Modal | null = null;
   private newsTicker: HorizontalNewsTicker | null = null;
+  private sceneUi!: SceneUiDirector;
+  private tutorialHighlight?: Phaser.GameObjects.Rectangle;
   // ── Layout-derived widgets re-positioned/re-sized by relayout() ──
   private topBarBg!: Phaser.GameObjects.NineSlice;
   private bottomBarBg!: Phaser.GameObjects.NineSlice;
@@ -233,6 +237,7 @@ export class GameHUDScene extends Phaser.Scene {
     this.lastSeenTurn = state.turn;
     audio.setMusicState("planning");
     audio.setPlanningSubstate("galaxy");
+    this.sceneUi = new SceneUiDirector(this);
 
     // ── Top Bar ──────────────────────────────────────────────
     this.topBarBg = this.add
@@ -752,6 +757,22 @@ export class GameHUDScene extends Phaser.Scene {
 
     // If a dilemma was already pending (e.g. resumed save), surface it now.
     this.maybeShowDilemma();
+
+    // Scripted tutorial on fresh game start (turn starts at 1, no routes yet)
+    if (
+      state.turn === 1 &&
+      state.activeRoutes.length === 0 &&
+      !state.adviser?.tutorialSkipped &&
+      !state.adviser?.tutorialComplete
+    ) {
+      const runner = new TutorialRunner(this, this.sceneUi, {
+        navigateTo: (sceneName) => this.switchContentScene(sceneName),
+        skipTutorial: () => this.skipTutorial(),
+        showNamedHighlight: (region) => this.showNamedHighlight(region),
+        hideHighlight: () => this.hideTutorialHighlight(),
+      });
+      this.time.delayedCall(900, () => runner.start());
+    }
   }
 
   /**
@@ -1410,6 +1431,52 @@ export class GameHUDScene extends Phaser.Scene {
     gameStore.update({
       adviser: { ...state.adviser, tutorialSkipped: true },
     });
+  }
+
+  showNamedHighlight(region: "endTurn" | "routesNav"): void {
+    this.hideTutorialHighlight();
+    const L = getLayout();
+    const theme = getTheme();
+
+    let x: number, y: number, w: number, h: number;
+
+    if (region === "endTurn") {
+      const sz = 52;
+      x = L.gameWidth - sz - 12 - 4;
+      y = L.hudBottomBarTop - 4;
+      w = sz + 8;
+      h = sz + 8;
+    } else {
+      const hitArea = this.navHitAreas.get("RoutesScene");
+      if (!hitArea) return;
+      x = hitArea.x - this.navIconButtonSize / 2 - 4;
+      y = hitArea.y - this.navHitHeight / 2 - 4;
+      w = this.navIconButtonSize + 8;
+      h = this.navHitHeight + 8;
+    }
+
+    this.tutorialHighlight = this.add
+      .rectangle(x, y, w, h)
+      .setOrigin(0, 0)
+      .setStrokeStyle(2, theme.colors.accent, 1)
+      .setFillStyle(theme.colors.accent, 0.08)
+      .setDepth(DEPTH_MODAL + 10);
+
+    this.tweens.add({
+      targets: this.tutorialHighlight,
+      alpha: { from: 0.4, to: 1 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  hideTutorialHighlight(): void {
+    if (this.tutorialHighlight) {
+      this.tweens.killTweensOf(this.tutorialHighlight);
+      this.tutorialHighlight.destroy();
+      this.tutorialHighlight = undefined;
+    }
   }
 
   // ── Action prompt & nav badges ─────────────────────────────
