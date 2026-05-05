@@ -12,16 +12,21 @@ import {
   portraitLoader,
   PORTRAIT_PLACEHOLDER_KEY,
 } from "../game/PortraitLoader.ts";
+import { setGalaxy3DDimmed } from "../scenes/galaxy3d/GalaxyView3D.ts";
 
 export interface CommunicationDialogue {
   speakerName: string;
   speakerTitle: string;
+  /** Direct Phaser texture key for preloaded portraits (e.g. "rex-portrait-standby"). */
+  portraitTextureKey?: string;
   /** ID passed to portraitLoader.ensureAmbassadorPortrait — loads async. */
   ambassadorPortraitId?: string;
   text: string;
   /** Optional empire/faction accent color for the decorative line. */
   accentColor?: number;
   onDismiss?: () => void;
+  /** When provided, renders these buttons instead of "Continue ▶". */
+  choices?: Array<{ label: string; onClick: () => void }>;
 }
 
 export function openCommunicationModal(
@@ -31,8 +36,12 @@ export function openCommunicationModal(
 ): void {
   const layer = ui.openLayer({ key: "communication" });
   const theme = getTheme();
+
+  setGalaxy3DDimmed(true);
+  layer.onDestroy(() => setGalaxy3DDimmed(false));
+
   layer.createOverlay({
-    alpha: 0.72,
+    alpha: 0.88,
     color: theme.colors.modalOverlay,
     closeOnPointerUp: false,
     activationDelayMs: 300,
@@ -50,7 +59,8 @@ class CommunicationPanel {
   private readonly dialogue: CommunicationDialogue;
   private portraitImage!: Phaser.GameObjects.Image;
   private dialogText!: Phaser.GameObjects.Text;
-  private continueButton!: Button;
+  private continueButton?: Button;
+  private choiceButtons: Button[] = [];
   private typewriterEvent: Phaser.Time.TimerEvent | null = null;
   private typewriterDone = false;
 
@@ -191,26 +201,68 @@ class CommunicationPanel {
     textHitZone.on("pointerdown", () => this.skipTypewriter());
     this.layer.track(textHitZone);
 
-    // ── Continue button ───────────────────────────────────────────────────
+    // ── Action buttons ───────────────────────────────────────────────────
 
-    this.continueButton = new Button(this.scene, {
-      x: panelX + panelW - content.x - 110,
-      y: panelY + panelH - 48,
-      width: 110,
-      label: "Continue  ▶",
-      onClick: () => {
-        this.dialogue.onDismiss?.();
-        this.layer.destroy();
-      },
-    });
-    this.continueButton.setDepth(DEPTH_MODAL + 2);
-    this.continueButton.setVisible(false);
-    this.layer.track(this.continueButton);
+    const btnY = panelY + panelH - 48;
+    const choices = this.dialogue.choices;
+
+    if (choices && choices.length > 0) {
+      // Multiple choice buttons — right-aligned, spaced left
+      const btnW = 120;
+      const gap = 8;
+      let startX =
+        panelX +
+        panelW -
+        content.x -
+        btnW * choices.length -
+        gap * (choices.length - 1);
+
+      for (const choice of choices) {
+        const btn = new Button(this.scene, {
+          x: startX,
+          y: btnY,
+          width: btnW,
+          label: choice.label,
+          onClick: () => {
+            choice.onClick();
+            this.layer.destroy();
+          },
+        });
+        btn.setDepth(DEPTH_MODAL + 2);
+        btn.setVisible(false);
+        this.layer.track(btn);
+        this.choiceButtons.push(btn);
+        startX += btnW + gap;
+      }
+    } else {
+      this.continueButton = new Button(this.scene, {
+        x: panelX + panelW - content.x - 110,
+        y: btnY,
+        width: 110,
+        label: "Continue  ▶",
+        onClick: () => {
+          this.dialogue.onDismiss?.();
+          this.layer.destroy();
+        },
+      });
+      this.continueButton.setDepth(DEPTH_MODAL + 2);
+      this.continueButton.setVisible(false);
+      this.layer.track(this.continueButton);
+    }
 
     // Cleanup timer on layer destroy
     this.layer.onDestroy(() => {
       this.typewriterEvent?.remove(false);
     });
+  }
+
+  private revealButtons(): void {
+    this.typewriterDone = true;
+    if (this.choiceButtons.length > 0) {
+      for (const btn of this.choiceButtons) btn.setVisible(true);
+    } else {
+      this.continueButton?.setVisible(true);
+    }
   }
 
   private startTypewriter(text: string): void {
@@ -222,8 +274,7 @@ class CommunicationPanel {
         charIndex++;
         this.dialogText.setText(text.slice(0, charIndex));
         if (charIndex >= text.length) {
-          this.typewriterDone = true;
-          this.continueButton.setVisible(true);
+          this.revealButtons();
         }
       },
     });
@@ -234,16 +285,25 @@ class CommunicationPanel {
     this.typewriterEvent?.remove(false);
     this.typewriterEvent = null;
     this.dialogText.setText(this.dialogue.text);
-    this.typewriterDone = true;
-    this.continueButton.setVisible(true);
+    this.revealButtons();
   }
 
   private loadPortrait(): void {
-    const pid = this.dialogue.ambassadorPortraitId;
-    if (!pid) return;
+    const { portraitTextureKey, ambassadorPortraitId } = this.dialogue;
+
+    if (portraitTextureKey) {
+      if (this.scene.textures.exists(portraitTextureKey)) {
+        this.portraitImage
+          .setTexture(portraitTextureKey)
+          .setDisplaySize(96, 96);
+      }
+      return;
+    }
+
+    if (!ambassadorPortraitId) return;
 
     portraitLoader
-      .ensureAmbassadorPortrait(this.scene, pid)
+      .ensureAmbassadorPortrait(this.scene, ambassadorPortraitId)
       .then((key) => {
         if (this.portraitImage.active) {
           this.portraitImage.setTexture(key).setDisplaySize(96, 96);
