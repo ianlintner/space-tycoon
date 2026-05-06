@@ -625,7 +625,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "Unexplained gravitational lensing reported near {sector}; civilian traffic advised to detour",
     story: [
-      "Survey crews near {sector} are reporting impossible gravitational lensing — stars in the wrong positions, light bending in directions that don't add up. Imperial astronomers caution against speculation but admit the data is, in their words, 'profoundly weird.' Civilian traffic has been advised to take the long route until the phenomenon resolves or someone, anyone, can explain it.",
+      "Survey crews near {sector} are reporting impossible gravitational lensing — stars in the wrong positions, light bending in directions that don't add up. Imperial astronomers caution against speculation but admit the data is, in their words, 'profoundly weird.' Independent observatories in {system} have corroborated the readings, ruling out instrument failure as an explanation. Civilian traffic has been advised to take the long route until the phenomenon resolves or someone, anyone, can explain it.",
     ],
   },
   {
@@ -633,7 +633,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "Class-{n} subspace harmonic detected in {system}; researchers describe it as 'humming'",
     story: [
-      "A class-{n} subspace harmonic has been detected resonating through {system}. Researchers stress they have no working theory for what the harmonic represents — only that it is steady, persistent, and described by one xenoacoustic specialist as 'humming, almost on purpose.' Empire research stations have been given priority access and the public is being asked, politely, not to come closer.",
+      "A class-{n} subspace harmonic has been detected resonating through {system}. Researchers stress they have no working theory for what the harmonic represents — only that it is steady, persistent, and described by one xenoacoustic specialist as 'humming, almost on purpose.' The harmonic is audible through ship hulls if engines are cut, a fact which has not helped morale aboard the research station. Empire research stations have been given priority access and the public is being asked, politely, not to come closer.",
     ],
   },
   {
@@ -649,7 +649,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "Anomalous time dilation in {sector} delays mail by {n} cycles, and also by {n} seconds, simultaneously",
     story: [
-      "Postal authorities in {sector} are struggling to explain why a batch of priority mail arrived both {n} cycles late and {n} seconds early, as measured by synchronized clocks aboard the delivery vessel. The ship's crew reports they feel fine but 'slightly aware of themselves.' Physicists from {empire} have been dispatched and are reportedly arguing already.",
+      "Postal authorities in {sector} are struggling to explain why a batch of priority mail arrived both {n} cycles late and {n} seconds early, as measured by synchronized clocks aboard the delivery vessel. The ship's crew reports they feel fine but 'slightly aware of themselves.' Physicists from {empire} have been dispatched and are reportedly arguing already. The affected mail has been delivered; recipients are asked to sign and date their receipts carefully.",
     ],
   },
   {
@@ -665,7 +665,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "{company} R&D pulls all assets from {sector} after 'unexplained sensor readings'",
     story: [
-      "{company}'s entire R&D division has evacuated {sector} following what internal communications describe only as 'readings inconsistent with baseline physical constants.' The company has declined to elaborate but sources inside the unit describe instruments behaving as if reality in the area 'has a hiccup.' {pundit} has already filed three opinion pieces.",
+      "{company}'s entire R&D division has evacuated {sector} following what internal communications describe only as 'readings inconsistent with baseline physical constants.' The company has declined to elaborate but sources inside the unit describe instruments behaving as if reality in the area 'has a hiccup.' All equipment, samples, and personal effects were removed; notably, the coffee maker was left behind, which colleagues describe as 'telling.' {pundit} has already filed three opinion pieces.",
     ],
   },
   {
@@ -673,7 +673,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "Pulsar near {system} skips a beat; first time in recorded history",
     story: [
-      "The pulsar designated GNN-{n} near {system} has skipped a full rotation cycle — an event considered impossible under standard stellar mechanics. The skip lasted precisely {n} milliseconds and then the pulsar resumed its regular cadence as if nothing had happened. Astronomers describe the event as 'deeply unsettling, but very tidy.'",
+      "The pulsar designated GNN-{n} near {system} has skipped a full rotation cycle — an event considered impossible under standard stellar mechanics. The skip lasted precisely {n} milliseconds and then the pulsar resumed its regular cadence as if nothing had happened. {empire}'s observatory has flagged this as a priority observation event and reassigned two deep-survey vessels to monitor the region. Astronomers describe the event as 'deeply unsettling, but very tidy.'",
     ],
   },
   {
@@ -689,7 +689,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "Survey records show {sector} appears to be {percent}% larger than last cycle",
     story: [
-      "Updated cartographic surveys of {sector} show the region is measurably larger than it was last cycle — by approximately {percent}%. Survey teams have triple-checked their instruments and the instruments agree with each other, which is the problem. {pundit} has proposed four theories, two of which contradict each other and one of which contradicts itself.",
+      "Updated cartographic surveys of {sector} show the region is measurably larger than it was last cycle — by approximately {percent}%. Survey teams have triple-checked their instruments and the instruments agree with each other, which is the problem. The rate of expansion, if consistent, would add another {percent}% within three cycles — a prospect the Bureau of Cartography has declined to comment on publicly. {pundit} has proposed four theories, two of which contradict each other and one of which contradicts itself.",
     ],
   },
   {
@@ -713,7 +713,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "{rank} {officer} cancels {empire} fleet exercise after 'incompatible reality readings'",
     story: [
-      "{rank} {officer} has suspended a scheduled fleet exercise in {sector} following what the official communiqué describes as 'localized sensor incompatibility with observable reality.' Sources inside the exercise report that three ships simultaneously perceived each other as being somewhere else. The exercise has been rescheduled for when reality becomes available.",
+      "{rank} {officer} has suspended a scheduled fleet exercise in {sector} following what the official communiqué describes as 'localized sensor incompatibility with observable reality.' Sources inside the exercise report that three ships simultaneously perceived each other as being somewhere else. Crew members in affected vessels report no physical symptoms, only a persistent sense of 'being slightly off.' The exercise has been rescheduled for when reality becomes available.",
     ],
   },
   {
@@ -721,7 +721,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "Pre-recorded star map of {sector} no longer matches observable star map",
     story: [
-      "Navigational charts for {sector} filed only {n} cycles ago now fail to match the observable star positions by a margin that astronomers call 'not measurement error.' Stars have not moved; the charts simply describe a slightly different {sector}. {empire}'s Bureau of Cartography has issued a travel advisory and also a formal expression of concern to the universe.",
+      "Navigational charts for {sector} filed only {n} cycles ago now fail to match the observable star positions by a margin that astronomers call 'not measurement error.' Stars have not moved; the charts simply describe a slightly different {sector}. Older charts from {n2} cycles ago match current observation perfectly, which is considered worse. {empire}'s Bureau of Cartography has issued a travel advisory and also a formal expression of concern to the universe.",
     ],
   },
   {
@@ -737,7 +737,7 @@ const anomalyTemplates: FlavorTemplate[] = [
     template:
       "Voidcap researchers withdraw paper claiming {planet} 'has feelings'",
     story: [
-      "A Voidcap Institute paper arguing that {planet} exhibits 'affective planetary response' has been withdrawn after peer reviewers raised concerns about methodology — specifically, that the researchers appear to have apologized to the planet for a drilling survey, and the seismic readings improved. The lead author insists this is 'not evidence of feelings, just correlation that keeps happening.'",
+      "A Voidcap Institute paper arguing that {planet} exhibits 'affective planetary response' has been withdrawn after peer reviewers raised concerns about methodology — specifically, that the researchers appear to have apologized to the planet for a drilling survey, and the seismic readings improved. The lead author insists this is 'not evidence of feelings, just correlation that keeps happening.' Three co-authors have privately requested reassignment to a planet that does not have opinions about them. The withdrawal notice has itself been revised twice, as early drafts were described as 'too apologetic in tone.'",
     ],
   },
   {
@@ -869,7 +869,7 @@ const musicTemplates: FlavorTemplate[] = [
     template:
       "Underground {genre} club at {port} hits capacity for {n} cycles running",
     story: [
-      "The unnamed {genre} venue underneath {port}'s cargo district has been at capacity every cycle for {n} consecutive turns — a streak that has drawn attention from both touring acts and local zoning authorities. The club has no official name and three unofficial ones.",
+      "The unnamed {genre} venue underneath {port}'s cargo district has been at capacity every cycle for {n} consecutive turns — a streak that has drawn attention from both touring acts and local zoning authorities. Ticket scalpers are reportedly operating from the freight elevator. The club has no official name and three unofficial ones, none of which the regulars will confirm to journalists.",
     ],
   },
   {
@@ -877,7 +877,7 @@ const musicTemplates: FlavorTemplate[] = [
     template:
       "Holovid biopic of {musician} announced; rumored {credits} budget",
     story: [
-      "A production house has confirmed a feature-length holovid biography of {musician} is in development, with sources placing the budget at {credits}. {musician} has not publicly endorsed the project and has released a statement that is being interpreted as both approval and threat, depending on who is reading it.",
+      "A production house has confirmed a feature-length holovid biography of {musician} is in development, with sources placing the budget at {credits}. Casting has not been announced, though {musician} has reportedly submitted a list of actors they 'would find acceptable.' {musician} has not publicly endorsed the project and has released a statement that is being interpreted as both approval and threat, depending on who is reading it.",
     ],
   },
   {
@@ -939,7 +939,7 @@ const musicTemplates: FlavorTemplate[] = [
     template:
       "Orchestra at {port} performs {album} arranged for two thousand instruments",
     story: [
-      "The {port} Symphonic Collective mounted its most ambitious production this cycle: a full orchestral arrangement of {album} performed simultaneously by {n2} musicians across the main hall, cargo bay, and three adjacent corridors. Critics called it 'technically successful and logistically baffling.'",
+      "The {port} Symphonic Collective mounted its most ambitious production this cycle: a full orchestral arrangement of {album} performed simultaneously by {n2} musicians across the main hall, cargo bay, and three adjacent corridors. Audience members were issued maps at the door and encouraged to wander. Critics called it 'technically successful and logistically baffling.' Streaming rights have been acquired and the recording is expected to require six separate audio channels.",
     ],
   },
   {
@@ -978,7 +978,7 @@ const musicTemplates: FlavorTemplate[] = [
     category: "music",
     template: "{album} certified platinum on three planets simultaneously",
     story: [
-      "{musician}'s {album} has achieved simultaneous platinum certification on {planet}, {empire}'s core worlds, and a third location described in the official certification as 'a planet that prefers not to be named but you know who you are.' Total certified units now exceed {n2}M.",
+      "{musician}'s {album} has achieved simultaneous platinum certification on {planet}, {empire}'s core worlds, and a third location described in the official certification as 'a planet that prefers not to be named but you know who you are.' Industry analysts note this is the first triple-simultaneous platinum certification in {genre} history. Total certified units now exceed {n2}M, a figure {musician}'s management has declined to celebrate publicly, calling it 'only a beginning.'",
     ],
   },
   {
@@ -1048,7 +1048,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "Prospector on {planet} finds {commodity} vein {percent}% above galactic average",
     story: [
-      "An independent prospector operating without a corporate license in {planet}'s eastern ridge has surfaced a {commodity} deposit testing {percent}% richer than any equivalent claim in the {empire} registry. Three corporations have filed competing ownership petitions. The prospector is understood to be negotiating with all of them and currently residing in an undisclosed location.",
+      "An independent prospector operating without a corporate license in {planet}'s eastern ridge has surfaced a {commodity} deposit testing {percent}% richer than any equivalent claim in the {empire} registry. Initial extraction surveys suggest the vein extends {n} kilometers deeper than the surface sample implies. Three corporations have filed competing ownership petitions. The prospector is understood to be negotiating with all of them and currently residing in an undisclosed location, with very good legal representation.",
     ],
   },
   {
@@ -1072,7 +1072,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "Bioluminescent lifeforms catalogued in {planet}'s oceans; tourism interest rising",
     story: [
-      "A deep-ocean survey of {planet} has documented a colony of bioluminescent organisms capable of producing synchronized light patterns across several kilometers. The survey team, in a breach of typical scientific restraint, described the experience as 'genuinely beautiful.' Tourism operators in {empire} have already begun filing route permits.",
+      "A deep-ocean survey of {planet} has documented a colony of bioluminescent organisms capable of producing synchronized light patterns across several kilometers. The patterns repeat on a consistent interval, suggesting either a biological rhythm or coordinated behavior — a distinction the survey team has not resolved. The survey team, in a breach of typical scientific restraint, described the experience as 'genuinely beautiful.' Tourism operators in {empire} have already begun filing route permits, and the survey budget has been renewed without discussion.",
     ],
   },
   {
@@ -1080,7 +1080,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "Lost colony confirmed alive in {sector}; rescue mission departing {port}",
     story: [
-      "The {empire} colony ship Esperance, listed as lost {n2} cycles ago, has been confirmed alive in a remote {sector} system after a routine survey detected its beacon signature. A rescue and resupply mission is departing {port} within the week. Survivors have reportedly declined to leave until they have finished what they were working on.",
+      "The {empire} colony ship Esperance, listed as lost {n2} cycles ago, has been confirmed alive in a remote {sector} system after a routine survey detected its beacon signature. Initial contact was established via short-range comms; survivors report all essential systems functional and colony population at {percent}% of original manifest. A rescue and resupply mission is departing {port} within the week. Survivors have reportedly declined to leave until they have finished what they were working on, which they declined to specify.",
     ],
   },
   {
@@ -1096,7 +1096,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "First-contact protocol initiated with {planet}'s indigenous broadcast culture",
     story: [
-      "{empire} has formally initiated first-contact protocol with an indigenous civilization on {planet} that has been transmitting coherent radio signals for {n2} cycles without response. Officials describe first contact as 'proceeding carefully.' The indigenous civilization's transmissions, according to a preliminary analysis, include what appears to be a question they have been asking for a very long time.",
+      "{empire} has formally initiated first-contact protocol with an indigenous civilization on {planet} that has been transmitting coherent radio signals for {n2} cycles without response. Officials describe first contact as 'proceeding carefully.' A xenolinguistics team has been assigned and expects to produce a preliminary translation within {n} cycles. The indigenous civilization's transmissions, according to a preliminary analysis, include what appears to be a question they have been asking for a very long time, and which {empire} has now, technically, begun the process of answering.",
     ],
   },
   {
@@ -1120,7 +1120,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "Temple complex on {planet} reveals knowledge of orbital mechanics predating local civilization",
     story: [
-      "Archaeologists at a newly excavated temple complex on {planet} have confirmed that the site encodes precise orbital data for all bodies in the local system — data that requires technology the civilization possessing the temple demonstrably did not have. The find is being described as 'a knowledge inheritance problem' by scientists who are trying very hard not to use the word impossible.",
+      "Archaeologists at a newly excavated temple complex on {planet} have confirmed that the site encodes precise orbital data for all bodies in the local system — data that requires technology the civilization possessing the temple demonstrably did not have. The encoding is accurate to within {percent}% of modern measurements, a precision that eliminates coincidence as an explanation. Two separate review panels have confirmed the dating of the site. The find is being described as 'a knowledge inheritance problem' by scientists who are trying very hard not to use the word impossible, with mixed success.",
     ],
   },
   {
@@ -1128,7 +1128,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "Linguist decodes {percent}% of {planet}'s substrate dialect; {pundit} calls it 'urgent'",
     story: [
-      "A xenolinguistics team has successfully decoded {percent}% of the primary dialect used in {planet}'s substrate-layer inscription system — a language previously considered untranslatable. Preliminary translations contain what the team describes as 'extensive warnings about something' but they are still working out what. {pundit} has already published an analysis of the warnings despite not having seen them.",
+      "A xenolinguistics team has successfully decoded {percent}% of the primary dialect used in {planet}'s substrate-layer inscription system — a language previously considered untranslatable. The breakthrough came from cross-referencing inscription patterns with {n} newly catalogued cognate languages in the {sector} archive. Preliminary translations contain what the team describes as 'extensive warnings about something' but they are still working out what. {pundit} has already published an analysis of the warnings despite not having seen them, and has been asked to correct the record, which they are considering.",
     ],
   },
   {
@@ -1159,7 +1159,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "Microbial life confirmed in {planet}'s upper atmosphere; quarantine protocols updated",
     story: [
-      "Atmospheric sampling from {planet}'s upper stratosphere has confirmed the presence of microbial organisms that metabolize radiation — a combination previously considered incompatible with stable life. {empire} medical authorities have updated quarantine protocols for {sector} traffic. The microbes have been named, provisionally, and the naming committee has already disagreed about pronunciation.",
+      "Atmospheric sampling from {planet}'s upper stratosphere has confirmed the presence of microbial organisms that metabolize radiation — a combination previously considered incompatible with stable life. The organisms appear to have been thriving for at least {n2} cycles, surviving multiple stellar flare events that would have sterilized the upper atmosphere of any registered planet. {empire} medical authorities have updated quarantine protocols for {sector} traffic. The microbes have been named, provisionally, and the naming committee has already disagreed about pronunciation.",
     ],
   },
   {
@@ -1175,7 +1175,7 @@ const discoveryTemplates: FlavorTemplate[] = [
     template:
       "Xenobiologist team on {planet} discovers symbiosis chain spanning seven species",
     story: [
-      "A field team on {planet} has documented a symbiotic relationship chain involving seven distinct species, each dependent on the next in a closed cycle that none of them could have evolved independently to sustain. Biologists describe the discovery as 'almost designed' and have asked that phrase not be quoted. It has been quoted.",
+      "A field team on {planet} has documented a symbiotic relationship chain involving seven distinct species, each dependent on the next in a closed cycle that none of them could have evolved independently to sustain. The chain has no apparent origin point — every species predates the others in the fossil record, depending on which layer of {planet}'s geology is sampled. Biologists describe the discovery as 'almost designed' and have asked that phrase not be quoted. It has been quoted, extensively, and is now the title of {n} separate academic papers.",
     ],
   },
   {
