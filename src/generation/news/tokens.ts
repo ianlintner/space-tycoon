@@ -351,4 +351,17 @@ export const KNOWN_TOKENS = [
   "n2",
   "adj",
   "commodity",
+  // Roster tokens (universeRoster-backed)
+  "team",
+  "team2",
+  "last_result",
+  "musician",
+  "album",
+  "genre",
+  "controversy",
+  "celeb",
+  "pundit",
+  "crime_figure",
+  "officer",
+  "rank",
 ] as const;

@@ -616,6 +616,623 @@ const HOMAGE: string[] = [
   "Galactic survey of meanings of life narrows answer to '42, possibly tea'",
 ];
 
+// ---------------------------------------------------------------------------
+// ANOMALY (25 templates) — Stellaris/MOO2/Trek-style spatial phenomena
+// ---------------------------------------------------------------------------
+const anomalyTemplates: FlavorTemplate[] = [
+  {
+    category: "anomaly",
+    template:
+      "Unexplained gravitational lensing reported near {sector}; civilian traffic advised to detour",
+    story: [
+      "Survey crews near {sector} are reporting impossible gravitational lensing — stars in the wrong positions, light bending in directions that don't add up. Imperial astronomers caution against speculation but admit the data is, in their words, 'profoundly weird.' Civilian traffic has been advised to take the long route until the phenomenon resolves or someone, anyone, can explain it.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Class-{n} subspace harmonic detected in {system}; researchers describe it as 'humming'",
+    story: [
+      "A class-{n} subspace harmonic has been detected resonating through {system}. Researchers stress they have no working theory for what the harmonic represents — only that it is steady, persistent, and described by one xenoacoustic specialist as 'humming, almost on purpose.' Empire research stations have been given priority access and the public is being asked, politely, not to come closer.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Probe loses contact with researchers near {planet} — debate continues over whether it returned",
+    story: [
+      "The survey probe sent to investigate the {planet} anomaly has gone silent — or, as the lead researcher insists on phrasing it, has 'entered a state of unconfirmed presence.' Telemetry data suggests the probe is either destroyed, stationary, or transmitting on a frequency no one has thought to check. The team has requested a replacement probe and also a second opinion from a philosopher.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Anomalous time dilation in {sector} delays mail by {n} cycles, and also by {n} seconds, simultaneously",
+    story: [
+      "Postal authorities in {sector} are struggling to explain why a batch of priority mail arrived both {n} cycles late and {n} seconds early, as measured by synchronized clocks aboard the delivery vessel. The ship's crew reports they feel fine but 'slightly aware of themselves.' Physicists from {empire} have been dispatched and are reportedly arguing already.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Strange reflective surface forms over {planet}'s pole; visible from neighboring systems",
+    story: [
+      "A vast reflective formation has materialized over {planet}'s northern pole, visible with the naked eye from adjacent systems. Astronomers confirm it is not ice, not metal, and not any registered material in the {empire} xenological survey database. The locals have named it The Mirror. Tourism inquiries have increased {percent}%.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "{company} R&D pulls all assets from {sector} after 'unexplained sensor readings'",
+    story: [
+      "{company}'s entire R&D division has evacuated {sector} following what internal communications describe only as 'readings inconsistent with baseline physical constants.' The company has declined to elaborate but sources inside the unit describe instruments behaving as if reality in the area 'has a hiccup.' {pundit} has already filed three opinion pieces.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Pulsar near {system} skips a beat; first time in recorded history",
+    story: [
+      "The pulsar designated GNN-{n} near {system} has skipped a full rotation cycle — an event considered impossible under standard stellar mechanics. The skip lasted precisely {n} milliseconds and then the pulsar resumed its regular cadence as if nothing had happened. Astronomers describe the event as 'deeply unsettling, but very tidy.'",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Xenobiologists request quarantine of {planet} pending 'shape-shifting biome' study",
+    story: [
+      "A xenobiology team has submitted an emergency quarantine request for {planet} after documenting what they describe as a biome that reorganizes its own geography in response to observation. 'The moment we mapped it, it changed,' the lead researcher wrote. 'And then it changed back and looked at us.' {empire} medical authorities are reviewing the paperwork.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Survey records show {sector} appears to be {percent}% larger than last cycle",
+    story: [
+      "Updated cartographic surveys of {sector} show the region is measurably larger than it was last cycle — by approximately {percent}%. Survey teams have triple-checked their instruments and the instruments agree with each other, which is the problem. {pundit} has proposed four theories, two of which contradict each other and one of which contradicts itself.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Communication beacon in {sector} reports it does not exist; investigation paused",
+    story: [
+      "Relay beacon C-{n} in {sector} has been transmitting a single message on loop for six cycles: 'This beacon does not exist. Please disregard.' Attempts to investigate have been complicated by the fact that all instruments confirm the beacon is transmitting but cannot confirm it is there. The bureau has paused the investigation pending 'conceptual clarification.'",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "A second moon detected over {planet}; locals confirm there had been only one",
+    story: [
+      "Astronomers cataloguing {planet}'s orbital bodies have confirmed the presence of a second moon — one that all available historical records, every local survey, and three independent orbital mechanics teams agree was not there last cycle. The moon appears stable, geologically inert, and about {percent}% too convenient. {empire} has dispatched a science vessel. The first moon appears unbothered.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "{rank} {officer} cancels {empire} fleet exercise after 'incompatible reality readings'",
+    story: [
+      "{rank} {officer} has suspended a scheduled fleet exercise in {sector} following what the official communiqué describes as 'localized sensor incompatibility with observable reality.' Sources inside the exercise report that three ships simultaneously perceived each other as being somewhere else. The exercise has been rescheduled for when reality becomes available.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Pre-recorded star map of {sector} no longer matches observable star map",
+    story: [
+      "Navigational charts for {sector} filed only {n} cycles ago now fail to match the observable star positions by a margin that astronomers call 'not measurement error.' Stars have not moved; the charts simply describe a slightly different {sector}. {empire}'s Bureau of Cartography has issued a travel advisory and also a formal expression of concern to the universe.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Unidentified signal source in {sector} appears to read all incoming hails before they arrive",
+    story: [
+      "Signal analysts monitoring {sector} have identified a source that appears to respond to incoming hails before they are transmitted. Initial logs show the source's reply arriving up to {n} seconds before the hail is sent. Communications officers who have attempted contact describe the experience as 'deeply conversational' and 'very relaxing, somehow.' Investigation ongoing.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Voidcap researchers withdraw paper claiming {planet} 'has feelings'",
+    story: [
+      "A Voidcap Institute paper arguing that {planet} exhibits 'affective planetary response' has been withdrawn after peer reviewers raised concerns about methodology — specifically, that the researchers appear to have apologized to the planet for a drilling survey, and the seismic readings improved. The lead author insists this is 'not evidence of feelings, just correlation that keeps happening.'",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Sentient fog reported drifting through {port} bazaar; cleanup pending",
+    story: [
+      "Port authorities at {port} received seventeen separate complaints last cycle about a fog that navigated the bazaar with apparent intentionality — avoiding obstacles, pausing near food stalls, and at one point, witnesses claim, browsing. Environmental crews have been dispatched. The fog had dissipated by the time they arrived, leaving behind a smell described as 'wet purpose.'",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "{empire} astronomy guild splits over whether {system} has eight planets or nine",
+    story: [
+      "A procedural vote in {empire}'s astronomy guild has collapsed into faction. The dispute: {system} demonstrably has nine planets when observed from one angle and eight when observed from another. Neither instrument error nor observer bias explains the discrepancy. {pundit} has declared this 'the most embarrassing crisis in professional astronomy since the last one.'",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Hyperlane network reports a new lane in {sector} with no known endpoints",
+    story: [
+      "Navigation authorities have flagged a newly charted hyperlane running through {sector} that does not appear to originate from or arrive at any known system. Ships that have entered the lane experimentally report it is navigable, comfortable, and leads 'somewhere that has a smell.' The Bureau of Hyperlane Standards has asked pilots not to enter the lane until they agree on a category for it.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Three colony ships in {sector} report seeing themselves arriving an hour earlier",
+    story: [
+      "Three colony vessels bound for {sector} reported on approach that they could observe what appeared to be their own ships completing docking procedures — an hour before they arrived. Upon docking, no earlier arrival was logged. Crew members report feeling 'slightly self-conscious.' The event has been classified as a navigational anomaly pending a better classification.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Newly catalogued nebula in {sector} resembles a face; authorities urge calm",
+    story: [
+      "A nebula documented for the first time in {sector}'s outer rim bears a striking resemblance to a humanoid face in a state of mild surprise. {empire} authorities have released a statement urging the public not to assign meaning to astronomical coincidence. The statement has not worked. Tourism to {sector} is up {percent}% and the nebula has already been given a name.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Xenobiology survey: {percent}% of {planet}'s flora 'should not be possible'",
+    story: [
+      "A comprehensive survey of {planet}'s native flora has concluded that {percent}% of catalogued plant species 'should not exist under current models of biochemistry.' The survey does not suggest why the plants did not consult the models before growing. Xenobiologists describe the ecosystem as 'aggressively alive' and have requested a research budget extension and a strongly worded letter to the plants.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Astrolab freighter reports unexplained {percent}% mass gain over a single cycle",
+    story: [
+      "Freighter Ulysses-{n} filed a incident report this cycle noting that its total mass, as measured by three independent systems, increased by {percent}% during transit through {sector}. Cargo manifest is unchanged. Hull is intact. The crew's combined body mass accounts for none of the gain. An engineering team is reviewing the data and has not yet ruled anything out, or in.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Asteroid belt around {planet} arranged into perfect spiral; cause unknown",
+    story: [
+      "The asteroid belt surrounding {planet} has reorganized itself into a mathematically precise spiral formation, as confirmed by four observatories using different methodologies. The formation is stable, rotating, and accurate to within {percent}% of the golden ratio. Scientists have declined to speculate about cause. {pundit} has not declined and has produced a seventeen-page theory.",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "{empire} research vessel returns from {sector} with logs corrupted into poetry",
+    story: [
+      "The {empire} science vessel Meridian has returned from {sector} with all crew healthy but all voyage logs corrupted — specifically, rewritten into structured verse in a language that linguists have identified as 'not known but grammatically coherent.' The vessel's AI has been taken offline for analysis. The poetry, according to one reviewer who read it, is 'technically accomplished and deeply unwell.'",
+    ],
+  },
+  {
+    category: "anomaly",
+    template:
+      "Time on {port} station reportedly running {percent}% faster than reference",
+    story: [
+      "Chronometric officials have confirmed that clocks aboard {port} station are running {percent}% faster than the galactic reference standard — and have been for an indeterminate period. Residents report they feel fine but describe having 'a lot of extra afternoon.' The discrepancy has not been explained. Delivery schedules have been adjusted, and the station's residents have been asked to eat smaller meals.",
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// MUSIC (25 templates) — galactic artists, concerts, genre wars
+// ---------------------------------------------------------------------------
+const musicTemplates: FlavorTemplate[] = [
+  {
+    category: "music",
+    template: "{musician} announces galactic tour kicking off at {port}",
+    story: [
+      "{musician} is taking {album} on the road. The tour opens at {port} next cycle and is expected to draw record crowds across {n} stops. Industry analysts are calling it the biggest {genre} tour of the decade.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{album} debuts at #1 on the galactic chart; {genre} fans rejoice",
+    story: [
+      "{musician}'s {album} has shattered first-week records, holding the top slot on every major streaming network. Critics are split — some calling it 'the future of {genre}' and others 'a competent disappointment' — but the numbers don't lie. {pundit} weighed in: 'This is what culture looks like when it's still alive.'",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{musician} cancels {port} show citing 'creative differences with the gravity'",
+    story: [
+      "{musician} has canceled their headline appearance at {port}, issuing a statement through management that cites 'an irreconcilable creative divergence with local gravitational conditions.' The venue has offered refunds. Local physicists have declined to comment.",
+    ],
+  },
+  {
+    category: "music",
+    template: "{musician} feuds publicly with rival; {genre} forums in chaos",
+    story: [
+      "An interview this cycle in which {musician} described a colleague as 'technically present but spiritually absent' has ignited a full-scale feud across every {genre} media channel. Forum moderators across the sector have gone on strike. {pundit} has taken both sides simultaneously.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{empire} cultural ministry bans {album} for 'subversive frequencies'",
+    story: [
+      "{empire}'s ministry of cultural standards has prohibited distribution of {album} within its borders, citing 'frequency profiles inconsistent with societal stability.' {musician} has responded by making the album free. Downloads in {empire} territories are up {percent}%.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Underground {genre} club at {port} hits capacity for {n} cycles running",
+    story: [
+      "The unnamed {genre} venue underneath {port}'s cargo district has been at capacity every cycle for {n} consecutive turns — a streak that has drawn attention from both touring acts and local zoning authorities. The club has no official name and three unofficial ones.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Holovid biopic of {musician} announced; rumored {credits} budget",
+    story: [
+      "A production house has confirmed a feature-length holovid biography of {musician} is in development, with sources placing the budget at {credits}. {musician} has not publicly endorsed the project and has released a statement that is being interpreted as both approval and threat, depending on who is reading it.",
+    ],
+  },
+  {
+    category: "music",
+    template: "{musician} embroiled in {controversy}; tour sales somehow up",
+    story: [
+      "{musician} is facing intense coverage of {controversy}, which has dominated entertainment feeds for the past cycle. Management has declined all interview requests. Ticket sales for the upcoming tour are up {percent}%.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{genre} festival on {planet} draws {n2} attendees, sets new record",
+    story: [
+      "The {planet} {genre} festival closed this cycle having welcomed {n2} attendees — a record that surpasses last cycle's count by {percent}%. Headliners included {musician}, who performed {album} in full. Local accommodation providers have already raised next cycle's prices.",
+    ],
+  },
+  {
+    category: "music",
+    template: "Critic compares {album} to the void; {musician} thanks them",
+    story: [
+      "A review in the Galactic Music Quarterly called {album} 'a disciplined descent into the creative void — hollow, cold, and oddly beautiful.' {musician} issued a two-word response: 'Thank you.' The review has since been quoted on all official promotional materials.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Anonymous bidder pays {credits} for original {album} master tapes",
+    story: [
+      "The original master tapes for {musician}'s debut {album} sold at private auction for {credits}, purchased by an anonymous bidder through three intermediaries. The tapes were believed lost. {pundit} has already published a piece asking whether the buyer is {musician} themselves.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{musician} drops surprise diss track; {genre} community in flames",
+    story: [
+      "Without announcement, {musician} released a four-minute track this morning targeting a rival. The {genre} community has not recovered. The track has been streamed {n2}M times. The target has not yet responded, which most analysts read as response.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Lawsuit filed: rival claims {musician} stole {album}'s opening hook",
+    story: [
+      "A competing artist has filed suit claiming the opening four bars of {album} were lifted from a demo registered {n} cycles ago. {musician}'s legal team has called the claim 'fanciful.' Music theorists have been employed by both sides. The hook in question has since been streamed {n2}M additional times.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{musician} awarded {empire}'s highest cultural honor; refuses to attend",
+    story: [
+      "{empire}'s council of cultural distinction has named {musician} recipient of the Meridian Prize — the empire's highest artistic recognition. {musician} declined to attend the ceremony, citing 'a prior obligation to make music instead.' The prize was accepted by a roadie.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Orchestra at {port} performs {album} arranged for two thousand instruments",
+    story: [
+      "The {port} Symphonic Collective mounted its most ambitious production this cycle: a full orchestral arrangement of {album} performed simultaneously by {n2} musicians across the main hall, cargo bay, and three adjacent corridors. Critics called it 'technically successful and logistically baffling.'",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{musician}'s livestream concert on {planet} gets {n2}M concurrent viewers",
+    story: [
+      "{musician}'s live broadcast from {planet} broke streaming records with {n2}M concurrent viewers at peak. The performance included the debut of three unreleased tracks from the follow-up to {album}. Server load in {sector} caused brief comms disruption, which most viewers did not notice.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{genre} purists picket {musician}'s collaboration with {empire} state composers",
+    story: [
+      "A coalition of {genre} traditionalists gathered outside {port}'s cultural center to protest {musician}'s announced collaboration with {empire}'s official composition bureau. Signs read 'Art Dies in Committees' and 'This Is Why We Have Bad {genre}.' {musician} waved at them through the window.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Bootleg recording of {musician}'s {port} soundcheck sells out in {n} hours",
+    story: [
+      "A bootleg recording of {musician}'s pre-show soundcheck at {port} — reportedly captured on a maintenance worker's personal device — sold out in {n} hours on grey-market streaming. The recording captures {musician} singing half of {album} in the wrong key and stopping to eat something. Fans have called it 'essential listening.'",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Streaming royalties scandal: {company} exec accused of skimming from {genre} artists",
+    story: [
+      "An internal audit at {company} has surfaced allegations that a senior executive diverted {percent}% of {genre} streaming royalties over {n} cycles. Affected artists have released a joint statement. The executive in question has not commented. Legal proceedings are expected.",
+    ],
+  },
+  {
+    category: "music",
+    template: "{album} certified platinum on three planets simultaneously",
+    story: [
+      "{musician}'s {album} has achieved simultaneous platinum certification on {planet}, {empire}'s core worlds, and a third location described in the official certification as 'a planet that prefers not to be named but you know who you are.' Total certified units now exceed {n2}M.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Underground {genre} scene at {port} celebrates {n}-cycle anniversary",
+    story: [
+      "The {genre} collective that formed in {port}'s lower freight district {n} cycles ago held its anniversary festival this week with a three-day lineup of acts. The venue still has no official permits. Attendance was estimated at {n2}. {pundit} called the scene 'the only honest thing happening in {genre} right now.'",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{musician}'s remix of {empire} anthem sparks diplomatic incident",
+    story: [
+      "{musician} released an unauthorized remix of {empire}'s ceremonial anthem at {n} beats per minute with what critics describe as 'inadvisable percussion choices.' {empire}'s cultural ministry has filed a formal protest. The remix has been streamed {n2}M times. {musician} has not apologized.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Holovid talk show ambushes {musician} with footage of old performance",
+    story: [
+      "{musician} was shown archival footage of an early performance on a live broadcast this cycle and asked to react. {musician} reacted for {n} minutes in a way that no one in the studio expected and that has since been clipped {n2} times. Publicists have called it 'a learning opportunity.'",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "Music critic {pundit} declares {genre} 'officially over' for the third time this decade",
+    story: [
+      "{pundit} has published a column declaring that {genre} 'has said everything it has to say and is now simply repeating itself at higher volume.' This is {pundit}'s third such declaration this decade. {genre} streaming numbers are up {percent}% year-on-year. {musician} posted the column with no caption.",
+    ],
+  },
+  {
+    category: "music",
+    template:
+      "{musician} marries fellow artist; tabloid bidding war erupts for exclusive",
+    story: [
+      "{musician} confirmed a private marriage ceremony this cycle, triggering what media executives are calling 'the most competitive exclusive bidding war in {empire} tabloid history.' Sources report the winning offer reached {credits}. {musician}'s statement said only: 'It was a small ceremony. You weren't there.'",
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// DISCOVERY (25 templates) — exploration finds, archaeology, new species
+// ---------------------------------------------------------------------------
+const discoveryTemplates: FlavorTemplate[] = [
+  {
+    category: "discovery",
+    template:
+      "Pre-empire ruins uncovered on {planet}; {empire} academia in uproar",
+    story: [
+      "Excavation teams on {planet} have uncovered structures predating any known empire — possibly by tens of thousands of cycles. Carbon-equivalent dating has been disputed, but every independent lab has confirmed the same anomalous result. {pundit} called it 'the find of the century, again.' {empire}'s academia council has scheduled emergency sessions, while three rival empires have already filed competing claims to study the site.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "New sentient species catalogued on {planet}; rights debates begin immediately",
+    story: [
+      "A xenobiology survey on {planet} has confirmed the presence of a previously uncatalogued sentient species. The species demonstrates tool use, complex communication, and, according to one team member's field notes, 'a demonstrable sense of humor about the survey crew.' {empire}'s legal department has scheduled its first rights framework session. {pundit} has six opinions and they are all different.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Prospector on {planet} finds {commodity} vein {percent}% above galactic average",
+    story: [
+      "An independent prospector operating without a corporate license in {planet}'s eastern ridge has surfaced a {commodity} deposit testing {percent}% richer than any equivalent claim in the {empire} registry. Three corporations have filed competing ownership petitions. The prospector is understood to be negotiating with all of them and currently residing in an undisclosed location.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Unmapped system found behind {sector} dust cloud; {empire} claims first survey rights",
+    story: [
+      "A navigational research vessel has confirmed a complete stellar system hidden behind a dense dust formation at the {sector} periphery. {empire} has claimed prior survey rights by twelve minutes, based on the vessel's approach vector. Three other empires dispute the calculation. The system itself has been observed to contain {n2} bodies and what one astronomer described as 'an extraordinary amount of quiet.'",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Archaeology team on {planet} unearths object that 'shouldn't exist for another century'",
+    story: [
+      "Researchers excavating a pre-collapse site on {planet} have recovered an object whose composition and design correspond to manufacturing methods that will not be developed — by current projections — for another hundred cycles. The team has triple-dated the deposit layer. The object works. {pundit} has described the situation as 'technically manageable if everyone stays calm,' which they are not.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Bioluminescent lifeforms catalogued in {planet}'s oceans; tourism interest rising",
+    story: [
+      "A deep-ocean survey of {planet} has documented a colony of bioluminescent organisms capable of producing synchronized light patterns across several kilometers. The survey team, in a breach of typical scientific restraint, described the experience as 'genuinely beautiful.' Tourism operators in {empire} have already begun filing route permits.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Lost colony confirmed alive in {sector}; rescue mission departing {port}",
+    story: [
+      "The {empire} colony ship Esperance, listed as lost {n2} cycles ago, has been confirmed alive in a remote {sector} system after a routine survey detected its beacon signature. A rescue and resupply mission is departing {port} within the week. Survivors have reportedly declined to leave until they have finished what they were working on.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Cargo from derelict in {sector} contains data older than empire records",
+    story: [
+      "Data cores recovered from a derelict vessel in {sector} contain information predating the oldest {empire} archive by an estimated {n2} cycles. Translation is ongoing and complicated by the fact that the encoding standard is not recognized by any catalogued system. {company} R&D has submitted a formal bid to acquire the cores. The bid has been rejected. They have submitted another.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "First-contact protocol initiated with {planet}'s indigenous broadcast culture",
+    story: [
+      "{empire} has formally initiated first-contact protocol with an indigenous civilization on {planet} that has been transmitting coherent radio signals for {n2} cycles without response. Officials describe first contact as 'proceeding carefully.' The indigenous civilization's transmissions, according to a preliminary analysis, include what appears to be a question they have been asking for a very long time.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Unknown alloy recovered from {sector} debris; {company} R&D submits bids",
+    story: [
+      "Salvage teams in {sector} have recovered hull fragments composed of an alloy that does not match any registered material in the galactic database. The alloy is resistant to all tested cutting methods, maintains temperature across a range considered theoretically impossible, and has a surface texture that one engineer described as 'inexplicably pleasant to touch.' {company} R&D has submitted three separate acquisition bids this cycle.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Ancient star map on {planet}'s northern continent matches modern hyperlanes",
+    story: [
+      "A stone inscription spanning {percent}% of {planet}'s northern continental shelf has been identified as a navigational chart. The chart matches, with {percent}% accuracy, the current hyperlane network — including {n} lanes discovered only in the past decade. The inscription predates hyperlane technology by at least {n2} cycles. {pundit} has called this 'either the most important find in history or a very large coincidence,' then published three more articles on it.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Temple complex on {planet} reveals knowledge of orbital mechanics predating local civilization",
+    story: [
+      "Archaeologists at a newly excavated temple complex on {planet} have confirmed that the site encodes precise orbital data for all bodies in the local system — data that requires technology the civilization possessing the temple demonstrably did not have. The find is being described as 'a knowledge inheritance problem' by scientists who are trying very hard not to use the word impossible.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Linguist decodes {percent}% of {planet}'s substrate dialect; {pundit} calls it 'urgent'",
+    story: [
+      "A xenolinguistics team has successfully decoded {percent}% of the primary dialect used in {planet}'s substrate-layer inscription system — a language previously considered untranslatable. Preliminary translations contain what the team describes as 'extensive warnings about something' but they are still working out what. {pundit} has already published an analysis of the warnings despite not having seen them.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Survey crew finds operational generator buried under {planet}'s ice cap",
+    story: [
+      "A geothermal survey on {planet} has discovered a functioning power generator buried under {n2} meters of ice. The generator is producing power. It has no connection to any surface installation, known cable system, or catalogued infrastructure. It is warm. {empire}'s energy authority has dispatched a team and has asked everyone else, respectfully, to wait.",
+    ],
+  },
+  {
+    category: "discovery",
+    template: "Floating crystal city catalogued in {sector}; origins unknown",
+    story: [
+      "A deep-survey vessel in {sector} has documented what can only be described as a city — suspended in open space, composed of crystalline structures, and fully intact. There are no inhabitants, no power signatures, and no orbital mechanics that explain why it does not drift. The vessel's crew has filed the report and requested three weeks of leave.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Probe returns with footage of self-replicating geometry near {sector}",
+    story: [
+      "A research probe sent into the outer margins of {sector} has returned with footage of geometric structures that appear to reproduce themselves on a {n}-hour cycle. The structures are not biological, not mechanical by any registered definition, and are growing. {empire} has dispatched a science vessel. The probe has been placed in quarantine out of an abundance of caution.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Microbial life confirmed in {planet}'s upper atmosphere; quarantine protocols updated",
+    story: [
+      "Atmospheric sampling from {planet}'s upper stratosphere has confirmed the presence of microbial organisms that metabolize radiation — a combination previously considered incompatible with stable life. {empire} medical authorities have updated quarantine protocols for {sector} traffic. The microbes have been named, provisionally, and the naming committee has already disagreed about pronunciation.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Recovered logs from {sector} shipwreck rewrite empire founding narrative",
+    story: [
+      "Expedition teams salvaging a {n2}-cycle-old wreck in {sector} have recovered voyage logs that directly contradict three foundational claims in {empire}'s official founding account. The logs have been authenticated by independent archivists. {empire}'s bureau of historical records has issued a statement describing the logs as 'context-dependent' and asking historians to 'maintain perspective.' Historians have not maintained perspective.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Xenobiologist team on {planet} discovers symbiosis chain spanning seven species",
+    story: [
+      "A field team on {planet} has documented a symbiotic relationship chain involving seven distinct species, each dependent on the next in a closed cycle that none of them could have evolved independently to sustain. Biologists describe the discovery as 'almost designed' and have asked that phrase not be quoted. It has been quoted.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Pre-translation artifacts surface at {port} black market; {empire} demands return",
+    story: [
+      "A cache of pre-translation-era artifacts has surfaced on {port}'s black market — objects of the kind typically held under {empire} restricted-cultural-property designation. {empire} has filed formal demands for return and dispatched an attaché. The seller has not been identified. The objects have been authenticated by {n} independent labs, all of whom were then asked not to publish.",
+    ],
+  },
+  {
+    category: "discovery",
+    template: "Astronomers identify possible megastructure in {sector}",
+    story: [
+      "A research team at {empire}'s primary observatory has published preliminary findings identifying what may be an artificial megastructure surrounding a star in the outer {sector}. The paper is careful to use the word 'possible' seventeen times. The structure, if confirmed, would be the largest artificial object in recorded history. {pundit} is not being careful with the word 'possible.'",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Teleportation pad found inside {planet} ruins; output direction unknown",
+    story: [
+      "Excavation teams on {planet} have uncovered what appears to be a functional teleportation device inside a sealed chamber predating any known civilization by {n2} cycles. The device activates when approached. Its destination is not known. Three researchers have declined to test it. A fourth has agreed and is currently unavailable for comment.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "Plant species on {planet} performs mathematical calculations through growth patterns",
+    story: [
+      "Botanists studying growth patterns in {planet}'s highland flora have published findings suggesting a native plant species arranges its branching structure to perform arithmetic calculations in response to environmental inputs. The computations are simple — addition, subtraction — but deliberate. The plants do not know they are doing math. Or they do. The paper does not settle this question.",
+    ],
+  },
+  {
+    category: "discovery",
+    template: "Survey identifies {n2} previously unmapped objects in {sector}",
+    story: [
+      "A cartographic pass through the outer margins of {sector} has identified {n2} previously uncatalogued objects — a count that {empire}'s astronomy bureau describes as 'significantly above expected survey yield.' The objects range from standard asteroid-class bodies to three items that the survey report classifies as 'object, type unassigned, pending review.' Review is underway.",
+    ],
+  },
+  {
+    category: "discovery",
+    template:
+      "{empire} expedition recovers fully intact ship from pre-hyperlane era",
+    story: [
+      "An {empire} deep-space expedition has recovered a pre-hyperlane-era vessel in near-perfect condition, drifting in the outer {sector} at a velocity consistent with a launch date {n2} cycles ago. The ship's logs are intact. The cargo hold is sealed. {empire}'s historical preservation office has claimed jurisdiction. {company} R&D has filed a competing petition and been denied twice.",
+    ],
+  },
+];
+
+// Rich template pools — templates with story bodies for new categories.
+const RICH_POOLS: Partial<Record<TickerCategory, FlavorTemplate[]>> = {
+  anomaly: anomalyTemplates,
+  music: musicTemplates,
+  discovery: discoveryTemplates,
+};
+
 // ── Registry ──────────────────────────────────────────────────
 const TEMPLATE_POOLS: Record<TickerCategory, string[]> = {
   // Structural categories empty here — sourced live by tickerFeed.ts.
@@ -653,22 +1270,20 @@ const TEMPLATE_POOLS: Record<TickerCategory, string[]> = {
   propaganda: [],
 };
 
-/** Flat list of every flavor template, useful for tests and counts. */
-export const ALL_FLAVOR_TEMPLATES: FlavorTemplate[] = FLAVOR_CATEGORIES.flatMap(
-  (cat) =>
-    (TEMPLATE_POOLS[cat] ?? []).map<FlavorTemplate>((t) => ({
-      category: cat,
-      template: t,
-    })),
-);
-
-/** Templates for one category, in declaration order. */
+/** Templates for one category, in declaration order. Prefers RICH_POOLS over TEMPLATE_POOLS. */
 export function getTemplatesForCategory(cat: TickerCategory): FlavorTemplate[] {
+  const rich = RICH_POOLS[cat];
+  if (rich) return rich;
   return (TEMPLATE_POOLS[cat] ?? []).map<FlavorTemplate>((t) => ({
     category: cat,
     template: t,
   }));
 }
+
+/** Flat list of every flavor template, useful for tests and counts. */
+export const ALL_FLAVOR_TEMPLATES: FlavorTemplate[] = FLAVOR_CATEGORIES.flatMap(
+  (cat) => getTemplatesForCategory(cat),
+);
 
 /** Total templates across all twenty flavor pools. */
 export function totalFlavorTemplateCount(): number {
