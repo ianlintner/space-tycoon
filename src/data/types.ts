@@ -1253,6 +1253,15 @@ export interface GameState {
   pendingChoiceEvents: ChoiceEvent[];
   /** Active event chains */
   activeEventChains: EventChainState[];
+  /**
+   * Persistent named entities for living-world ticker stories. Optional for
+   * backwards compatibility with pre-roster saves; the new-game flow seeds
+   * a populated roster, while `createDefaultState()` initializes an empty
+   * one.
+   */
+  universeRoster?: UniverseRoster;
+  /** Last 10 notable roster outcomes for cross-story callbacks. Optional for save compat. */
+  rosterHistory?: RosterHistoryEntry[];
   /** Captain roster — one per ship */
   captains: Captain[];
   /** Curated route market entries for the current turn */
