@@ -502,9 +502,9 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
       },
     ],
   },
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   // Space Hazard dilemmas
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   {
     id: "navigate_spatial_rift",
     category: "operational",
@@ -594,7 +594,7 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
     category: "operational",
     imageKey: "dilemma_radiation",
     prompt:
-      "A radiation burst is sweeping {port}. Captain {ceo} requests guidance for the in-flight fleet.",
+      "A radiation burst is sweeping {port}. Your in-flight fleet needs guidance before shields fail.",
     weight: 4,
     headwindWeight: 3,
     tailwindWeight: 1,
@@ -648,6 +648,7 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
         label: "Wait for public data",
         outcomeDescription: "No insider risk, no insider profit.",
         baseSuccess: 95,
+        scalingTags: [],
         effects: [],
       },
       {
@@ -697,13 +698,14 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
         label: "Stay clear of the chaos",
         outcomeDescription: "Neither hero nor villain.",
         baseSuccess: 95,
+        scalingTags: [],
         effects: [],
       },
     ],
   },
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   // Military dilemmas
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
   {
     id: "arms_dealer_contact",
     category: "diplomatic",
@@ -751,7 +753,7 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
     category: "narrative",
     imageKey: "dilemma_defector",
     prompt:
-      "{rank} {officer} of {empire} wants to defect — and they want your fleet to extract them.",
+      "A high-ranking officer of {empire} wants to defect — and they want your fleet to extract them.",
     weight: 2,
     headwindWeight: 1,
     tailwindWeight: 3,
@@ -829,7 +831,7 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
     category: "diplomatic",
     imageKey: "dilemma_mercenary",
     prompt:
-      "A contested route through {sector} needs armed escorts. A mercenary outfit is offering competitive rates.",
+      "A contested route near {port} needs armed escorts. A mercenary outfit is offering competitive rates.",
     weight: 4,
     headwindWeight: 4,
     tailwindWeight: 2,
@@ -856,6 +858,7 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
         label: "Cede the route to a rival",
         outcomeDescription: "Lose contracts, lose face.",
         baseSuccess: 90,
+        scalingTags: [],
         effects: [
           { type: "modifyCash", value: -3500 },
           { type: "modifyReputation", value: -3 },
