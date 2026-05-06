@@ -1285,7 +1285,7 @@ export const ALL_FLAVOR_TEMPLATES: FlavorTemplate[] = FLAVOR_CATEGORIES.flatMap(
   (cat) => getTemplatesForCategory(cat),
 );
 
-/** Total templates across all twenty flavor pools. */
+/** Total templates across all flavor pools. */
 export function totalFlavorTemplateCount(): number {
   return ALL_FLAVOR_TEMPLATES.length;
 }
