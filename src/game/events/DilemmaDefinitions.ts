@@ -982,7 +982,8 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
       {
         id: "keep_for_research",
         label: "Keep it for your R&D division",
-        outcomeDescription: "Tech upside; collectors are upset.",
+        outcomeDescription:
+          "R&D gets first access; collectors and curators are furious.",
         baseSuccess: 65,
         scalingTags: ["tech"],
         effects: [
