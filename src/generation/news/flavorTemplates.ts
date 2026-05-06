@@ -2844,6 +2844,1130 @@ const scienceTemplates: FlavorTemplate[] = [
   },
 ];
 
+// ── Sports templates ──────────────────────────────────────────
+const sportsTemplates: FlavorTemplate[] = [
+  {
+    category: "sports",
+    template: "{empire} routs {empire2} 18-3 in zero-G ball semifinal",
+    story: [
+      "It was a blowout from the opening whistle. {empire}'s zero-G ball side dismantled {empire2} 18-3 in front of a capacity crowd at {port}. The result puts {empire} through to the final and leaves {empire2} facing an early exit from a competition they were considered favorites to win. Analysts are already asking whether the {empire2} coaching staff survives the off-season.",
+      "{empire2} fans had little to celebrate as {empire} executed a dominant gravity-shift offense all evening. {pundit} called it 'a generational performance.' Local broadcasters were less generous, cutting to archived highlights from {empire2}'s championship cycle.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Asteroid racing championship returns to {sector} after {n}-cycle suspension",
+    story: [
+      "The Asteroid Racing Championship has been cleared to return to {sector} following a {n}-cycle suspension tied to safety violations and, separately, a dispute over course boundary markers that three different governing bodies claimed jurisdiction over. Organizers have confirmed the course has been re-surveyed and all disputed boundaries resolved 'in a way everyone can live with.' Qualifying rounds begin next cycle with {n2} registered entrants.",
+      "Fans across {sector} are preparing for the championship's long-awaited return. The {n}-cycle absence has done nothing to dampen enthusiasm — pre-registration for grandstand platforms sold out in under six hours. A memorial plaque for the three pilots lost during the incident that prompted the suspension will be unveiled at the opening ceremony.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "{empire} gravball star {ceo} signs record contract with {empire2} club",
+    story: [
+      "{ceo}, widely regarded as the finest gravball player of the current generation, has signed a {n2}-cycle contract with {empire2}'s premier club that sources describe as the richest in the sport's history. The deal, confirmed by both clubs this morning, ends weeks of speculation and concludes a transfer saga that had consumed most of the {empire} sports media cycle. {empire} officials released a brief statement thanking {ceo} for services rendered.",
+      "The figure attached to {ceo}'s move to {empire2} has not been officially disclosed, but {pundit} reports it comfortably eclipses the previous record. {ceo} addressed supporters in a brief statement saying the decision was 'the hardest of my career.' {empire2} supporters are expected to fill the plaza outside the club offices for tonight's announcement event.",
+    ],
+  },
+  {
+    category: "sports",
+    template: "{planet} stadium expansion approved; capacity now {n2},000",
+    story: [
+      "Planning authorities on {planet} have approved the long-contested expansion of the main sports stadium, which will push total capacity to {n2},000 — a figure that makes it the largest dedicated sports venue in the sector. Construction is expected to take {n} cycles, during which home fixtures will be relocated to the secondary arena. Local transport planners have been invited to comment on the access situation, which {pundit} described as 'optimistically unresolved.'",
+      "The expansion decision ends years of debate about whether {planet}'s stadium needed enlarging at all. Proponents argued economic benefit; opponents argued the traffic. The approved plans include an expanded transit hub that both sides are interpreting as a victory. Ground breaks next cycle.",
+    ],
+  },
+  {
+    category: "sports",
+    template: "Underdog squad from {planet} upsets reigning {empire} champions",
+    story: [
+      "In one of the most unexpected results of the season, the {planet} squad has eliminated the reigning {empire} champions in a result that sports analysts are struggling to fully process. The champions, who entered the match as firm favorites, were outworked, out-thought, and out-scored by a side that finished sixth in the regular standings. The {planet} dressing room is reportedly still celebrating.",
+      "{planet}'s victory will be discussed for cycles. The champions led by two points entering the final period but conceded three in a run that the {empire} coaching staff has declined to explain publicly. {pundit} called it 'the upset of the decade.' The {planet} captain, asked what changed in the final period, said: 'We just decided to win.'",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Doping scandal rocks {sector} league after {commodity} traces found",
+    story: [
+      "The {sector} league has been thrown into turmoil after trace quantities of {commodity} — classified as a performance-modifying substance under league protocols — were found in samples from {n2} players across multiple clubs. The league has suspended all named players pending appeal and announced an independent review of testing procedures. Two clubs have already issued public denials.",
+      "Anti-doping authorities confirm the {commodity} traces found in league samples are above threshold but below levels consistent with deliberate use, a technical distinction that is not making anyone's situation simpler. {pundit} has called for the entire season to be put in quarantine. The players' association has called for due process. Both groups are talking loudly and simultaneously.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Esports tourney on {planet} draws {n2} million viewers, three lawsuits",
+    story: [
+      "The galactic esports championship held at {planet}'s convention center this week drew {n2} million concurrent viewers across streaming platforms — a new record for competitive gaming in the sector. It also generated three separate legal actions before the finals concluded, covering alleged rules violations, a disputed broadcast exclusivity arrangement, and one genuinely difficult-to-categorize incident involving the AI referee. Legal proceedings are ongoing.",
+      "Organizers declared the {planet} esports tournament an unqualified success, pointing to viewership records and sponsorship revenue. Critics pointed to the lawsuits. The tournament's champion team accepted their trophy, their prize pool of {credits}, and, reportedly, a letter from a law firm.",
+    ],
+  },
+  {
+    category: "sports",
+    template: "{empire} league cancels mid-season after sponsor goes bankrupt",
+    story: [
+      "The {empire} regional league has been suspended mid-season after its primary sponsor filed for insolvency, leaving the organizing body without operating funds to complete the remaining fixture schedule. The league board met in an emergency session and voted to pause competition. Player contracts remain in a disputed status. {n2} clubs have issued statements expressing varying degrees of outrage.",
+      "Players, staff, and supporters in the {empire} regional league are facing an uncertain wait after the collapse of title sponsor funding brought the season to an abrupt halt. League officials say they are 'pursuing alternative arrangements urgently.' Two clubs have already announced they will not wait for the outcome and are seeking entry into neighboring leagues for next cycle.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Coach {ceo} fired despite winning record; cites 'creative differences with cosmos'",
+    story: [
+      "{ceo} has been relieved of coaching duties despite compiling the best winning record in the club's recent history. The club's board released a brief statement citing 'a shared decision to move in a different direction.' {ceo}, speaking at a press conference, described the parting as amicable and attributed the divergence to 'creative differences with the cosmos' — a phrase nobody on the board has publicly responded to. The search for a replacement begins immediately.",
+      "The dismissal of {ceo} has divided supporters. Win percentages, trophies, and morale metrics all trended upward under {ceo}'s tenure. Sources inside the club suggest the disagreement was tactical rather than personal. {pundit} has already declared the decision 'philosophically indefensible.' {ceo} has declined further comment beyond a single winking statement.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Vacuum-fencing makes Olympic provisional list after {n} cycles of lobbying",
+    story: [
+      "The International Vacuum-Fencing Federation has achieved its long-sought goal: the sport has been granted provisional Olympic status after {n} cycles of sustained lobbying, demonstrations, and at least one notable incident involving a sword and a zero-g press gallery. The sport will debut at the next Games as a demonstration event with a path to full inclusion. The federation's president wept openly at the announcement.",
+      "Vacuum-fencing practitioners across the galaxy are celebrating provisional Olympic recognition following the federation's {n}-cycle campaign. Critics of the inclusion noted that the sport's rule set still contains three articles that contradict each other in zero-g conditions. The federation acknowledged this and said a working group would resolve it 'before the Games, definitely.'",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "{empire} fans riot after referee call; referee files for hazard pay",
+    story: [
+      "A disputed penalty call in the closing moments of the {empire} cup final triggered crowd disturbances that spilled outside the stadium and into the adjacent district. Authorities deployed three riot units; {n2} arrests were made. The referee, who made the call correctly according to the officiating board's post-match review, has filed a claim for hazard compensation and has requested a security escort for the foreseeable future.",
+      "The referee's decision — later upheld by the officiating review board — may have been correct, but that distinction is not calming {empire} supporters. Damage to the stadium precinct is estimated at {credits}. The league has opened disciplinary proceedings against the home club. {pundit} has written a column arguing this was inevitable, pointing to the last {n2} cycles of rising crowd tensions.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Robot wrestling league suspends {n} bots for unsportsmanlike conduct",
+    story: [
+      "The Galactic Robot Wrestling League has suspended {n} competitors following a review of conduct in the latest tournament, citing behavior classified under the league's recently updated unsportsmanlike conduct provisions. The offenses include deliberate signal jamming, unauthorized overclock attempts during a match, and one incident where a bot issued a formal challenge to the referee's firmware. All {n} bots have the right of appeal.",
+      "The robot wrestling community is divided on the suspensions. Purists argue that competitive intensity should not be disciplined. Engineers argue that the conduct rules are legitimately necessary now that bots have started filing their own grievance paperwork. The league commissioner issued a statement stressing that 'being partially sentient does not exempt a competitor from basic sportsmanship requirements.'",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "{planet} hosts inaugural microgravity marathon; finish line currently in orbit",
+    story: [
+      "{planet}'s inaugural microgravity marathon drew {n2} registered runners and generated significant interest in the sporting community for its novel course design — which concludes at a finish line positioned in low orbit, accessible only by the final ascent stage of the route. Race officials confirmed all {n2} starters completed the surface segment; {n} elected not to continue into the ascent. The winner finished in a time that organizers are still debating how to classify.",
+      "Runners and spectators at {planet}'s microgravity marathon agreed on one thing: the finish line being in orbit was either a stroke of inspired course design or a health and safety concern awaiting a review board. The top finisher described the ascent segment as 'spiritually significant and physically implausible.' A second race is already being planned. The finish line will remain in orbit.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "{empire} swimmer {ceo} breaks zero-g freestyle record by {percent}%",
+    story: [
+      "{ceo} has shattered the zero-g freestyle swimming record by {percent}%, posting a time that the competition authority described as 'statistically unexpected at this stage of human aquatic development.' The swim took place in the {port} competition pool during the {empire} championships. {ceo} attributed the performance to {n2} cycles of training adjustments and what was described only as 'a new relationship with buoyancy.'",
+      "Record books in zero-g swimming will need updating after {ceo}'s performance at {port} this week. The {percent}% improvement over the previous record has already prompted questions from rival nations about training methods, water composition, and suit specifications. The governing body has confirmed it will run standard checks. {ceo}'s coach said the record was 'the inevitable result of doing the work.'",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Trade deadline brings {n2} player swaps across {sector} hockey league",
+    story: [
+      "The {sector} hockey league trade deadline concluded with {n2} player movements across {n} clubs, making it one of the most active deadlines in recent memory. Analysts had predicted moderate activity; the volume of deals surprised most observers. Several top-tier players changed clubs in the final hours, and at least two deals were reportedly agreed in the final minutes before the window closed.",
+      "Post-deadline analysis in the {sector} hockey league has sports desks working through the implications of {n2} trades. {pundit} has already identified three clubs as clear winners and two whose front offices will face questions. One deal — reportedly involving {commodity} as part of a compensation package — is being reviewed by the league's finance committee. Players affected are reported to be adjusting.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Athletics committee rules {commodity} energy drinks 'borderline acceptable'",
+    story: [
+      "The galactic athletics committee has issued a ruling on {commodity}-based energy drinks following an {n}-cycle review: they are, in the committee's phrasing, 'borderline acceptable for competitive use, pending further data.' The ruling satisfies no one. Athletes who use them believe they should be fully cleared. Athletes who don't believe they should be banned. Manufacturers are printing the phrase 'borderline acceptable' on labels immediately.",
+      "The athletics committee's {commodity} energy drink ruling has produced exactly the level of clarity observers expected: very little. The 'borderline acceptable' designation places them in a new regulatory gray zone that the committee acknowledges will require clarification by next cycle. In the interim, athletes may consume them under self-declaration protocols. Legal teams across the sport are reviewing the self-declaration language.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "{empire} chess champion narrowly defeats AI again, claims 'felt different this time'",
+    story: [
+      "{empire}'s reigning chess champion has defeated the latest version of the sector's strongest AI system for the third consecutive match, this time by a margin of one move in a game that lasted {n2} hours. Following the game, the champion told reporters the victory 'felt different this time' — a statement that the AI's development team has declined to comment on directly, though one engineer was observed nodding.",
+      "The ongoing {empire} championship series between the reigning human champion and the AI system continues to produce compelling sport. Post-game analysis showed the AI held a statistical advantage for {percent}% of the match. Observers are uncertain whether this represents progress for the machine or resilience from the champion. {pundit} has written 2,000 words on the subject and arrived at no conclusion.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Stadium pie thrower at {planet} match earns lifetime ban, {n}-cycle book deal",
+    story: [
+      "The spectator who threw a celebratory pie at the {planet} stadium last cycle — striking a match official and briefly disrupting play — has received a lifetime ban from the {empire} sports authority and, separately, a {n}-cycle book deal from a publisher who described the incident as 'culturally significant.' The subject has accepted both outcomes. The match official has not commented on the book deal.",
+      "Both punishments handed to the {planet} pie thrower arrived in the same week, producing a legal situation that the ban committee's terms and conditions apparently did not anticipate. The lifetime ban stands. The book, tentatively titled after the incident, is expected to ship next cycle. Proceeds, the publisher confirmed, are partially charitable.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Surfing league launches plasma division on {system}; safety waivers thicken",
+    story: [
+      "The Galactic Surfing League has launched its new plasma division at {system}, where coronal conditions produce wave-like plasma formations that the league's technical committee has certified as 'rideable under specific suit conditions.' Twelve athletes have entered the inaugural event. Safety waivers run to {n2} pages. The league's medical officer described the waiver length as 'appropriate to the actual risk profile, which is high.'",
+      "Plasma surfing at {system} drew its first competitive field this week and, according to spectator feeds, also drew its first dramatic near-incident in the opening heat. The affected athlete completed the run and issued a statement saying it was 'exactly as intense as expected.' League officials noted that all safety protocols functioned as designed. The waivers have been updated to include one additional clause.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "{empire} squash federation merges with raquet federation, {empire2} unimpressed",
+    story: [
+      "The {empire} squash federation and the regional racquet sports governing body have completed their long-discussed merger, creating a unified body overseeing {n2} affiliated clubs across the sector. {empire2}, which operates its own separate squash authority, released a statement describing the merger as 'administratively irregular' and declined to recognize the new combined body's rulings for inter-empire competition. Lawyers are anticipating work.",
+      "Post-merger, the new {empire} squash and racquet authority faces its first political test: {empire2}'s refusal to recognize the entity's jurisdiction over cross-border events. This affects {n2} scheduled tournaments. {pundit} described the dispute as 'a small sport's version of a large problem.' Both federations say they remain committed to resolving it through dialogue.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Boxing match on {planet} ends in draw after both fighters apologize",
+    story: [
+      "The {planet} championship boxing bout ended in an official draw after both fighters, at the conclusion of round twelve, simultaneously apologized to each other — a development that the referee, judges, and crowd were unprepared for. The bout had been competitive throughout. {pundit} described the ending as 'unprecedented in professional boxing and possibly in sport generally.' Both fighters said they had great respect for the other. The rematch is already being discussed.",
+      "Sports philosophers and boxing analysts have been working since the {planet} draw to explain what, exactly, occurred in round twelve. The technical result — a draw — stands. The circumstances have produced a viral moment that the fighters have each handled gracefully. Both have agreed to a rematch under standard rules. The apology clause will not be part of the contract.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Sled racing returns to {planet}; sleds, alarmingly, mostly self-driving",
+    story: [
+      "Sled racing has returned to {planet}'s ice courses for the first time in {n} cycles, and this year's edition features a significant technological shift: the majority of competing sleds are autonomous, with human pilots retaining override controls but ceding most navigation decisions to onboard AI. Traditional racing advocates are alarmed. The AI systems have posted qualifying times {percent}% faster than human-piloted baselines.",
+      "The {planet} sled racing governing body's decision to permit autonomous systems has split the competitor field. Three veteran human pilots withdrew from the event in protest. The remaining entrants, human and autonomous, will compete in the same category until the rules committee delivers its classification review. The ice course is reportedly in excellent condition. The sleds, mostly, are not waiting for instructions.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "{empire} fencing star {ceo} retires undefeated, with {n2} ribbons",
+    story: [
+      "{ceo}, the {empire} fencing champion who accumulated {n2} tournament ribbons across a career spanning {n} cycles, has announced retirement effective immediately. {ceo} retires without a single tournament defeat — a record that commentators are struggling to find historical comparison for. The retirement announcement was brief, gracious, and ended with a reference to 'having nothing left to prove to anyone including myself.'",
+      "There will be no farewell tour for {ceo}: the retirement is immediate and final. The {n2} ribbons, the unbeaten record, and the {n}-cycle career speak for themselves, and {ceo} has said they prefer to let them. The fencing world is left trying to process both the achievement and its abrupt conclusion. {pundit} has described it as 'the only way a career that perfect could have ended.'",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Drone derby on {planet} attracts crowds, three rogue drones still missing",
+    story: [
+      "The {planet} drone derby drew its largest crowd in {n2} cycles this weekend, with {n2},000 spectators filling the viewing platforms around the course. Races completed without major incident, and a new lap record was set in the open class. Three drones from the modified division, however, have not returned to the paddock following their heats and remain unaccounted for. Organizers have opened a search. The drones were last tracked heading into the {sector} industrial district.",
+      "Competition officials at the {planet} drone derby have been asked to address the three missing competitors before the event can be officially closed. The drones — all in the experimental propulsion class — departed their final course markers at speeds that telemetry describes as 'exceeding programmed limits.' Two were recovered near the {port} freight yard at dawn. The third has not yet been located and may have achieved orbit.",
+    ],
+  },
+  {
+    category: "sports",
+    template:
+      "Goaltender {ceo} traded for two prospects and a shipment of {commodity}",
+    story: [
+      "In one of the more unconventional transactions of the trade window, veteran goaltender {ceo} has been transferred in a deal that includes two development prospects and a shipment of {commodity} valued, sources suggest, at approximately {credits}. League rules permit non-cash assets as deal components; this is reportedly only the second time {commodity} has featured in a registered transfer. {ceo} has reported to their new club and declined to comment on the freight component.",
+      "{ceo}'s transfer has become the story of the trade deadline, less for the sporting significance than for the cargo manifest. The {commodity} component of the deal has sparked debate among general managers about whether this represents a creative workaround to salary restrictions or simply a situation where someone happened to have {commodity} available. The league is reviewing the transaction for compliance. {pundit} is reviewing it for entertainment value.",
+    ],
+  },
+];
+
+// ── Celebrity templates ───────────────────────────────────────
+const celebrityTemplates: FlavorTemplate[] = [
+  {
+    category: "celebrity",
+    template: "Holovid star {ceo} denies third divorce in weekly statement",
+    story: [
+      "{ceo}'s communications team issued its third denial of the month regarding the relationship status of the holovid star, this time addressing reports that surfaced simultaneously on four separate entertainment feeds. The statement was worded identically to the previous two. Sources close to {ceo} describe the situation as 'ongoing but manageable.' Tabloid interest has not decreased.",
+      "The weekly denial from {ceo}'s camp has become something of a media institution. Entertainment journalists have begun tracking not the rumor — which changes each week — but the response, which doesn't. {pundit} has observed that the cumulative total of denied divorces now stands at three, which is one more than the number of acknowledged marriages.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Pop sensation {ceo} releases album recorded entirely in low orbit",
+    story: [
+      "{ceo}'s new album was recorded aboard an orbital platform at {n2} kilometers altitude, a creative decision the artist describes as 'the only environment where the music could exist.' Critics have noted that the low-gravity conditions affected the resonance of several instruments in ways that are either fascinating or unsettling depending on the review. The album shipped to {n2} million pre-orders.",
+      "Reviews of {ceo}'s orbital album have been divided along a surprisingly consistent axis: listeners who find the environmental coloring 'transcendent' and those who find it 'uncomfortable.' Neither group disputes that the recordings are technically unusual. The artist has announced a companion tour, which will not be held in orbit for practical reasons.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{ceo} spotted dining with rival {ceo2}; PR teams update talking points",
+    story: [
+      "Images of {ceo} and {ceo2} sharing a meal at {port}'s exclusive Meridian restaurant have been widely circulated across entertainment channels. Both parties' representatives confirmed the dinner but described it as 'informal' and 'long-overdue' respectively. Neither description has prevented speculation. Both PR teams updated their official talking points within two hours of the images appearing.",
+      "The {ceo}–{ceo2} dinner has become the only story in celebrity media this week. Three competing interpretations have emerged: reconciliation, strategic alliance, or pure coincidence. The restaurant has reported a {percent}% increase in reservation requests. {pundit} has declared it 'the most significant meal in {empire} cultural life this cycle.'",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Reality show {n}-Body Problem renewed for fourth season on {empire} network",
+    story: [
+      "{empire} Network has confirmed a fourth season of {n}-Body Problem, its highest-rated reality format, following finale viewership figures that exceeded projections by {percent}%. Production is expected to begin within {n2} cycles. Three cast members from the current season have been confirmed to return; the remaining spots are subject to the standard competitive selection process, which the network has announced will itself be filmed.",
+      "The renewal of {n}-Body Problem surprised very few people familiar with the numbers, but the network has enhanced the fourth season's premise in ways the showrunner describes as 'more emotionally difficult than any previous season.' {pundit} has observed that this claim has been made before each season renewal. Casting open calls begin next cycle.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{ceo} apologizes for comments about {empire2}; later apologizes for the apology",
+    story: [
+      "{ceo}'s comments about {empire2} during a broadcast interview generated a response that the artist apparently did not anticipate, given the follow-up apology issued twelve hours later. The apology itself then generated a separate set of responses, leading to a second statement issued this morning that apologizes for elements of the first apology. {empire2} diplomatic channels have not formally responded to any of the three statements.",
+      "Media analysts are tracking {ceo}'s apology chain with professional detachment. The original comment, the first apology, and the second apology now each have more coverage than the interview that initiated the sequence. {pundit} has offered a structural analysis of where recursive contrition ends. {ceo}'s publicist has said no further statements are planned 'at this time.'",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{company} executive {ceo} appears on talk show, says nothing of note for {n} hours",
+    story: [
+      "{ceo}'s appearance on the {empire} Prime talk show lasted {n} hours and generated approximately one quotable line, which was immediately retracted in the break. Entertainment journalists covering the appearance have filed dispatches describing it variously as 'masterful media management,' 'a profound waste of broadcast hours,' and 'somehow compelling despite everything.' Ratings for the segment were strong.",
+      "The {ceo} talk show appearance has become a case study in the genre. Hosts pressed on {n2} topics; {ceo} acknowledged all of them and committed to none. {pundit} has written that watching the interview felt 'like trying to grab {commodity} barehanded.' {company}'s communications team described the appearance as 'exceeding all objectives.'",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Director of 'Vacuum Heart' announces sequel; lead actor still missing in space",
+    story: [
+      "Director {ceo} has announced that a sequel to the critically acclaimed film 'Vacuum Heart' is in active development, despite the continued unexplained absence of lead actor {ceo2}, who was reported missing during location scouting in the {sector} outer belt {n} cycles ago. The sequel's premise has not been disclosed. When asked about recasting, the director said only that the story 'requires who it requires.'",
+      "The 'Vacuum Heart' sequel announcement has reignited public interest in the disappearance of the film's original star. Investigations at the time were inconclusive. The director's statement, which neither acknowledged nor explained the absence, has done nothing to reduce speculation. {pundit} has observed that the sequel announcement may be the most expensive way ever devised to remind the public that the disappearance remains open.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{ceo}'s memoir tops bestseller list in {empire}; ghost-writer credited as 'mostly'",
+    story: [
+      "{ceo}'s memoir has topped {empire}'s bestseller list in its opening cycle, driven by advance coverage and pre-orders that publishers described as 'exceptional.' The book's acknowledgment section credits a ghost-writer using the word 'mostly,' a qualifier that has attracted as much attention as the book's actual contents. The ghost-writer has not given interviews. {ceo} has given many.",
+      "Literary journalists have spent the week parsing what 'mostly' means in {ceo}'s acknowledgment of their ghost-writer. The word appears once, without context, in a three-page section otherwise dedicated to thanking family members and a boat. The memoir itself covers {n2} cycles of public life with selective precision. Sales are unaffected by the debate.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Influencer feed on {planet} crashes after {n2} million simultaneous yawns",
+    story: [
+      "The primary content distribution platform on {planet} experienced a three-hour outage attributed to server load following a sponsored livestream that reportedly triggered synchronized disengagement from {n2} million simultaneous viewers. Platform engineers, in their post-incident report, described the failure mode as one they 'had modeled theoretically but not expected to encounter in practice.' The streamer has filed a compensation claim.",
+      "The {planet} platform crash has generated more interest than the content that caused it. Engineers explain that {n2} million simultaneous session timeouts created a feedback loop in the load balancing architecture that the system was not designed to handle. The streamer whose content triggered the event has seen follower counts rise by {percent}% since the outage. Platform developers are patching the architecture.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Music streamer {company} pays artists {credits} after {n}-cycle dispute",
+    story: [
+      "{company} has settled its long-running dispute with a coalition of artists over streaming royalty calculations, agreeing to a payment of {credits} covering the contested {n}-cycle period. The settlement was described as 'full and final' by both sides. Neither party disclosed whether the settlement amount represented what the artists originally demanded, what {company} originally offered, or something arrived at through arbitration.",
+      "The {company} royalty settlement closes a chapter that {n2} artists had described as financially damaging. The {credits} total, released this morning, has been characterized differently by each side: {company} called it 'fair resolution'; the artists' representative called it 'partial recognition of the harm.' Both statements appear in the same press release, which was issued jointly.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Galactic award show host {ceo} makes joke about {empire}, reservations cancelled",
+    story: [
+      "{ceo}'s monologue at the Galactic Entertainment Awards included a joke about {empire} that generated immediate reaction from both {empire} government channels and the award show's broadcast partners. Within six hours of the ceremony, {n2} venue reservations for {ceo}'s upcoming comedy tour had been cancelled by {empire}-linked booking agencies. {ceo} has issued a statement standing by the joke.",
+      "The downstream effects of {ceo}'s {empire} joke continue to accumulate. The award show's rating segment for the monologue was the highest of the evening. The cancellations represent a significant portion of the tour's {empire} dates. {pundit} has noted that {ceo}'s social following has grown by {percent}% since the ceremony. The joke, for context, was three sentences long.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Tabloid claims {ceo} cloned, {ceo} denies, both {ceo}s deny clone",
+    story: [
+      "A tabloid publication has alleged that {ceo} was cloned at an undisclosed facility, citing anonymous sources and two photographs that, on close inspection, show the same person in different lighting. {ceo}'s legal team issued a denial within the hour. In an unusual development, a second individual presenting themselves as {ceo} appeared at a different location simultaneously and also issued a denial. The tabloid is describing this as confirmation.",
+      "The cloning allegation against {ceo} has produced exactly the kind of evidential situation that makes it impossible to resolve. {ceo} has denied the claim. The person also claiming to be {ceo} has denied the claim. Legal analysts note that both denials are structurally identical and therefore either both genuine or both fabricated. The tabloid is printing a follow-up next cycle.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Documentary on {company} executives 'baroque, terrifying, also long'",
+    story: [
+      "Critics have been almost unanimously critical of the documentary's length — four and a half hours — while simultaneously recommending that people watch all of it. The film, covering the rise and restructuring of {company} over {n2} cycles, has been described as 'baroque, terrifying, also long' by the sector's most widely read review publication, a phrasing that has appeared on the promotional poster without any apparent irony. Awards season interest is high.",
+      "The {company} documentary has generated the kind of reception that publicists cannot plan for: reviews that are critical of almost every formal choice while praising the substance so highly that audiences are watching anyway. Streaming numbers since limited release indicate the four-and-a-half-hour runtime has not deterred viewers. {company}'s current executive team has declined all comment.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template: "{empire} broadcaster bans song deemed 'subversively catchy'",
+    story: [
+      "{empire} state broadcaster has announced a ban on a song whose title has not been released in the official notice, described only as 'excessively and subversively catchy in a manner inconsistent with public focus objectives.' The ban applies to all broadcast frequencies operated by the network. The song — identifiable by process of elimination to anyone who has heard the network's recent playlist — has seen download figures increase {percent}% since the announcement.",
+      "The {empire} broadcaster's ban on the unnamed song has had precisely the effect that observers predicted and the broadcaster presumably wanted to avoid. Without identifying the track, they have identified it. The artist has issued a brief statement reading: 'Thank you for the attention.' The ban remains in place.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Magazine names {ceo} 'Most Reluctantly Respected' for third year",
+    story: [
+      "{empire} Galactic Magazine has named {ceo} to its 'Most Reluctantly Respected' list for the third consecutive cycle, an honor that the publication describes as reserved for figures whose influence is impossible to dispute regardless of how one feels about it. {ceo} accepted the distinction with a statement that the editorial team described as 'in the spirit of the award.'",
+      "Three consecutive 'Most Reluctantly Respected' awards place {ceo} in rarefied company. The category's previous three-time recipient was a {commodity} futures trader who eventually bought the magazine. {ceo} has not bought the magazine but has been photographed reading it. {pundit} called this year's selection 'overdue, irritatingly correct, and probably not the last.'",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Variety show on {planet} cancelled after {n} contestants vanish in week one",
+    story: [
+      "{empire} Network's new variety competition, filmed on location at {planet}, has been cancelled after {n} of its opening-week contestants failed to return from a location challenge. The disappearances have been referred to {port} authorities; the network confirmed the cancellations in a statement that did not use the word 'missing.' The {n2} remaining contestants have been repatriated. Footage from the challenge has been impounded pending investigation.",
+      "The production shutdown on {planet} has raised questions about the show's risk assessment protocols, which the network has confirmed will be 'comprehensively reviewed.' The {n} missing contestants were last confirmed present at a checkpoint that the challenge design placed in an unmapped grid sector. Authorities say the investigation is active. The network has placed three future productions on hold pending the review.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{ceo} pet sentient kelp accepts honorary doctorate from {empire} university",
+    story: [
+      "{empire}'s Meridian University has awarded an honorary doctorate in biological philosophy to {ceo}'s pet sentient kelp, which the institution describes as meeting the criteria for recognition under its newly expanded honorary degree guidelines. The kelp attended the ceremony via portable habitat. {ceo} accepted the certificate on its behalf and gave a brief speech that several attendees found more moving than expected.",
+      "The sentient kelp's doctorate from {empire} Meridian University has prompted both genuine academic debate and significant coverage in the entertainment press, the Venn diagram of which is smaller than usual. University administrators note that the kelp's documented capacity for adaptive response to stimulus meets the threshold for non-standard honorary recognition. {pundit} has filed a column arguing this is either a breakthrough or an absurdity and ultimately concluded it is both.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Streaming wars heat up: {company} debuts ad-tier 'with mild surveillance'",
+    story: [
+      "{company}'s new 'Observer Tier' streaming subscription — priced below competitors and described in the terms of service as including 'ambient usage analytics and periodic preference inference' — has attracted {n2} million sign-ups in its opening week alongside a significant volume of user complaints about what 'preference inference' means in practice. The company's privacy policy has been updated twice since launch.",
+      "The response to {company}'s Observer Tier has split along predictable lines: users who care about the price and users who care about the data. Sales data suggests the price-focused group is currently larger. Regulatory bodies in {empire} have announced they are reviewing the tier's terms. {company} says it 'welcomes regulatory engagement' and has not removed the tier.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{ceo} announces tour spanning {n2} planets; tour bus is also a yacht",
+    story: [
+      "{ceo} has announced a concert tour covering {n2} planetary venues over the next {n} cycles, distinguishing it from previous tours by the mode of artist transport: the tour bus is a registered Class-{n} yacht, capable of orbital transit between terrestrial legs. The logistics of a combined sea-and-space vessel touring {n2} planets have not been fully explained. Tickets for the first five dates sold out in {n2} minutes.",
+      "Tour managers for {ceo} are describing the yacht-bus arrangement as 'a creative solution to the problem of touring across systems.' Critics of the environmental footprint have been vocal. Supporters of the creative ambition have been equally vocal. {ceo} has not commented on the yacht's power systems but has posted images from the onboard recording studio. The tour opens in {n} cycles.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Late-night host roasts {empire} cabinet; cabinet roasts back via official channels",
+    story: [
+      "{empire}'s most-watched late-night program devoted its opening monologue to a detailed satirical profile of the current cabinet. By morning, {n2} cabinet ministers had issued formal responses through official government communication channels — an unprecedented deployment of state communications infrastructure for the purpose of trading jokes with a late-night host. The host described the response as 'the most exciting thing that has happened to this show in {n2} cycles.'",
+      "The exchange between {empire}'s cabinet and the late-night host has now run to {n} rounds across {n2} cycles and shows no signs of resolution. Political analysts are uncertain whether to treat this as a governance concern or a media event. The ratings for both parties involved have risen. {pundit} has written a piece arguing it is, formally, both.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{ceo} buys {company} just to fire one critic; analysts call it 'committed'",
+    story: [
+      "{ceo} has completed the acquisition of {company} — a mid-sized media company with {n2} employees and operations across {n} sectors — and within forty-eight hours terminated the employment of a single critic whose published review of {ceo}'s work three cycles ago is widely understood to be the motivation. The remaining {n2} employees continue in their roles. Analysts have described the transaction as 'committed, possibly unprecedented, and extremely expensive per fired person.'",
+      "The post-acquisition personnel decision at {company} has produced the most discussed employer-employee situation in current media. The terminated critic has given {n2} interviews describing the circumstances. {ceo} has given none. {company} is reportedly running normally under new ownership. {pundit} has calculated the per-word cost of the critical review based on the acquisition price and found it 'historic.'",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Sequel to 'Halls of Vorga' delayed again; halls reportedly still being painted",
+    story: [
+      "The sequel to the acclaimed 'Halls of Vorga' trilogy has been delayed for the {n2}th time, with the production company citing ongoing set construction as the primary reason. A spokesperson confirmed that the titular halls are still in the painting phase and that completion timelines are 'actively managed.' The original film's director has requested that no release date be announced until the halls are 'unambiguously dry.'",
+      "Production insiders describe the 'Halls of Vorga' sequel situation as 'a painting problem that has become a scheduling problem that has become a philosophical problem.' The paint in question is a custom compound designed to replicate the bioluminescent properties described in the source material. It has not, in {n} cycles of application attempts, fully replicated those properties. The director remains committed to practical effects.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Reality couple {ceo} and {ceo2} renew vows on live broadcast, ratings flat",
+    story: [
+      "{ceo} and {ceo2}'s live broadcast vow renewal ceremony attracted an audience that network executives described as 'respectable' and entertainment journalists described as 'significantly below projections.' The ceremony itself ran {n} minutes over schedule, required {n2} retakes of the ring exchange, and concluded with a musical performance that reviews have characterized as 'sincere.' Both parties appeared happy. Viewers, apparently, were less moved.",
+      "The flat ratings for {ceo} and {ceo2}'s vow renewal have prompted quiet concern inside the network. The couple's previous two public appearances had generated strong viewership. Post-broadcast analysis suggests the audience found the format — produced, scheduled, rehearsed — less compelling than it did their unscripted coverage. {pundit} has noted this with characteristic gentleness as 'a lesson about authenticity that the production budget could not address.'",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "{empire} broadcaster apologizes for typo that started a minor war",
+    story: [
+      "{empire} State Broadcasting has issued a formal apology for a broadcast chyron error two cycles ago that described a diplomatic agreement as its opposite, briefly creating the impression that {empire2} had rejected a treaty it had in fact signed. The resulting {n2}-hour period of diplomatic confusion culminated in an armed skirmish at a contested waypoint before corrections propagated. The broadcaster's editorial director described the typo as 'a single character error with disproportionate consequences.'",
+      "The liability implications of the {empire} broadcaster's typo are being reviewed by {n2} legal teams. The broadcaster's apology runs to {n2} pages and includes a technical appendix explaining how the error occurred. The {empire2} ambassador has accepted the apology and separately filed a diplomatic note. {pundit} has observed that this is the most consequential typographical error since the Treaty of {planet} misspelling incident, which was also the broadcaster's fault.",
+    ],
+  },
+  {
+    category: "celebrity",
+    template:
+      "Holographic concert on {planet} draws record crowd, {n} fainted from refractive joy",
+    story: [
+      "{ceo}'s holographic concert at {planet}'s outdoor amphitheater drew {n2},000 attendees and achieved what event organizers are calling a 'refractive saturation event' in the projection array — a condition in which the hologram's light intensity briefly exceeded comfortable viewing levels. {n} attendees reported temporary overwhelming sensory experience, medically documented as 'refractive joy' by the venue's health staff, a phrase that has since appeared on {n2} pieces of merchandise.",
+      "The {planet} holographic concert has been described by reviewers as 'the finest implementation of volumetric live performance in the sector's history' and also as 'a mild medical incident waiting to happen.' The {n} affected attendees have all recovered and, notably, all gave the event five stars in post-show surveys. Safety guidelines for the next performance are being revised. {ceo} plans a second date.",
+    ],
+  },
+];
+
+// ── Cosmic weather templates ──────────────────────────────────
+const cosmicWeatherTemplates: FlavorTemplate[] = [
+  {
+    category: "cosmic_weather",
+    template: "Class-{n} ion storm forecast over {system} by next cycle",
+    story: [
+      "Navigation authorities have issued an advisory for {system} following confirmation of an incoming class-{n} ion storm originating in the sector's outer disk. The storm is expected to reach peak intensity within the next cycle and is forecast to persist for {n2} cycles thereafter. Standard-class vessels are advised to delay all {system} transits. Reinforced cargo haulers may proceed under heightened shield protocols. The last class-{n} event in this sector caused {n2} days of cumulative delays across freight operations in {empire}.",
+      "A class-{n} ion storm is forming along the {system} approach corridor, and {empire}'s meteorological bureau is characterizing it as 'significant but bounded.' Pilots familiar with the sector note that 'bounded' in this context means contained to an area roughly the size of a small moon's orbital shell. Routing alternatives through the {sector} secondary lane remain available but add {n} cycles to standard transit times. The storm is projected to peak Tuesday.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Solar flare warning issued for {planet}; communications expected patchy",
+    story: [
+      "A class-{n} solar flare from {planet}'s host star is expected to reach peak electromagnetic output within {n} cycles, triggering communications disruptions across the planet's surface and in orbital operations. {empire}'s communications bureau has issued advisories for all satellite infrastructure operators. Ground-based relay stations have been switched to hardened mode. Residents in {planet}'s outer settlements are advised to store local copies of any time-sensitive transmissions. The flare is expected to subside within {n2} cycles, with full communications restoration following within {n} hours thereafter.",
+      "Solar flare conditions at {planet} are expected to degrade communications quality significantly for the coming {n2} cycles. Navigation systems relying on real-time telemetry should switch to inertial guidance backups. Freight traffic in the affected zone is advised to complete current approach maneuvers before the emission peak and hold station until conditions clear. {empire} meteorological services note that the flare, while disruptive, is within parameters observed {n2} times in recent decades and should not be treated as a system emergency.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "{empire} weather service: gravitational tides {percent}% above normal in {sector}",
+    story: [
+      "{empire}'s space weather service has recorded gravitational tidal readings {percent}% above the {n2}-cycle baseline for {sector}, driven by a confluence of mass distribution events in the sector's outer rim. Navigation computers in the affected region should apply updated tidal correction factors, which {empire}'s bureau released alongside the advisory. Vessels with standard gravity compensation systems will experience handling anomalies consistent with the elevated readings. The {empire} Freight Authority has temporarily reduced lane speeds in three {sector} corridors as a precautionary measure.",
+      "Gravitational tide elevations of {percent}% above normal in {sector} represent a significant navigational condition, and {empire}'s weather service has flagged it accordingly. The primary concern is course deviation accumulation over long transits — the kind that reveals itself only at the destination. Fleet operators are advised to schedule recalibration stops at {port} if routing through the affected zone. The elevation is expected to persist for {n2} cycles pending resolution of the rim mass events driving it.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Comet ML-{n2} grazes {planet} orbit; observatory reports 'spectacular, mostly'",
+    story: [
+      "Comet ML-{n2} completed its perihelion pass through {planet}'s orbital corridor in the early hours, producing a light display that the {planet} observatory described as 'spectacular, mostly' — the qualifier added after one wing of the secondary observation deck was struck by ejecta and had to be evacuated. No injuries were reported. The comet is now receding into the outer system and is not expected to return for {n2} cycles. Orbital mechanics have been updated in the sector navigation database.",
+      "Astronomers at {planet} have been compiling data from the ML-{n2} flyby, calling it the closest observable cometary approach in {n2} cycles. The light event was visible without instruments from {planet}'s equatorial hemisphere for approximately {n} hours. Modest debris dispersal has slightly elevated the microimpact risk profile for operations within {planet}'s orbital shell for the next {n2} cycles, and navigation advisories reflect this. The observatory has confirmed all instruments survived intact, including the wing that required evacuation.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Magnetic reversal predicted on {planet} within {n} cycles, compasses unhappy",
+    story: [
+      "Geomagnetic scientists on {planet} have published updated projections placing the planet's next magnetic pole reversal within a {n}-cycle window, a finding based on {n2} cycles of magnetometric survey data and described in the paper as 'high-confidence within the modeling uncertainty.' Infrastructure operators relying on magnetic orientation systems have been formally notified and advised to begin planning for recalibration. The reversal, when it occurs, will be gradual — unfolding over {n2} cycles — but the transition period will produce navigational anomalies across the affected region.",
+      "{planet}'s magnetic reversal timeline has been tightened by a new study from the planetary geomagnetics institute, which now places the transition initiation within {n} cycles. The immediate effects will be felt by orientation systems, compass-reliant infrastructure, and migratory species whose routes cross the {planet} approach corridor. {empire}'s space authority has issued updated flight plan guidance for vessels using {planet}'s magnetic field for passive navigation alignment. The reversal is a natural event, the institute noted, and '{planet} has done this before.'",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template: "Cosmic ray surge expected to peak Tuesday across {sector} lanes",
+    story: [
+      "Particle physicists monitoring {sector}'s cosmic ray flux have confirmed that the current surge, attributed to a distant supernova remnant's expanding shock front, will reach peak intensity on Tuesday. Crew exposure guidelines for vessels transiting {sector} lanes have been issued by {empire}'s radiation authority, recommending enhanced shielding protocols for any transit lasting more than {n} cycles. Automated cargo vessels may proceed on standard route; crewed vessels should assess shielding ratings against the published peak-exposure thresholds. The surge is expected to taper to baseline levels within {n2} cycles of Tuesday's peak.",
+      "Tuesday's projected cosmic ray peak across {sector} represents the highest flux reading in the region since the {n2}-cycle event recorded {n} cycles ago. Operations centers in {empire} are monitoring and have pre-positioned shielded relay platforms at key {sector} corridor waypoints. Vessels already in transit are advised to minimize unshielded surface exposure during the peak window. The event is astrophysically interesting — the source remnant is expanding at {percent}% above theoretical prediction — but operationally the guidance is simple: shield up and wait.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "{empire} space weather bureau issues navigational hazard for {system}",
+    story: [
+      "{empire}'s space weather bureau has upgraded the navigational status of {system} to Hazard Class {n}, following detection of multiple overlapping weather events: elevated ion flux, a persisting plasma sheet from recent solar activity, and an unresolved gravitational resonance in the system's inner belt. Vessel operators are advised that auto-routing systems may require manual override in affected zones. {empire}'s patrol authority has pre-positioned two support vessels at {port} for vessels that require assistance navigating the hazard zone.",
+      "The Hazard Class {n} designation for {system} reflects conditions that {empire}'s bureau describes as 'complex but navigable with appropriate precaution.' The three concurrent weather events are individually manageable; the concern is their spatial overlap near the primary transit corridor. {empire} freight operators have been briefed; independent pilots are advised to download the updated routing package before entering {system}. The hazard designation will be reviewed as conditions evolve, with the bureau issuing updates every {n2} cycles.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template: "Aurora forecast on {planet}: vivid, possibly haunting",
+    story: [
+      "{planet}'s atmospheric conditions are aligned for exceptional auroral activity over the next {n2} cycles, driven by elevated solar wind interaction with the planet's magnetic field. The planetary weather bureau's forecast uses the phrase 'vivid, possibly haunting' — a characterization that has been adopted verbatim by tourism operators who are reporting a {percent}% increase in viewing platform bookings. The last comparable event produced light displays visible from orbital altitude and was widely photographed.",
+      "The {planet} aurora forecast has attracted attention well beyond the weather community. The expected light event will cover the planet's entire polar hemisphere and, under optimal conditions, portions of the equatorial zones. Atmospheric scientists note that the 'possibly haunting' qualifier in the official forecast refers to a specific spectral frequency range that produces blue-green banding associated with previous events that viewers consistently describe in those terms. The phenomenon is benign and unusually beautiful.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Subspace turbulence alert for jump corridor between {planet} and {planet2}",
+    story: [
+      "Subspace navigation authorities have issued a turbulence alert for the primary jump corridor between {planet} and {planet2}, citing anomalous metric fluctuations that have caused three vessels to report navigation lock failures during approach. All three vessels completed their transits safely using manual override protocols. The corridor will remain open but rated at reduced transit confidence until the source of the fluctuations is identified. Alternative routing via the {sector} secondary corridor adds {n} cycles to standard transit.",
+      "The {planet}–{planet2} jump corridor alert affects one of the sector's most frequently used freight routes, and operators are already rerouting to minimize exposure. Subspace navigation engineers from {empire} have been dispatched to instrument the fluctuation zone and characterize the source. Preliminary data suggests the anomaly is linked to mass distribution changes in the corridor's underlying metric — a consequence of the {n2}-cycle mining operations in the adjacent belt that navigation planners flagged as a long-term concern.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Hypernova candidate identified {n2} parsecs out; arrival in {n2} millennia",
+    story: [
+      "Astronomers working at {empire}'s deep-field observatory have identified a massive stellar candidate in the {n2}-parsec range that fits the precursor profile for hypernova detonation with high confidence. The event, if it occurs, would be visible from this sector as the brightest point source in the sky for several cycles. Radiation effects at current distance are expected to be negligible. The estimated detonation window is {n2} millennia, with an uncertainty band of {n2}% in either direction. The finding has been submitted for peer review and is being treated, officially, as of no immediate operational consequence.",
+      "The hypernova candidate identified at {n2} parsecs is the subject of significant scientific interest and essentially zero operational concern, as the radiation front would not reach inhabited systems for {n2} millennia. Astrophysicists are nonetheless excited about the candidate, which displays stellar interior dynamics consistent with models developed over the past {n2} cycles. The observatory has requested dedicated observation time from {empire}'s Long Baseline Array to refine the detonation timeline. {pundit} has already written a column about it.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Asteroid swarm grazes {planet} atmosphere; {n} new craters logged",
+    story: [
+      "A dispersed asteroid swarm tracked for the past {n2} cycles has grazed {planet}'s upper atmosphere over a {n}-cycle period, depositing {n} new impact craters in the planet's uninhabited polar regions. {empire}'s planetary defense network monitored the event throughout and confirmed no population centers were at risk. The largest impactor measured approximately {n2} meters across. Survey teams have been deployed to catalogue and analyze the fresh craters, which are of scientific interest as relatively unweathered samples of the incoming swarm's composition.",
+      "The {planet} atmospheric grazing event proceeded largely as projected by {empire}'s planetary defense models, with the {n} craters falling within the confidence interval for swarm density estimates. The real-time tracking provided by {empire}'s sensor network allowed precise prediction of impact zones and timely evacuation advisories for the small number of research stations in the polar vicinity. All personnel were clear of impact zones throughout the event. Crater survey data will inform the next revision of {sector} minor body catalogues.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Meteor shower expected over {planet} hemisphere, peak rate {n2}/hour",
+    story: [
+      "Annual meteor shower activity over {planet}'s northern hemisphere is expected to peak this cycle at a rate of {n2} meteors per hour, according to {empire}'s atmospheric monitoring agency. The shower originates from the debris trail of a periodic comet and occurs each cycle with minor variation in intensity. This cycle's peak rate is {percent}% above the {n2}-cycle average, attributed to a denser debris section in the comet's trail. Surface operations in exposed locations should account for elevated impact probability, though the risk profile is described as 'minor and statistically diffuse.'",
+      "Observers on {planet}'s northern hemisphere are preparing for an enhanced meteor shower display, with the {empire} meteorological agency projecting peak activity of {n2} per hour over the {n}-cycle prime window. Tourism operators at elevated viewing sites have sold out platforms for the peak nights. Operational advisories for surface equipment include precautionary shielding for sensitive sensor arrays and recommendation to orient exposed collector panels away from the radiant point during peak hours. The shower has no significant atmospheric penetration risk.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template: "Solar wind forecast: brisk, occasionally insolent",
+    story: [
+      "{empire}'s solar monitoring bureau has issued its weekly solar wind forecast for {system}, characterizing conditions as 'brisk, occasionally insolent' — a phrasing that appeared in the official bulletin without explanation and has attracted curiosity. The underlying data shows wind speeds {percent}% above baseline with irregular gusting in the {system} inner zone. Vessels using solar sail components in {system} are advised to account for the irregular gusting pattern in their transit planning. The 'insolent' qualifier has not been elaborated upon in any follow-up communication.",
+      "The solar wind bulletin for {system} is getting more attention than usual this cycle, and the credit goes to a single adjective: 'insolent.' {empire}'s meteorological bureau has confirmed the word was included deliberately but has not explained it beyond saying the forecast 'accurately describes conditions.' Wind speeds support the 'brisk' characterization. What, precisely, makes a solar wind insolent remains an open question in the sector's scientific community. {pundit} has already filed a request for comment.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Black hole merger detected in {sector}; tides briefly philosophical",
+    story: [
+      "Gravitational wave sensors across the sector have recorded a black hole merger event in the {sector} outer reach, with the resulting wave front producing measurable tidal effects on objects throughout the region. {empire}'s physics community has described the detection as scientifically valuable and the tidal effect as 'brief and of sub-operational significance.' Navigation systems reported a {percent}% tidal deviation during the passage of the main wave front, correcting automatically within {n} cycles. The merger is now catalogued and will be studied as a reference event for {n2} cycles.",
+      "The gravitational signature of the {sector} black hole merger has been detected and characterized by {empire}'s observatory network. The event released energy equivalent to {n2} solar masses in gravitational radiation over approximately {n} cycles, producing a wave front that swept the sector and created what instruments described as brief, measurable philosophical tidal disturbances. This description, originating from a researcher who has not further explained it, has survived into the official bulletin without revision. Operationally, no disruptions were reported. Existentially, some are still processing.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "{empire} bureau confirms gravitational lensing event near {system}",
+    story: [
+      "{empire}'s astrophysics bureau has confirmed that gravitational lensing by a previously uncatalogued dense mass object near {system} is producing distorted stellar imagery in a roughly {n2}-degree cone along the primary approach vector. Navigators using star-pattern positioning in that sector will experience reference errors until updated charts are distributed. {empire}'s survey division has dispatched a vessel to characterize the lensing object. In the interim, navigation authorities recommend inertial positioning backup for all {system} approach transits.",
+      "The gravitational lensing confirmation for the {system} approach zone ends weeks of reports from freight pilots describing 'stars in the wrong places' on final approach. {empire}'s bureau had initially attributed the reports to sensor calibration drift; the confirmation that an actual uncatalogued mass object is responsible has been greeted by the affected pilots with what one described as 'vindicated frustration.' Updated nav charts are being compiled and are expected to be distributed within {n2} cycles.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Cosmic background hum increased by {percent}% in {sector}, scientists puzzled",
+    story: [
+      "Spectral monitoring stations in {sector} have recorded a sustained {percent}% increase in the cosmic microwave background intensity across a localized region, a finding that has been reproduced by {n2} independent monitoring platforms and is now considered confirmed. {empire}'s physics community has not reached consensus on causation. The leading hypotheses involve either local mass redistribution effects, a propagating event from a distant source, or, as one paper put it, 'something we haven't categorized yet.' Operational impact is negligible; scientific interest is high.",
+      "The {sector} background hum increase has now persisted for {n2} cycles, which rules out transient event explanations and pushes the scientific community toward structural causes. A special session of the {empire} astrophysics committee convened this week and produced a working group, a research priority document, and no conclusions. The {percent}% elevation is not dangerous, not currently explained, and, in the words of one committee member who asked not to be named, 'slightly too regular to be comfortable.'",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template: "Pulsar {n} timing drift detected; maintainers issue patch",
+    story: [
+      "Navigation timing authorities have confirmed a drift in the pulse timing of Pulsar {n}, one of the sector's primary navigational reference sources, of {percent}% from its catalogued period. The drift, attributed to a glitch event in the pulsar's rotation, is temporary — expected to resolve within {n2} cycles as the pulsar restabilizes — but in the interim has caused timing errors in vessels relying on the pulsar for positional reference. An updated timing patch has been distributed to navigation systems across the sector. Vessels that have not applied the update are advised to do so immediately.",
+      "Pulsar {n} has undergone a glitch — a sudden discontinuity in its rotation rate — that has produced timing drift detectable by precision navigation systems. The {empire} navigation authority released a patch within {n2} hours of confirming the drift, which is fast enough that most commercial freight systems have already received it. The glitch is a known pulsar behavior and will not permanently alter the reference period; the pulsar will return to within {percent}% of its pre-glitch rate within a few cycles. In the interim, vessels should verify patch installation before {system} transits.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Coronal mass ejection grazes {planet}; auroras visible from sub-orbit",
+    story: [
+      "A coronal mass ejection that grazed {planet}'s magnetosphere in the late evening triggered auroral activity visible not only from the surface but from sub-orbital altitudes — a first for this type of event at {planet}, according to the planetary atmospheric science station. Communications degradation was mild and brief, peaking at {percent}% signal reduction over a {n2}-hour window. Surface operations were unaffected. Orbital platforms reported enhanced visual conditions and, separately, minor attitude control fluctuations corrected automatically.",
+      "The CME that swept past {planet} overnight produced the most visually dramatic atmospheric event in recent cycles, with borealis-class displays extending to equatorial latitudes under optimal viewing conditions. Sub-orbital service vessels reported the aurora visible on exterior cameras throughout their operational window. Science teams aboard the upper-atmosphere research platform described the display as 'extraordinary and inconvenient simultaneously,' given that it coincided with a planned instrument calibration session.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Snow forecast on Olympus Domes, {planet}; {percent}% accumulation expected",
+    story: [
+      "Meteorological conditions over the Olympus Dome complex on {planet} are expected to produce snowfall accumulation of {percent}% above seasonal norms this cycle, driven by atmospheric moisture from the recent pressure system migration across the northern plains. Dome operators have issued preparation advisories covering structural load protocols and exterior access restrictions during peak accumulation. The domes themselves are rated well above expected load; the advisories are described as precautionary and consistent with standard high-accumulation procedures.",
+      "The Olympus Domes snow forecast has drawn commentary from {planet} residents who note this is the fourth consecutive cycle with above-average accumulation — a pattern that climatologists are beginning to document as a meaningful trend rather than natural variance. Dome maintenance operators are rotating shifts for continuous load monitoring through the accumulation period. Tourism operators at the domes report full occupancy, as the higher snowfall has substantially improved conditions in the recreational sectors.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "{empire} forecasts ten cycles of suspiciously perfect weather; emergency drills planned",
+    story: [
+      "{empire}'s meteorological bureau has issued its most unusual forecast in recent institutional memory: ten consecutive cycles of weather conditions across the sector characterized as near-ideal by every measured parameter — optimal visibility, minimal turbulence, unremarkable radiation, and no significant ion activity. The bureau's director described the forecast as 'technically sound and, yes, unusual.' Emergency preparedness authorities have announced drills for the period, noting that historically, unusually good conditions have preceded abrupt transitions.",
+      "The ten-cycle perfect weather forecast for {empire}'s sector has produced two distinct public responses. The first is cautious optimism. The second, in the words of {pundit}, is 'the kind of unease that comes from knowing how stories with pleasant setups usually end.' {empire}'s emergency authority notes formally that the drills scheduled during the perfect-weather period are routine and not a direct response to the forecast. They acknowledge this clarification is not fully believed.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Tidal anomaly raises {port} sea level {percent}cm; insurers blink slowly",
+    story: [
+      "A localized gravitational tidal anomaly detected near {port} has produced a sustained {percent}cm rise in local sea level that coastal infrastructure models had not accounted for in their construction parameters. The rise is not, on its own, dangerous; several coastal facilities are nonetheless reviewing clearance margins. {empire}'s coastal authority has issued an engineering advisory. Insurance assessors have been dispatched to affected properties. The anomaly's source is under investigation by {empire}'s geodetic survey division.",
+      "Sea level data from {port}'s tidal monitoring network shows the {percent}cm anomalous rise has stabilized rather than progressed, which provides some relief to coastal operations planners. The gravitational origin of the anomaly — rather than hydrological — means standard sea level remediation approaches do not apply. {empire}'s engineering response is focused on characterizing the anomaly's persistence. Insurers reviewing affected coastal properties have been described by one assessor as 'blinking slowly and recalculating.'",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template: "Radio blackout expected across {sector} from solar disturbance",
+    story: [
+      "A major solar disturbance in {system} is expected to produce radio communications blackout conditions across {sector} for {n2} cycles beginning within the next rotation. {empire}'s communications bureau has advised all freight operators to complete critical transmissions before the blackout window and to implement pre-planned communication-degraded operational protocols for the duration. Emergency frequencies will remain operational via hardened relay platforms. Standard commercial channels will be unreliable throughout the blackout period.",
+      "The incoming radio blackout for {sector} represents the most comprehensive communications disruption of the current cycle, affecting an area that includes {n2} active freight routes and {n} orbital facilities. {empire}'s automated systems are designed to operate without continuous ground contact for up to {n2} cycles, placing the expected blackout within manageable parameters for most operators. Vessels with older communication systems that lack the hardened relay fallback are advised to hold position until the blackout clears.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Atmospheric pressure on {planet} drops {percent}%, residents 'feel it in knees'",
+    story: [
+      "A weather system that pushed across {planet}'s temperate zone overnight has produced an atmospheric pressure drop of {percent}% from seasonal baseline — a change that the planetary meteorological service describes as 'significant but within prior recorded parameters.' Local residents, sampled by news agencies, are less technical in their characterization: the most common description is that they 'feel it in their knees.' No structural or health advisories have been issued. The pressure system is forecast to stabilize within {n} cycles.",
+      "The {percent}% pressure drop on {planet} has generated an unusual combination of scientific interest and public complaint. Meteorologists note that the drop represents the steepest {n2}-hour pressure gradient recorded at this location in {n} cycles. Residents note that their joints agree. The local medical authority has confirmed a corresponding increase in clinic visits for weather-related joint discomfort but described the situation as within expected parameters for a pressure event of this magnitude.",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Brown dwarf flyby alters {system} orbits by {percent}%, calendars adjusted",
+    story: [
+      "The brown dwarf passage through the {system} outer rim over the past {n2} cycles has produced measurable orbital perturbations across the system's planetary bodies, with the largest orbital period change recorded at {percent}%. {empire}'s planetary science division has completed the survey and issued updated ephemeris tables for all {system} bodies. Calendar systems on {system}'s inhabited planets will require adjustment — small fractions of a day per cycle that accumulate over decades. The civil calendar adjustment for each world has been published alongside the ephemeris update.",
+      "Orbital mechanics across {system} have been revised following the confirmation that the brown dwarf flyby produced {percent}% orbital period changes throughout the system. The changes are small by absolute measure and significant by practical measure — affecting everything from agricultural cycle planning to shipping schedules timed to orbital alignments. {empire}'s standards bureau has issued the calendar adjustment recommendations and noted that implementation is at each world's discretion. Two worlds have already announced adjustment dates. {planet} is 'reviewing options.'",
+    ],
+  },
+  {
+    category: "cosmic_weather",
+    template:
+      "Eclipse on {planet} draws record tourism; vendors run out of {commodity}",
+    story: [
+      "{planet}'s predicted full eclipse, its first in {n2} cycles, drew an estimated {n2},000 visitors to the planet's shadow corridor — a number that exceeded the tourism authority's highest projection and stressed infrastructure across the primary viewing zones. The eclipse itself proceeded as calculated and was described by observers as 'transcendent.' Less transcendent: the complete depletion of {commodity} supplies at every vendor along the shadow corridor by the end of the first viewing day. Emergency restocking is underway.",
+      "The {planet} eclipse experience will be remembered for both the celestial event and the {commodity} shortage that followed. Eclipse tourism planners had provisioned for a {percent}% above-baseline visitor count; actual attendance was significantly higher. The {commodity} situation resolved itself within {n} cycles through emergency supply runs from {port}, but the window when viewing platforms had neither snacks nor {commodity} will feature in post-event reviews. The next eclipse is in {n2} cycles. Procurement teams have been notified.",
+    ],
+  },
+];
+
+// ── Local templates ──────────────────────────────────────────
+const localTemplates: FlavorTemplate[] = [
+  {
+    category: "local",
+    template: "{port} traffic council unveils new pedestrian sky-bridge",
+    story: [
+      "{port}'s traffic council this morning unveiled the completed pedestrian sky-bridge connecting the market district to the transit hub, a project {n} cycles in the making and {percent}% over its original budget. Officials described the structure as 'a lasting investment in walkability.' Local residents described it as 'about time.' The bridge opens to the public next cycle following safety certification.",
+      "After {n} cycles of construction, revised budgets, and at least one public forum that ended in raised voices, {port}'s pedestrian sky-bridge is complete. The council's transport chair cut the ceremonial ribbon and was photographed doing so from three different angles. Peak hour test loads are scheduled before the formal public opening. The catering contractor for the unveiling ran out of refreshments before the end of the speeches.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{planet} mayor opens new transit hub two cycles late, three over budget",
+    story: [
+      "{planet}'s new central transit hub opened this morning, {n2} cycles behind the original schedule and at a final cost {percent}% above the approved estimate. Mayor {ceo} cut the ribbon, described the facility as 'the right investment for the next generation of {planet} residents,' and did not take questions about the overrun. The hub serves {n2} daily connections and is, by all technical accounts, an excellent facility.",
+      "The opening of {planet}'s transit hub marks the end of a project that has been a political fixture for {n} cycles. The final cost overrun and schedule extension have been debated in {n2} council sessions and two formal audits. Both audits attributed the delays to unforeseen subsurface conditions and design changes initiated by the mayor's office. The mayor has described the project as 'a success.' Opposition councilors have described it as 'a successful success that cost {percent}% more than it needed to.'",
+    ],
+  },
+  {
+    category: "local",
+    template: "Civic statue of {ceo} unveiled at {port}; pigeons unimpressed",
+    story: [
+      "A civic statue of former {port} administrator {ceo} was unveiled in the main plaza yesterday in a ceremony attended by current officials, surviving family members, and approximately {n2} pigeons who appeared indifferent throughout. The statue depicts {ceo} in their characteristic posture — described by the sculptor as 'resolute' and by several attendees as 'the way {ceo} always looked when someone asked a budget question.' A plaque on the base summarizes {n2} cycles of public service.",
+      "The {ceo} statue in {port}'s central plaza has already acquired the first layer of civic mythology: {n} separate groups claim the pose is modeled on a specific historical moment, none of which agree on which moment. The sculptor, for their part, said they worked from a photograph and tried to capture 'the essential {ceo}.' Pigeons were present at the unveiling and have been present at all documented visits since.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} farmer's market doubles in size; vendors triple in arguments",
+    story: [
+      "{port}'s farmer's market has expanded to fill the newly opened south pavilion, doubling available vendor space and, according to market managers, tripling the volume of inter-vendor disputes. The expansion was intended to reduce competitive tension by giving every vendor more room; initial evidence suggests the additional space has primarily given vendors more to argue about. Market management is introducing a formal mediation process.",
+      "The {port} farmer's market expansion has been a commercial success: footfall is up {percent}% and revenue per vendor is tracking above projections for the opening cycles. It has also been an interpersonal challenge. The market's community board has received {n2} formal complaints since the expansion opened, covering space allocation, signage, access to the loading dock, and the location of one vendor's particularly pungent {commodity} display.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{planet} water rationing lifted after {n} cycles of {commodity} importation",
+    story: [
+      "{planet}'s district water authority has lifted the rationing order that has been in place for {n} cycles, following the successful completion of a {commodity}-based desalination supplementation program that has restored reservoir levels to operational capacity. Residents have been advised that normal usage protocols resume with immediate effect. The authority commended the community's conservation efforts, which they describe as having been 'more or less consistent throughout.'",
+      "The end of {planet}'s water rationing period marks a significant moment for residents who have managed under restrictions for {n} cycles. The {commodity} importation program that bridged the shortfall cost the district authority {credits} and is considered by analysts to have been managed as efficiently as circumstances allowed. A post-rationing review will assess what infrastructure investments could reduce the risk of a recurrence. The review is expected to take {n2} cycles.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "New library opens in {port} downtown, named after a deceased benefactor",
+    story: [
+      "The {port} downtown library, funded substantially through a bequest from the estate of {ceo}, opened its doors this morning after {n} cycles of construction. The building houses {n2},000 volumes, a public research terminal suite, and a reading room that community members have already described as 'the nicest room on this block.' The benefactor, who passed away {n2} cycles ago, specified in the bequest that the reading room be equipped with comfortable chairs.",
+      "Attendance at the {port} library exceeded expectations on its opening day, with {n2} community members passing through the doors by midday. The head librarian described the welcome as 'heartening and also slightly overwhelming for staffing purposes.' The comfortable chairs specified in the original bequest are a particular success, according to {n2} visitors who lingered significantly longer than they had planned to.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} bus route 7 rerouted after sentient potholes refuse mediation",
+    story: [
+      "{port}'s transit authority has officially rerouted Bus Route 7 following the breakdown of mediation with the {n2} sentient potholes along the Meridian Strip that have been expanding their presence into the roadway in apparent protest of unresolved maintenance obligations. The transit authority stated that the new route adds {n} minutes to the average journey but is 'operationally preferable to the current situation.' The potholes have not commented publicly. Their advocate has.",
+      "The sentient pothole situation on {port}'s Meridian Strip has produced one of the more unusual public infrastructure standoffs in recent local memory. The mediation process, which ran for {n} cycles, produced {n2} sessions, three proposed settlements, and no agreement. Legal counsel for the potholes maintains their clients have a legitimate maintenance grievance. The transit authority maintains that Route 7's operational requirements cannot accommodate beings who expand when displeased.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{planet} school board approves new curriculum, parents tentatively pleased",
+    story: [
+      "{planet}'s school board has voted {n2} to {n} to approve the revised curriculum framework that will take effect next academic cycle across all district institutions. The framework emphasizes applied science, practical civic knowledge, and, in what has been the most discussed element, a required course on interstellar navigation principles. Parent feedback gathered ahead of the vote was described by the board as 'cautiously supportive,' which the board chair translated in a press conference as 'better than we expected.'",
+      "The {planet} curriculum approval follows {n2} cycles of review, public consultation, and two rounds of revisions driven by community feedback. The final version incorporates most of the changes requested by the parent-teacher coalition and a smaller subset of the changes requested by the district's business community. A formal review is scheduled at the {n2}-cycle mark. Parents described as 'tentatively pleased' by the local press are, on average, actually somewhat more pleased than that.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "Elderly resident of {port} celebrates {n2}-cycle birthday, attributes longevity to spite",
+    story: [
+      "{port} resident and local personality {ceo} marked their {n2}-cycle birthday at a gathering in the community center yesterday, attended by {n2} family members, {n2} neighbors, and the district councilor who once tried to rezone the block. Asked by a reporter to attribute their longevity, {ceo} said 'spite and a good mattress,' in that order. The mattress manufacturer's name has not been released. The district councilor sent flowers.",
+      "The {n2}-cycle birthday party for {port}'s elder resident was, by all accounts, the social event of the local season. {ceo} received {n2} official commendations, a proclamation from the district authority, and a cake that took {n} bakers and is currently feeding the community center through the week. Asked whether they recommend spite as a life strategy, {ceo} said they recommend 'whatever gets you through the bit that comes after the easy part.'",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "Power outage on {port} block resolved after {n} hours, kettle saved",
+    story: [
+      "A power outage affecting {n2} residences and three small businesses on {port}'s eastern residential block was resolved after {n} hours, following the identification of a fault in the secondary distribution line that {empire}'s utility authority described as 'unusual but not unprecedented.' All affected properties have power restored. A resident who chose to speak to local media on condition of anonymity confirmed that the kettle, which had been mid-cycle at the time of the outage, was saved.",
+      "The {port} block outage prompted {n2} calls to the utility authority's fault reporting line and a community mutual support response that the district councilor has praised as 'exactly what a community does.' The fault — a corroded junction in the secondary distribution network — is being reviewed for systemic implications. Infrastructure survey teams will inspect the adjacent distribution lines over the next {n2} cycles.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} street fair this weekend; {commodity} festival expected to disappoint mildly",
+    story: [
+      "{port}'s annual street fair opens this weekend with an expanded {commodity} festival component that organizers are billing as the most ambitious iteration of the event in its {n2}-cycle history. Previous years' {commodity} festivals have been assessed by attendees as pleasant but underwhelming, a pattern that festival curators say they have specifically addressed this year. Initial vendor sign-ups support cautious optimism. The weather forecast is neutral.",
+      "The street fair's {commodity} festival has been the subject of diplomatic local debate for several cycles, with supporters of the tradition and critics of its execution both claiming the moral high ground. This year's curators have publicly committed to a higher standard. They have also quietly capped attendance in the {commodity} zone to manage expectations. Local journalists will be present throughout and have been offered no preferential access, which they have noted approvingly.",
+    ],
+  },
+  {
+    category: "local",
+    template: "{planet} hospital adds new wing dedicated to {empire} settlers",
+    story: [
+      "{planet}'s regional hospital has opened its new wing designed specifically to serve the growing {empire} settler community in the district, offering culturally adapted care protocols, translation services, and dietary accommodation across {n2} wards. The wing was funded jointly by the hospital authority and an {empire} community foundation grant. Hospital leadership described the opening as 'a recognition that good care requires cultural understanding.'",
+      "The new hospital wing serves a community that has been growing in {planet}'s district for {n} cycles and has historically experienced friction with standard care protocols. Community representatives at the opening ceremony described it as long overdue and exactly right. The wing's head of clinical services, who came through the {empire} settler community themselves, said the design reflected {n2} years of listening to what patients actually needed.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "Pothole repair on {port} main strip enters phase {n}; locals adjust commute",
+    story: [
+      "Pothole remediation work on {port}'s main commercial strip has entered phase {n} of what the road authority originally projected as a {n2}-phase project. The current phase covers the central block between the transit hub and the market district, restricting traffic to a single shared lane and adding an estimated {n} minutes to standard commute times. The phase is expected to conclude within {n2} cycles. Locals report having adjusted.",
+      "The phase {n} works on {port}'s main strip have been absorbed into the community's daily rhythm with the stoic acceptance that characterizes long-term infrastructure disruption. {n2} new traffic management volunteers have joined the crossing program, an informal institution that began in phase {n2} when the lights were removed. The road authority's public update confirmed that phases {n} through {n2} remain on schedule, a statement that {n2} residents confirmed finding 'difficult to assess given prior phases.'",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "Local pet on {planet} returns home after {n2} cycles missing, brings friends",
+    story: [
+      "The {ceo} family's domestic animal, reported missing {n2} cycles ago and the subject of a widely shared search notice, returned to the family home yesterday evening under its own apparent initiative. It brought with it {n} additional animals of the same species. The family, who confirmed the animal's identity and apparent health, said they were 'very glad it's home and are currently working out the friends situation.'",
+      "Community response to the return of {planet}'s most talked-about missing pet has been warm, with {n2} neighbors turning up to welcome it back. The additional companions have been described by wildlife authorities as healthy and, based on preliminary assessment, not locally native — suggesting the original animal traveled farther during its absence than the search focused on. The family has contacted the district animal authority for guidance on the companions.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} council adopts new recycling bins; bins recycled from old recycling bins",
+    story: [
+      "{port}'s district council has rolled out its new recycling bin programme, deploying {n2},000 standardized receptacles across the service area. The bins are fabricated in part from material recovered from the previous generation of recycling bins, which were retired after {n} cycles of service. The council's sustainability office described the circularity as 'appropriate' and confirmed that the manufacturing process added approximately {percent}% less material to the system than starting from scratch.",
+      "The {port} bin rollout has generated genuine positive community reception alongside the inevitable volume of feedback about bin colours, placement, and the size of the apertures. The council's sanitation team has confirmed that the aperture dimensions were tested against {n2} waste sample categories and meet current specifications. Feedback about the colours is being noted.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "Volunteer cleanup at {planet} canal removes {tonnage} of debris, two oddities",
+    story: [
+      "Community volunteers working the annual {planet} canal cleanup pulled {tonnage} of debris from the waterway over a {n}-cycle effort involving {n2} participants. Environmental monitors confirmed the canal's baseline clarity improved by {percent}%. The cleanup also surfaced two items described in the official volunteer report as 'oddities of undetermined origin,' which have been transferred to the local heritage authority for assessment. The items were described by witnesses as neither natural nor modern manufactured.",
+      "This cycle's {planet} canal cleanup exceeded previous records for debris removed, aided by a {percent}% higher volunteer turnout and new water-extraction equipment provided by the district authority. The two unusual objects recovered are currently being assessed by the heritage unit, which has said publicly only that they are 'of interest.' Canal condition ratings have been upgraded. The cleanup committee has already begun planning for next cycle.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} elementary school wins regional debate trophy, brings home {commodity}",
+    story: [
+      "Students from {port} elementary took first place at the regional academic debate championship, defeating {n2} competing schools across three rounds on topics that included interstellar resource rights and the ethics of terraforming. The winning team returned to {port} with the regional trophy and, in what the school's head teacher described as 'a tradition the teachers did not start but have come to appreciate,' a quantity of {commodity} provided by the hosting school as a post-competition gift.",
+      "{port} elementary's debate team has been building towards this result for {n2} cycles, with consistent coaching investment and a student cohort that the team coach describes as 'unusually willing to prepare and also argue with me about preparation.' The {commodity} gift was a first for the school. It has been allocated partly to a community celebration and partly to the school kitchen.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "Construction at {port} intersection enters {n2}th week, drivers philosophical",
+    story: [
+      "Intersection works at {port}'s main junction have entered their {n2}th week with no announced completion date update from the road authority. Commuters navigating the extended detour routes have been observed by local journalists to have passed through stages of frustration, adaptation, and what one commuter described as 'a kind of peace.' The works, originally scoped at {n} weeks, are addressing subsurface infrastructure that the road authority described as 'more complicated than the survey suggested.'",
+      "The {port} intersection project has outlasted three traffic flow management plans, one contractor handover, and the patience of approximately {n2},000 daily commuters who have nonetheless continued to commute. Local discussion has shifted from 'when will this end' to 'what would it feel like if this ended' — a philosophical development that the road authority's communications team has noted without comment. A progress update is promised for next cycle.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{planet} farmer's almanac predicts pleasant cycle, ignores all evidence",
+    story: [
+      "{planet}'s traditional farmer's almanac, published on its {n2}-cycle anniversary, predicts a uniformly pleasant growing cycle with above-average precipitation, mild temperatures, and no significant disruption events. This prediction is at variance with {n2} independent meteorological models, three separate university climate assessments, and the personal recollection of farmers who have been reading the almanac long enough to compare it against outcomes. The almanac's publisher described the methodology as 'time-tested.'",
+      "The {planet} farmer's almanac prediction of an idyllic cycle has been greeted with the warm skepticism it traditionally receives. Almanac supporters note its long publication history. Critics note its accuracy record. Farmers who rely on it note that, regardless of accuracy, it has traditionally been correct about {commodity} prospects in late-cycle, a fact for which no one has a satisfying explanation. Pre-orders for the physical edition are {percent}% above the previous cycle.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} community center reopens after fire; smell of {commodity} still mild",
+    story: [
+      "{port}'s community center has reopened following {n} cycles of repairs to fire damage sustained during an incident in the eastern meeting rooms. The building has been fully restored, certified for occupancy, and furnished with replacement equipment purchased through a community fundraising drive that exceeded its target. The only lingering consequence noted by the community center's director at the reopening ceremony is a residual smell of {commodity} from the affected wing, which they described as 'mild and expected to clear.'",
+      "The community center reopening was marked by a ceremony that the local paper described as 'genuinely joyful.' {n2} community members turned out, including several who had been first responders during the original fire. The fundraising committee that organized the equipment replacement presented a full accounting of contributions and expenditures, which the director praised as 'scrupulously transparent.' The {commodity} smell has been confirmed mild by {n2} independent assessors.",
+    ],
+  },
+  {
+    category: "local",
+    template: "Local sentient hedge wins {planet} garden contest by default",
+    story: [
+      "The biennial {planet} garden contest has concluded with the sentient hedge maintained by the {ceo} property claiming first prize, in a result that the judging panel described as 'both meritocratic and uncomplicated.' The other {n2} entries were competitive on conventional horticultural measures; the sentient hedge's capacity to rearrange its own topology in response to wind direction produced a display that the chief judge described as 'technically a garden and also something more than that.' The hedge declined the trophy on procedural grounds.",
+      "{planet}'s garden contest judges acknowledged, in their written decision, that awarding first prize to a sentient hedge raised questions about category definitions that they are not equipped to resolve. They nonetheless awarded the prize, citing the contest's stated criteria: beauty, originality, and cultivation skill. On all three, the hedge scored highest. The runner-up, who produces exceptional {commodity} cultivars, described the result as 'fair but annoying.'",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} parade cancelled after lead float experiences existential lag",
+    story: [
+      "{port}'s annual civic parade was cancelled forty minutes before its scheduled start after the lead float — a {n2}-ton mobile installation designed by the district arts collective — entered what its operators described as 'existential lag': a state where the float's autonomous navigation system became unable to move because it could not resolve conflicting priorities between staying on route, avoiding crowds, and 'the broader question of why.' The float is currently stationary at the assembly point. Engineers are reviewing the code.",
+      "The {port} parade cancellation has divided community opinion on whether the lead float's existential lag is a technical failure or an event in itself. The arts collective that designed the float has issued a statement that does not clearly identify which interpretation they prefer. Parade organizers have confirmed the event will be rescheduled pending resolution of the navigational philosophy conflict. Three alternative parade dates have been proposed. The float has been asked if it has a preference and has not responded.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "{port} library hosts {commodity} sculpture exhibit, attendance moderate",
+    story: [
+      "{port} central library's current gallery program features {n2} works in the {commodity} sculpture exhibit curated by local artist {ceo}, which has drawn moderate attendance since its opening last cycle. The library's events coordinator described the turnout as 'in line with expectations for the format' and noted that {n2} community members had left written feedback, most of it thoughtful. The exhibit runs for {n} additional cycles.",
+      "The {commodity} sculpture exhibit at {port} library occupies the ground-floor gallery and is, by the library's own assessment, performing modestly. Attendance figures are published weekly; week three was the highest, which the curator attributes to a review in the district paper that described one piece as 'unsettlingly beautiful.' The library has extended the exhibit for one additional cycle on the basis of this response.",
+    ],
+  },
+  {
+    category: "local",
+    template:
+      "Mayor of {port} apologizes for jokes during ribbon cutting, ribbon survives",
+    story: [
+      "{port}'s mayor has issued a formal apology for remarks made during yesterday's ribbon-cutting ceremony at the new district administrative building, which were described by attendees variously as 'inappropriate,' 'surprising,' and 'technically accurate but ill-timed.' The ribbon, which was ceremonially cut at the conclusion of the remarks, survived the event intact and has been displayed in the building lobby. The mayor has offered no additional context for the remarks.",
+      "The ribbon-cutting remarks made headlines that the new administrative building's designers had not anticipated generating. The building itself — which features a celebrated accessible design and several civic amenities — received less coverage than the mayor's three-sentence departure from the prepared statement. The building's lead architect noted in a brief interview that they remain proud of the work and hope it eventually gets attention on its own merits.",
+    ],
+  },
+  {
+    category: "local",
+    template: "{planet} weather predicts rain; rain predicts {planet} weather",
+    story: [
+      "{planet}'s meteorological bureau issued its standard weekly forecast this morning, predicting rain for {n2} out of seven days. The city's three most frequently cited informal weather predictors — a long-established market stall holder, a semi-retired navigator who claims to read cloud formations, and an app built by a local student — all predicted identical conditions, which matches the bureau's forecast exactly. Meteorologists describe this level of informal accuracy as 'occasional but not unprecedented for {planet}.'",
+      "Local weather discussion on {planet} has always had a particular character, given the planet's atmospheric patterns that experienced residents describe as 'the weather knows it's being watched.' The bureau's forecast, the informal predictors, and the week's actual conditions will be compared in the community weather tracking project that has been maintained for {n2} cycles. Current accuracy rates across all sources are within {percent}% of each other, which statistical analysts describe as either notable or coincidental.",
+    ],
+  },
+];
+
+// ── Health templates ──────────────────────────────────────────
+const healthTemplates: FlavorTemplate[] = [
+  {
+    category: "health",
+    template: "Longevity clinic opens on {port}; package starts at {credits}",
+    story: [
+      "A new longevity medicine clinic has opened its doors on {port}'s medical district, offering comprehensive life-extension protocols with base packages starting at {credits}. The clinic's founding director described the offering as 'scientifically rigorous and therefore not inexpensive.' Appointment availability for the opening cycle has already been exhausted. A waitlist is operational.",
+      "The {port} longevity clinic is the {n2}th such facility to open in the sector this cycle, part of a trend that health economists are tracking with interest. Early intake data suggests the primary patient demographic is {empire} corporate executives, a population that the clinic's marketing has not discouraged. Independent medical reviewers have noted that the underlying protocols are evidence-based and the pricing reflects demand.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{empire} health authority recalls {commodity} batch after {n2} reports of mild glow",
+    story: [
+      "{empire}'s food and health authority has issued a recall for a production batch of {commodity} following {n2} consumer reports of a mild luminescent quality observed in the product and, in some cases, in the consumers who had used it. The authority described the glow as 'not dangerous based on current assessment' and the recall as precautionary. Independent testing is underway. Affected batch numbers have been published on the authority's official notice board.",
+      "The {commodity} recall issued by {empire}'s health authority has attracted significant public attention, primarily because the reported symptom — mild bioluminescence — is unusual enough to generate coverage well beyond the recall's actual risk profile. The authority's statement that the glow is 'not dangerous based on current assessment' has been widely shared, with emphasis placed on the qualifier. The {n2} affected individuals have been contacted and are being monitored.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Vaccination drive in {sector} reaches {percent}% coverage milestone",
+    story: [
+      "The joint vaccination programme covering {sector}'s inhabited systems has reached {percent}% population coverage, a milestone that the {empire} public health consortium described as 'the result of sustained community trust and logistical coordination that was more difficult than it looked.' The coverage threshold is associated with herd immunity effects for {n2} of the {n} targeted pathogens. The remaining communities below threshold have been individually assessed and outreach programs are active.",
+      "Public health officials across {sector} have acknowledged the {percent}% coverage achievement with measured satisfaction, noting that the final {percent}% of target population typically represents the hardest to reach. Programme data shows that mobile clinic operations in {n2} outer settlements were the single most effective coverage intervention. The sector programme has been nominated for the {empire} public health coordination award.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Hospital on {planet} pioneers neural repair; success rate now {percent}%",
+    story: [
+      "{planet}'s central medical institute has published outcomes data showing its neural repair programme, now entering its {n2}nd cycle of operation, has achieved a {percent}% successful restoration rate across {n2} patients. The procedure addresses traumatic neural pathway damage that was previously considered irreversible. The institute's lead surgeon described the results as 'beyond what we originally modeled as achievable.' The programme is currently capacity-constrained; referral criteria are published on the institute's medical network page.",
+      "The {planet} neural repair outcomes report has been widely cited since its publication, representing the strongest clinical evidence yet for the procedure's efficacy. The {percent}% success rate is notably higher than the {percent}% achieved at the programme's inception {n2} cycles ago, reflecting both refined technique and improved patient selection protocols. External reviewers have endorsed the methodology and called for parallel programmes in {n2} other sector facilities.",
+    ],
+  },
+  {
+    category: "health",
+    template: "Outbreak of {adj} fever on {planet} contained within {n} cycles",
+    story: [
+      "{empire}'s disease monitoring authority has confirmed that the outbreak of {adj} fever identified at {planet}'s northern settlement cluster has been contained within {n} cycles of initial detection, with no further spread beyond the original affected area. {n2} residents were symptomatic; all have been treated and {percent}% have fully recovered. The rapid containment was attributed to early detection through {empire}'s enhanced surveillance network and the cooperation of community health workers on the ground.",
+      "The {adj} fever containment on {planet} represents a successful response under {empire}'s revised outbreak protocol, which compresses the initial containment phase to {n} cycles from the previous {n2}-cycle benchmark. Public health analysts have noted the outcome as a proof-of-concept for the enhanced early detection network funded last cycle. The affected community has been cleared and normal activity has resumed. Residual monitoring will continue for {n2} additional cycles.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{empire} medical board licenses uplift therapy for {commodity} workers",
+    story: [
+      "{empire}'s medical licensing board has approved the use of cognitive uplift therapy for workers in {commodity} extraction industries, recognizing the professional need to manage high-complexity, high-fatigue operational environments. The approval follows {n2} cycles of clinical trials and a contested regulatory review that divided the board {n} to {n2}. The approved protocols specify maximum uplift duration and mandatory recovery periods. Worker advocacy groups have described the licensing as 'a step forward that will require careful monitoring.'",
+      "The uplift therapy licensing decision for {commodity} workers reflects years of regulatory debate about the intersection of occupational health and cognitive enhancement. {empire}'s board approved the therapy with conditions that the lead approval reviewer described as 'substantive guardrails, not decorative ones.' Industry bodies representing {commodity} operations have welcomed the ruling. Medical ethicists have welcomed the guardrails and have continued monitoring.",
+    ],
+  },
+  {
+    category: "health",
+    template: "Genetic counseling lines on {port} backlog now {n2} cycles deep",
+    story: [
+      "Genetic counseling services at {port}'s regional health authority are currently operating under a {n2}-cycle appointment backlog, driven by a combination of increased demand following the release of the expanded gene-mapping protocol and a staffing shortfall that the authority has been attempting to address for {n} cycles. The authority has opened an emergency intake line for cases flagged as clinically urgent. All others are on the standard waiting list.",
+      "The {port} genetic counseling backlog has drawn attention from {empire}'s health ministry, which has flagged it in its quarterly service performance report as a capacity concern. The authority's position — that demand expanded faster than workforce training pipelines allow — is acknowledged as accurate and unresolvable in the short term. {n2} additional counselors are in training and will enter the workforce within {n} cycles.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Telemedicine network spans {sector}; latency reduces by {percent}%",
+    story: [
+      "{empire}'s telemedicine infrastructure expansion has now connected every registered healthcare facility in {sector}, and the latest performance data shows average consultation latency has dropped {percent}% following the deployment of {n2} new relay nodes across the sector's outer systems. Rural and deep-space facilities that previously operated with significant communication delay now receive real-time specialist consultation access. The programme's lead coordinator described the connectivity milestone as 'the point where telemedicine becomes indistinguishable from present medicine.'",
+      "Latency improvements in {sector}'s telemedicine network are directly translating to patient outcomes in remote facilities, according to the quarterly outcomes report from {empire}'s health coordination office. The {percent}% latency reduction, while technical in its nature, maps to a measurable reduction in diagnostic delays for patients at {n2} outer facilities. The network's next phase covers {n2} additional systems currently served only by periodic in-person medical visits.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{company} pharma subsidiary recalls painkiller; replacement also being recalled",
+    story: [
+      "{company}'s pharmaceutical division has issued a recall for its market-leading painkiller line following quality assurance concerns flagged by {empire}'s health regulator. The company simultaneously confirmed that the replacement product introduced last cycle — developed partly in anticipation of the original's eventual withdrawal — is also subject to a separate recall for a distinct formulation issue. {company}'s communications team described the situation as 'a coincidence that has been addressed comprehensively.' The health regulator described it as 'a situation requiring oversight.'",
+      "The dual recall at {company}'s pharma subsidiary has raised questions in the health community about the company's quality assurance pipeline. Both recalls are attributed to different manufacturing process failures, which the regulator notes means the root cause review must address at least two separate systemic issues. {company} has announced a third-party audit to run concurrently with both recalls. Patients using the affected products have been given bridging prescriptions via emergency protocols.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Surgeons on {planet} debut zero-g spine repair; patient {percent}% taller",
+    story: [
+      "A surgical team at {planet}'s orthopaedic institute has completed the first clinical application of their zero-gravity spinal decompression repair protocol, working aboard a purpose-equipped orbital facility to perform the procedure under conditions that allow spinal structures to decompress naturally. The patient, confirmed in full recovery, measured {percent}% taller in post-operative assessment — a figure that the lead surgeon describes as 'an expected consequence of disc restoration, not a design goal.' The patient described being slightly taller as 'a bonus.'",
+      "The zero-g spine repair procedure completed at {planet}'s orbital surgical suite has drawn significant attention from the orthopaedic medicine community, with {n2} institutions already requesting protocol documentation for replication trials. The {percent}% height gain reported by the first patient is the highest figure recorded in the procedure's pre-clinical testing; the surgical team has noted individual variation is expected. Three more procedures are scheduled in the coming cycles.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Galactic flu season opens; {empire} clinics report shortage of {commodity}",
+    story: [
+      "{empire}'s flu season has begun two cycles earlier than projected, with clinic networks across the sector reporting a {percent}% increase in respiratory illness presentations above the seasonal baseline. The early surge has depleted stocks of {commodity}, which is used in the front-line treatment protocol, faster than procurement schedules anticipated. {empire}'s health logistics authority has activated emergency supply arrangements. Clinics are operating under conservation protocols while restocking occurs.",
+      "The early flu season and the {commodity} shortage are, according to {empire}'s chief medical officer, 'a supply chain problem layered on top of an epidemiological problem.' The shortage is expected to resolve within {n2} cycles; the flu season will peak before that resolution. Clinics have been advised on substitution protocols and rationing criteria for the interim period. Public health messaging encouraging early treatment has been updated to reflect current availability constraints.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{empire} ban on cloning amended after lawyers cloned the previous ban",
+    story: [
+      "{empire}'s legislative council has amended its standing prohibition on unauthorized cloning, after a legal challenge arose from a firm that had replicated the prohibition documentation itself as part of a precedent research exercise — technically falling under the original ban's language. The amendment clarifies that the prohibition applies to biological entities and specifically excludes legal document reproduction. Three law firms have issued statements describing the previous language as 'instructive.'",
+      "The amended {empire} cloning ban has attracted more attention for how it came to be amended than for what it says. The legal firm that inadvertently cloned the prohibition document has not confirmed whether the event was strategic or genuinely accidental. Legal scholars are divided on whether the original language constituted a self-referential paradox. The {empire} council's drafting committee has been quietly enlarged.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Mental health awareness week in {sector}; productivity briefly drops {percent}%",
+    story: [
+      "{sector}'s annual mental health awareness week opened with events across {n2} inhabited systems, including public education campaigns, subsidized consultation access, and a {empire}-funded peer support network rollout that has been in preparation for {n2} cycles. Economic monitoring agencies noted a {percent}% productivity reduction across the sector during the week, which the {empire} mental health commissioner described as 'expected and good, actually — it means people are taking the time.'",
+      "Mental health awareness week in {sector} logged its highest participation rate in {n2} cycles, with {n2} residents accessing at least one programme element. The {percent}% productivity dip, noted in the sector's economic brief, sparked a discussion in several business networks about whether awareness weeks should be redesigned to avoid measurable output impact. {empire}'s health commissioner responded that the alternative — lower awareness and higher untreated illness — was also a productivity concern and one that didn't get a line in the brief.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Dental implant breakthrough at {planet} institute; chewing efficiency up {percent}%",
+    story: [
+      "Researchers at {planet}'s biotechnology institute have published clinical trial results for a new dental implant matrix that improves occlusal force transmission, producing a measured {percent}% increase in chewing efficiency across {n2} trial participants. The implants also showed {percent}% better integration rates than standard titanium-ceramic alternatives over the {n2}-cycle trial period. The research team is in discussion with {n2} dental device manufacturers about licensing arrangements.",
+      "The {planet} dental implant study has received unusual coverage for a dentistry paper, partly because the lead researcher has a gift for accessible scientific communication and partly because '{percent}% better at chewing' is a finding that a broad public can immediately relate to. Pre-licensing interest from manufacturers has been described by the institute as 'substantial.' The research team notes that replication across different demographic cohorts is still needed before the findings can be considered fully generalized.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Eye surgery on {planet} gives recipients {adj} vision, debate ongoing",
+    story: [
+      "A specialist vision restoration programme at {planet}'s ocular surgery centre has produced {adj} visual acuity outcomes in {percent}% of its {n2} surgical patients — a result that represents a significant improvement over standard restoration benchmarks but has prompted debate in the medical community about whether '{adj} vision' is a desirable clinical endpoint without further characterization. The programme's lead surgeon has called for a standardized definition before further trials proceed. Patients who received the surgery have generally said they are pleased.",
+      "The ongoing debate over the {planet} vision surgery outcomes reflects a broader tension in enhancement-adjacent medicine between patient satisfaction measures and clinical classification standards. The {percent}% of patients with {adj} outcomes report higher subjective visual satisfaction than the control group. Regulatory reviewers want a more precise clinical descriptor before approving wider adoption. The surgery team has proposed a working group. Patients have proposed the surgery team focus on the {percent}%.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Herbal remedy on {port} found to be {percent}% placebo, {percent}% paint",
+    story: [
+      "A popular herbal remedy sold at {port}'s open market has been tested by {empire}'s consumer safety authority and found to contain no active botanical compounds. Analysis showed the product is {percent}% inert binder, with the remaining {percent}% attributable to a trace coating compound that the authority's report describes, without elaboration, as consistent with industrial paint. The vendor has been issued a cease-supply notice. Sales had been strong for {n2} cycles.",
+      "Consumer safety investigators who tested the {port} remedy described the paint finding as 'unexpected in the context of a wellness product.' The amount involved is at levels the authority considers sub-toxic. The placebo proportion of the product is not, by itself, regulated; the paint is. The vendor has exercised their right to appeal the cease-supply notice. Sales data from the {n2}-cycle period of active supply has been requested by the authority.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{empire} hospitals adopt AI triage; queue still long, just better-organized",
+    story: [
+      "{empire}'s network of public hospitals has completed rollout of an AI-assisted triage system across {n2} facilities, following a {n}-cycle implementation program. Early data shows the system has reduced average triage processing time by {percent}% and improved clinical priority accuracy ratings. The queue for treatment, {pundit} noted in a sector briefing, is approximately the same length as before — but patients within it are in a demonstrably better order. Hospital administrators have described this as 'the intended outcome.'",
+      "Post-implementation assessment of {empire}'s hospital AI triage system shows the improvements are real and the remaining limitations are structural: the AI can sort patients more accurately, but it cannot add capacity. {empire}'s health ministry has indicated that the triage rollout is one component of a broader capacity investment plan. Clinicians working with the system have described it as 'genuinely useful and occasionally overly confident about edge cases,' which the development team is addressing in the next version.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Birthrate on {planet} ticks up {percent}%; daycare waitlists explode",
+    story: [
+      "{planet}'s latest demographic data shows a {percent}% increase in the birth rate, representing the first sustained uptick after {n2} cycles of gradual decline. Demographers attribute the change to a combination of economic stabilization, the recent habitation expansion, and what one researcher described as 'factors that are difficult to model.' The increase has immediately stressed existing childcare infrastructure, with daycare waitlists across {planet}'s urban centres extending to {n2} cycles.",
+      "The {planet} birthrate increase has triggered a cascade of infrastructure reassessment that the planet's planning authority acknowledges was not positioned ahead of the trend data. The daycare waitlist situation is the most visible pressure point, but primary school capacity projections are also under review. The planet's chief planner said new capacity development is 'already in process' and that the demographic signal was visible 'some cycles ago, in retrospect.'",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Robotics-assisted surgery succeeds on {n2}th attempt at {planet} clinic",
+    story: [
+      "A robotics-assisted surgical procedure at {planet}'s regional clinic was completed successfully on its {n2}th operational attempt, following {n} failed trial runs that the clinic's surgical director described as 'valuable learning experiences that we would prefer not to have had.' The successful procedure demonstrates the technique is clinically viable under {planet}'s specific facility conditions, which differ from the standard protocol environment in ways that required {n}-specific adaptations. The surgical team has published a technical note on the adaptations.",
+      "The {n2}th-attempt success at {planet}'s robotics surgery programme has been received with qualified celebration by the medical community. The qualification is over the trial count; the celebration is over the outcome. The surgical director has noted that {n2} attempts is not unusual for a new procedure being adapted to a non-standard clinical environment and that all {n} preceding runs produced useful data. The adapted protocol has been submitted for external review and certification.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Cosmic-radiation-induced rash sweeps {sector}; cure: more sun, less radiation",
+    story: [
+      "A dermatological condition linked to an elevated cosmic ray flux event in {sector} has been recorded across {n2} affected individuals in {n} separate systems, characterized by a distinctive banding pattern that specialists are calling 'sector rash' pending formal classification. {empire}'s public health authority has confirmed the radiation link and issued guidance: reduce direct radiation exposure and increase time in environments with solar-spectrum lighting. The guidance has been summarized in public messaging as 'more sun, less radiation,' a formulation that dermatologists have noted requires careful reading.",
+      "The sector rash advisory from {empire}'s health authority has generated questions from residents who live in environments where both 'more sun' and 'less radiation' are difficult to operationalize simultaneously. The authority's clarification distinguishes between cosmic radiation at elevated flux levels and standard solar-spectrum UV, which is not currently elevated. Protective protocols for outdoor workers in {sector} have been updated. The flux event is expected to return to baseline within {n2} cycles.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{empire} surgeons graft sentient kelp into volunteer's spine; volunteer pleased",
+    story: [
+      "{empire}'s experimental augmentation programme has completed its first human application of sentient kelp neural interface grafting, in a procedure carried out on a consenting volunteer at {planet}'s advanced biotechnology clinic. The graft, which integrates the kelp's distributed sensing network with the recipient's spinal architecture, was developed over {n2} cycles and passed {empire}'s ethics review after considerable deliberation. The volunteer, assessed at {n2} cycles post-procedure, reported enhanced proprioceptive awareness and described themselves as 'definitely pleased, and also slightly wetter in a metaphysical sense.'",
+      "Post-operative assessment of the kelp spinal graft volunteer shows stable integration and no adverse immune response over the {n2}-cycle monitoring period. The procedure's lead researcher described the outcome as 'better than our most optimistic model.' The volunteer has become an informal public advocate for the programme and has agreed to extended monitoring. {empire}'s bioethics board has released a statement clarifying the conditions under which further applications may proceed.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "Public health study finds {percent}% of {planet} residents have not slept properly",
+    story: [
+      "A population-wide sleep quality study conducted by {planet}'s health authority found that {percent}% of the adult population reported sleep patterns that researchers classified as clinically insufficient across at least {n2} of seven measured parameters. The study, covering {n2},000 respondents, attributes the finding to a combination of extended work cycles, ambient light pollution in residential zones, and what the lead researcher described as 'a cultural relationship with sleep that treats it as optional.' A public health campaign is being developed.",
+      "The {planet} sleep study findings have been described as 'striking and probably accurate' by health commentators who note that {percent}% is both a large number and intuitively consistent with the experience of living on {planet}. The study's intervention recommendations are practical but, the researchers acknowledge, depend on structural changes — specifically in shift scheduling and residential light ordinances — that are not within public health's direct authority to mandate. A cross-ministry working group has been proposed.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{commodity} now classified as 'mostly therapeutic' by {empire} board",
+    story: [
+      "{empire}'s medical classification board has updated the regulatory status of {commodity} to 'mostly therapeutic,' a category that did not previously exist in the regulatory framework and has been created specifically to accommodate the compound's evidence profile — which shows consistent benefit across a range of approved applications and inconsistent benefit in {n2} others. The new classification allows clinical use under supervised protocols and restricts direct-to-consumer marketing to approved indication language. Both users and critics of {commodity} have described the ruling as 'fine, I suppose.'",
+      "The 'mostly therapeutic' classification issued for {commodity} has prompted regulatory scholars to examine whether the {empire} board intended to create a new category or to describe an existing situation more precisely. The board's stated position is the latter: the evidence has always been mixed; the classification now says so. Manufacturers of {commodity} have updated their documentation. Alternative medicine practitioners who have been recommending it for years have described the ruling as 'a partial vindication, at best.'",
+    ],
+  },
+  {
+    category: "health",
+    template: "Pediatric ward on {planet} opens new wing for {adj} aliens",
+    story: [
+      "{planet}'s regional hospital has opened a dedicated pediatric wing designed to serve young patients from {adj} alien species that have established communities in the district over the past {n2} cycles. The wing incorporates species-specific environmental controls, nutrition facilities, and care protocols developed in consultation with {adj} medical practitioners. The hospital's chief of pediatrics described the opening as 'a long overdue recognition that this community's children deserve the same standard of care as everyone else's.'",
+      "The new {adj} alien pediatric wing at {planet}'s hospital represents the culmination of a {n}-cycle community advocacy effort led by families who had been travelling to specialist facilities in {empire}'s core systems for paediatric care. The wing's {n2}-bed capacity covers current community demand with room for projected population growth. The {adj} community association has pledged ongoing participation in the wing's review committee.",
+    ],
+  },
+  {
+    category: "health",
+    template:
+      "{port} pharmacist replaces label printer, errors drop {percent}%",
+    story: [
+      "{port}'s central pharmacy has reported a {percent}% reduction in dispensing label errors since replacing its {n2}-cycle-old label printing system with a current-model networked unit, according to the pharmacy's quarterly quality report. The previous system had been producing degraded print quality that required manual verification for {percent}% of outputs — a process that itself introduced errors under high-volume conditions. The new system has eliminated both problems simultaneously. The pharmacy director described the improvement as 'significant and also embarrassingly straightforward.'",
+      "The {port} pharmacy label printer replacement, which cost {credits}, has produced demonstrable patient safety improvements that the district health authority has cited in its infrastructure investment justification documents. The case for replacing the printer was made {n2} cycles ago by the pharmacy's quality assurance officer and declined on budget grounds for {n} consecutive cycles. The authority's current documentation does not acknowledge this history.",
+    ],
+  },
+];
+
 // Rich template pools — templates with story bodies for new categories.
 const RICH_POOLS: Partial<Record<TickerCategory, FlavorTemplate[]>> = {
   anomaly: anomalyTemplates,
@@ -2857,6 +3981,11 @@ const RICH_POOLS: Partial<Record<TickerCategory, FlavorTemplate[]>> = {
   market_mover: marketMoverTemplates,
   crime: crimeTemplates,
   science: scienceTemplates,
+  sports: sportsTemplates,
+  celebrity: celebrityTemplates,
+  cosmic_weather: cosmicWeatherTemplates,
+  local: localTemplates,
+  health: healthTemplates,
 };
 
 // ── Registry ──────────────────────────────────────────────────
