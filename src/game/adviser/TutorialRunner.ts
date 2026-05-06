@@ -9,6 +9,9 @@ import {
   addCargoLock,
   assignShipToRoute,
 } from "../routes/RouteManager.ts";
+import { buyShip } from "../fleet/FleetManager.ts";
+import { SHIP_TEMPLATES } from "../../data/constants.ts";
+import type { ShipClass } from "../../data/types.ts";
 
 export interface TutorialCallbacks {
   navigateTo: (sceneName: string) => void;
@@ -144,19 +147,44 @@ export class TutorialRunner {
     );
 
     const isPassenger = opp.bestCargoType === "passengers";
-    const idleShip = fleet
-      .filter((s) => !s.assignedRouteId)
-      .filter((s) =>
-        isPassenger ? s.passengerCapacity > 0 : s.cargoCapacity > 0,
-      )
-      .sort((a, b) =>
-        isPassenger
-          ? b.passengerCapacity - a.passengerCapacity
-          : b.cargoCapacity - a.cargoCapacity,
-      )[0];
+    let cash = state.cash;
+    let shipId: string | null =
+      fleet
+        .filter((s) => !s.assignedRouteId)
+        .filter((s) =>
+          isPassenger ? s.passengerCapacity > 0 : s.cargoCapacity > 0,
+        )
+        .sort((a, b) =>
+          isPassenger
+            ? b.passengerCapacity - a.passengerCapacity
+            : b.cargoCapacity - a.cargoCapacity,
+        )[0]?.id ?? null;
 
-    if (idleShip) {
-      const assigned = assignShipToRoute(idleShip.id, route.id, fleet, routes);
+    let boughtShipName: string | null = null;
+
+    if (!shipId && opp.shipSource === "autoBuy") {
+      const shipClasses = Object.keys(SHIP_TEMPLATES) as ShipClass[];
+      const compatible = shipClasses
+        .map((sc) => ({ class: sc, template: SHIP_TEMPLATES[sc] }))
+        .filter((e) =>
+          isPassenger
+            ? e.template.passengerCapacity > 0
+            : e.template.cargoCapacity > 0,
+        )
+        .filter((e) => e.template.purchaseCost <= cash)
+        .sort((a, b) => a.template.purchaseCost - b.template.purchaseCost);
+
+      if (compatible.length > 0) {
+        const { ship, cost } = buyShip(compatible[0].class, fleet);
+        fleet = [...fleet, ship];
+        cash -= cost;
+        shipId = ship.id;
+        boughtShipName = ship.name;
+      }
+    }
+
+    if (shipId) {
+      const assigned = assignShipToRoute(shipId, route.id, fleet, routes);
       fleet = assigned.fleet;
       routes = assigned.routes;
     }
@@ -165,13 +193,16 @@ export class TutorialRunner {
       activeRoutes: routes,
       fleet,
       interEmpireCargoLocks: locks,
+      cash,
     });
 
     this.callbacks.showActiveRoutes();
 
-    const shipNote = idleShip
-      ? `${idleShip.name} is assigned and ready to haul.`
-      : "Assign a ship from the Fleet screen when you're ready.";
+    const shipNote = boughtShipName
+      ? `Bought ${boughtShipName} and assigned to the route — ready to haul!`
+      : shipId
+        ? `${fleet.find((s) => s.id === shipId)?.name} is assigned and ready to haul.`
+        : "Assign a ship from the Fleet screen when you're ready.";
 
     this.scene.time.delayedCall(2200, () => {
       this.showFinalModal(
