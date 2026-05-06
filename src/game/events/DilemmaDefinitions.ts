@@ -502,4 +502,365 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
       },
     ],
   },
+  // ---------------------------------------------------------------------------
+  // Space Hazard dilemmas
+  // ---------------------------------------------------------------------------
+  {
+    id: "navigate_spatial_rift",
+    category: "operational",
+    imageKey: "dilemma_spatial_rift",
+    prompt:
+      "A spatial rift is destabilizing the {port} corridor. Your captain wants instructions before sunrise.",
+    weight: 4,
+    headwindWeight: 4,
+    tailwindWeight: 1,
+    options: [
+      {
+        id: "push_through_rift",
+        label: "Push through with reinforced shielding",
+        outcomeDescription: "Fast and risky.",
+        baseSuccess: 45,
+        scalingTags: ["fleetCondition", "tech"],
+        effects: [
+          { type: "modifyCash", value: -3500 },
+          { type: "modifyFleetCondition", value: -8 },
+        ],
+      },
+      {
+        id: "hull_reinforce_rift",
+        label: "Hull-reinforce before crossing",
+        outcomeDescription: "Slower but safer.",
+        baseSuccess: 70,
+        scalingTags: ["cash"],
+        effects: [{ type: "modifyCash", value: -7000 }],
+      },
+      {
+        id: "abandon_rift_route",
+        label: "Abandon the route entirely",
+        outcomeDescription: "Lose contracts, save lives.",
+        baseSuccess: 90,
+        scalingTags: ["navigation"],
+        effects: [
+          { type: "modifyCash", value: -5000 },
+          { type: "modifyReputation", value: 2 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "wormhole_exploitation",
+    category: "opportunity",
+    imageKey: "dilemma_wormhole",
+    prompt:
+      "A wormhole has opened near {port} — but it's collapsing within days. Big risk, big margin.",
+    weight: 3,
+    headwindWeight: 1,
+    tailwindWeight: 4,
+    options: [
+      {
+        id: "use_wormhole",
+        label: "Run cargo through before it collapses",
+        outcomeDescription: "Hit the window for a payday.",
+        baseSuccess: 55,
+        scalingTags: ["fleetSize", "navigation"],
+        effects: [{ type: "modifyCash", value: 14000 }],
+      },
+      {
+        id: "sell_wormhole_access",
+        label: "Sell access rights to a rival",
+        outcomeDescription: "Less profit, less risk.",
+        baseSuccess: 80,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: 8000 },
+          { type: "modifyReputation", value: -3 },
+        ],
+      },
+      {
+        id: "report_wormhole_imp",
+        label: "Report it to imperial astrocartography",
+        outcomeDescription: "Earn imperial favor and a finder's fee.",
+        baseSuccess: 75,
+        scalingTags: ["rep"],
+        effects: [
+          { type: "modifyCash", value: 3000 },
+          { type: "modifyReputation", value: 7 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "radiation_shelter",
+    category: "operational",
+    imageKey: "dilemma_radiation",
+    prompt:
+      "A radiation burst is sweeping {port}. Captain {ceo} requests guidance for the in-flight fleet.",
+    weight: 4,
+    headwindWeight: 3,
+    tailwindWeight: 1,
+    options: [
+      {
+        id: "ground_radiation",
+        label: "Ground all in-system ships",
+        outcomeDescription: "No casualties, missed deliveries.",
+        baseSuccess: 90,
+        scalingTags: ["navigation"],
+        effects: [{ type: "modifyCash", value: -6000 }],
+      },
+      {
+        id: "push_radiation",
+        label: "Push through with current shielding",
+        outcomeDescription: "Faster but ships take damage.",
+        baseSuccess: 40,
+        scalingTags: ["fleetCondition"],
+        effects: [{ type: "modifyFleetCondition", value: -15 }],
+      },
+      {
+        id: "hire_shielded_escort",
+        label: "Hire shielded escorts",
+        outcomeDescription: "Expensive but safe.",
+        baseSuccess: 75,
+        scalingTags: ["cash", "tech"],
+        effects: [{ type: "modifyCash", value: -9000 }],
+      },
+    ],
+  },
+  {
+    id: "dark_matter_futures",
+    category: "financial",
+    imageKey: "dilemma_dark_matter",
+    prompt:
+      "Your analyst caught wind of an imminent dark-matter surge — fuel will spike. The data isn't public yet.",
+    weight: 3,
+    headwindWeight: 1,
+    tailwindWeight: 4,
+    options: [
+      {
+        id: "buy_fuel_futures",
+        label: "Buy fuel futures heavily",
+        outcomeDescription: "If your tip is right, big payday.",
+        baseSuccess: 60,
+        scalingTags: ["cash"],
+        effects: [{ type: "modifyCash", value: 11000 }],
+      },
+      {
+        id: "wait_dark_matter",
+        label: "Wait for public data",
+        outcomeDescription: "No insider risk, no insider profit.",
+        baseSuccess: 95,
+        effects: [],
+      },
+      {
+        id: "warn_others_dm",
+        label: "Warn other shippers (and your home empire)",
+        outcomeDescription: "You become the trustworthy one.",
+        baseSuccess: 80,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 8 }],
+      },
+    ],
+  },
+  {
+    id: "stellar_evacuation_profiteer",
+    category: "opportunity",
+    imageKey: "dilemma_stellar_collapse",
+    prompt:
+      "{port} is being evacuated as its star collapses. Refugees will pay anything for transport off-world.",
+    weight: 2,
+    headwindWeight: 1,
+    tailwindWeight: 5,
+    options: [
+      {
+        id: "price_gouge_refugees",
+        label: "Charge premium evacuation rates",
+        outcomeDescription: "Massive cash, ugly press.",
+        baseSuccess: 70,
+        scalingTags: ["fleetSize", "cash"],
+        effects: [
+          { type: "modifyCash", value: 22000 },
+          { type: "modifyReputation", value: -12 },
+        ],
+      },
+      {
+        id: "free_transport_refugees",
+        label: "Provide free transport",
+        outcomeDescription: "Goodwill that lasts a generation.",
+        baseSuccess: 85,
+        scalingTags: ["fleetSize"],
+        effects: [
+          { type: "modifyCash", value: -10000 },
+          { type: "modifyReputation", value: 18 },
+        ],
+      },
+      {
+        id: "ignore_evacuation",
+        label: "Stay clear of the chaos",
+        outcomeDescription: "Neither hero nor villain.",
+        baseSuccess: 95,
+        effects: [],
+      },
+    ],
+  },
+  // ---------------------------------------------------------------------------
+  // Military dilemmas
+  // ---------------------------------------------------------------------------
+  {
+    id: "arms_dealer_contact",
+    category: "diplomatic",
+    imageKey: "dilemma_arms_dealer",
+    prompt:
+      "An off-the-books arms dealer wants to use your fleet to ship to {empire}. Their tech is bleeding-edge and illegal.",
+    weight: 3,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "buy_illegal_tech",
+        label: "Buy the tech for your fleet",
+        outcomeDescription: "Capability gain, reputation risk.",
+        baseSuccess: 50,
+        scalingTags: ["cash", "tech"],
+        effects: [
+          { type: "modifyCash", value: -10000 },
+          { type: "modifyReputation", value: -4 },
+        ],
+      },
+      {
+        id: "report_arms_dealer",
+        label: "Report the dealer to imperial authorities",
+        outcomeDescription: "Empire favor, dangerous enemies.",
+        baseSuccess: 65,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 10 }],
+      },
+      {
+        id: "double_agent_arms",
+        label: "Run them as a double agent",
+        outcomeDescription: "Highest risk, highest reward.",
+        baseSuccess: 35,
+        scalingTags: ["tech", "rep"],
+        effects: [
+          { type: "modifyCash", value: 9000 },
+          { type: "modifyReputation", value: 4 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "defecting_officer",
+    category: "narrative",
+    imageKey: "dilemma_defector",
+    prompt:
+      "{rank} {officer} of {empire} wants to defect — and they want your fleet to extract them.",
+    weight: 2,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "shelter_defector",
+        label: "Shelter the defector quietly",
+        outcomeDescription: "Diplomatic risk; long-term ally.",
+        baseSuccess: 50,
+        scalingTags: ["fleetCondition", "rep"],
+        effects: [{ type: "modifyReputation", value: 6 }],
+      },
+      {
+        id: "sell_defector_back",
+        label: "Sell them back to {empire}",
+        outcomeDescription: "Cash and empire favor; betrayal taste in mouth.",
+        baseSuccess: 70,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: 12000 },
+          { type: "modifyReputation", value: -7 },
+        ],
+      },
+      {
+        id: "exploit_defector_intel",
+        label: "Take the intel, leave them stranded",
+        outcomeDescription: "Tech edge; dishonor.",
+        baseSuccess: 60,
+        scalingTags: ["tech"],
+        effects: [{ type: "modifyReputation", value: -10 }],
+      },
+    ],
+  },
+  {
+    id: "border_patrol_bribe",
+    category: "operational",
+    imageKey: "dilemma_border_bribe",
+    prompt:
+      "A {empire} border patrol officer is hinting that a small payment will skip the inspection of your fleet.",
+    weight: 5,
+    headwindWeight: 5,
+    tailwindWeight: 1,
+    options: [
+      {
+        id: "pay_border_bribe",
+        label: "Pay the bribe",
+        outcomeDescription: "Faster, dirtier.",
+        baseSuccess: 80,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: -2500 },
+          { type: "modifyReputation", value: -2 },
+        ],
+      },
+      {
+        id: "refuse_bribe",
+        label: "Refuse and accept the inspection delay",
+        outcomeDescription: "Clean conscience, slow ship.",
+        baseSuccess: 85,
+        scalingTags: ["fleetCondition"],
+        effects: [{ type: "modifyCash", value: -1500 }],
+      },
+      {
+        id: "report_corrupt_patrol",
+        label: "Report the corrupt officer",
+        outcomeDescription: "Big rep gain; certain officials remember you.",
+        baseSuccess: 60,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 6 }],
+      },
+    ],
+  },
+  {
+    id: "mercenary_contract",
+    category: "diplomatic",
+    imageKey: "dilemma_mercenary",
+    prompt:
+      "A contested route through {sector} needs armed escorts. A mercenary outfit is offering competitive rates.",
+    weight: 4,
+    headwindWeight: 4,
+    tailwindWeight: 2,
+    options: [
+      {
+        id: "hire_mercenaries",
+        label: "Hire the mercenaries",
+        outcomeDescription:
+          "Cargo arrives safely, but you're now linked to them.",
+        baseSuccess: 75,
+        scalingTags: ["cash"],
+        effects: [{ type: "modifyCash", value: -6000 }],
+      },
+      {
+        id: "no_protection",
+        label: "Run the route without protection",
+        outcomeDescription: "Cheap and dangerous.",
+        baseSuccess: 35,
+        scalingTags: ["fleetCondition"],
+        effects: [{ type: "modifyFleetCondition", value: -12 }],
+      },
+      {
+        id: "cede_route",
+        label: "Cede the route to a rival",
+        outcomeDescription: "Lose contracts, lose face.",
+        baseSuccess: 90,
+        effects: [
+          { type: "modifyCash", value: -3500 },
+          { type: "modifyReputation", value: -3 },
+        ],
+      },
+    ],
+  },
 ];
