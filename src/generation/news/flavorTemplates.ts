@@ -1226,11 +1226,625 @@ const discoveryTemplates: FlavorTemplate[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// GOSSIP (25 templates) — universe drama, feuds, rumors
+// ---------------------------------------------------------------------------
+const gossipTemplates: FlavorTemplate[] = [
+  {
+    category: "gossip",
+    template:
+      "{celeb} spotted having dinner with {celeb}'s ex; PR teams scrambling",
+    story: [
+      "{celeb} was photographed at a restaurant on {port} with someone they definitely shouldn't have been having dinner with. PR statements are already drafting themselves and management has gone to voicemail.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{celeb} feuds with {celeb} over project credit; insiders predict 'long winter'",
+    story: [
+      "A billing dispute over a joint holovid project has escalated into a full public feud between {celeb} and another household name. Insiders with knowledge of neither party have predicted the situation will not resolve before the next award season.",
+    ],
+  },
+  {
+    category: "gossip",
+    template: "{musician} and {celeb} dating? Source close to neither says yes",
+    story: [
+      "A source described as 'familiar with the situation from a distance' has confirmed to three separate tabloids that {musician} and {celeb} are, in some capacity, romantically involved. Neither party has acknowledged the claim. The source has since been unreachable.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{ceo}'s divorce paperwork leaked; lawyers cite 'voidlight differences'",
+    story: [
+      "Filings from {ceo}'s ongoing divorce proceedings have surfaced on a grey-market legal archive, citing irreconcilable differences stemming from what the document calls 'fundamentally incompatible voidlight philosophies.' Legal teams for both parties have confirmed the filing is authentic and have asked everyone to stop reading it.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{celeb} unfollowed by entire {empire} entertainment district overnight",
+    story: [
+      "In what media analysts are calling 'coordinated' and publicists are calling 'a technical glitch,' {celeb} lost {n2} followers from {empire}'s entertainment industry between midnight and dawn. {celeb}'s team has not commented. The unfollowers have not commented. Gossip columns have commented extensively.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{musician}'s rumored side project with {celeb} confirmed by accidental post",
+    story: [
+      "An unlisted track featuring both {musician} and {celeb} was posted to a streaming platform for {n} minutes before being taken down. It was screenshotted {n2} times. Management for both parties has confirmed there is 'nothing to confirm at this time,' which everyone is treating as confirmation.",
+    ],
+  },
+  {
+    category: "gossip",
+    template: "{celeb}'s yacht spotted at {port}; {n2} guests, zero permits",
+    story: [
+      "{celeb}'s private vessel has docked at {port} with {n2} guests aboard and, according to harbor authority records, no valid berth permit. {celeb}'s spokesperson says the matter is being handled. Harbor staff note it has been being handled for {n} cycles.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "Mysterious patron pays off {celeb}'s gambling debts; rumors swirl",
+    story: [
+      "A transfer of {credits} against {celeb}'s account at the {port} gaming house has been traced to an anonymous intermediary, clearing debts described as 'significant and accumulating.' Speculation about the benefactor's identity has produced {n2} credible theories and one that involves {pundit}, which {pundit} denies.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{musician} and {musician}'s feud reignites after one-line interview",
+    story: [
+      "A single line in an interview — specifically, {musician} describing the current state of {genre} as 'fine, if you like that sort of thing' — has been interpreted by fans of a rival act as a direct attack. The rival's team has released a statement. The statement has been interpreted as a counter-attack. The original interviewer has apologized for asking.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{celeb} caught wearing rival {empire}'s designer to {empire} state dinner",
+    story: [
+      "Fashion photographers at {empire}'s annual state dinner captured {celeb} wearing an ensemble from a designer house based in a rival empire. {empire}'s cultural ministry has lodged a formal complaint with {celeb}'s management. The designer house issued a statement expressing appreciation. {celeb} has said nothing and looked excellent.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{ceo}'s personal chef walks out mid-banquet citing {commodity} disagreement",
+    story: [
+      "In what is being described as the most dramatic corporate dining incident of the cycle, {ceo}'s personal chef departed a formal banquet mid-service, citing an unresolvable philosophical disagreement about the preparation of {commodity}. Fourteen guests witnessed the exit. Dessert was not served.",
+    ],
+  },
+  {
+    category: "gossip",
+    template: "{celeb}'s 'just friends' yacht tour now in its {n}th cycle",
+    story: [
+      "{celeb} and their 'close personal friend' have concluded the {n}th cycle of their ongoing yacht tour of {sector}, during which they have been photographed holding hands in {n2} ports and described in every caption as 'just friends.' Travel writers have run out of ways to use quotation marks.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "Galactic gossip column claims {celeb} secretly funded {musician}'s comeback",
+    story: [
+      "A column published in the Galactic Social Register claims {celeb} personally bankrolled {musician}'s recent return to recording — a claim that both parties have denied, simultaneously, in statements that use identical language. Publicists for neither party have explained the coincidence.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{celeb} blocks fan account that correctly predicted their next move",
+    story: [
+      "A fan account with {n2} followers, known for unexpectedly accurate predictions about {celeb}'s career choices, has been blocked following its correct forecast of {celeb}'s {port} appearance. The block has been interpreted as confirmation of the next prediction, which involves {musician}.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "Anonymous source: {celeb} 'never recovered' from empire council snub",
+    story: [
+      "An anonymous source described as 'deeply embedded in {celeb}'s inner circle' has told a major entertainment outlet that {celeb} was permanently altered by being passed over for {empire}'s cultural recognition award {n} cycles ago. {celeb}'s publicist has called the claim 'deeply fictional.' The source has clarified they stand by every word.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{musician}'s assistant fired after sharing tour rider with tabloid",
+    story: [
+      "A former assistant to {musician} has been dismissed after allegedly leaking the tour rider — a document that, according to the tabloid that published it, includes {n2} requirements, three of which have been described as 'technically impossible' and one as 'aggressively reasonable.' {musician}'s management called it a privacy violation. Fans called it their favorite article of the cycle.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{celeb} arrives at {port} party two hours late; party leaves an hour earlier",
+    story: [
+      "{celeb} made their entrance at the {port} premiere event {n} hours after the stated start time, at which point {percent}% of guests had already departed. Industry observers noted the timing suggested either perfect calculation or complete indifference. Photographs from the empty venue have been widely shared.",
+    ],
+  },
+  {
+    category: "gossip",
+    template: "{ceo} caught with rival {company}'s heir at {port} restaurant",
+    story: [
+      "Photographs circulating on entertainment feeds show {ceo} dining with a member of the founding family of {company} — a direct corporate rival — at a restaurant in {port} that prides itself on discretion. Neither party's communications team was prepared for the photos. Both have since issued statements describing the meal as 'coincidental.'",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{celeb} refuses to share elevator with {celeb}; building staff comply",
+    story: [
+      "Staff at the {port} Grand Convention Center confirmed this cycle that they have maintained a formal elevator separation protocol between two high-profile guests who shall not be named but are {celeb} and another {celeb}. The protocol has been in place for {n} days and requires two dedicated operators.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{musician}'s 'private' {empire} ambassador performance goes viral",
+    story: [
+      "A recording of {musician} performing three songs at what was billed as a private dinner for {empire}'s cultural ambassador has appeared on every major network. The recording is high quality. Someone at the dinner had professional equipment. {musician}'s team has not identified who, though they have narrowed it to a table of {n2}.",
+    ],
+  },
+  {
+    category: "gossip",
+    template: "Holovid star {celeb} demanded all crew speak in haiku on set",
+    story: [
+      "A production assistant on {celeb}'s latest holovid project has revealed that the star issued a formal request, honored for {n} full shooting days, that all on-set communication be delivered in haiku form. Crew members report the directive improved mood but slowed lunch orders considerably.",
+    ],
+  },
+  {
+    category: "gossip",
+    template: "{celeb} buys entire wing of {port} hotel to avoid {celeb}",
+    story: [
+      "Hotel management at {port}'s Grand Meridian has confirmed that {celeb} booked an entire residential wing — {n2} rooms — for the duration of a festival week following intelligence that a fellow {celeb} was also registered. The bill has not been disclosed. The other {celeb} was reportedly unbothered.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{musician} dating rumor sparked by shared sandwich; sandwich was excellent",
+    story: [
+      "A photograph showing {musician} and an unnamed companion sharing a sandwich at {port}'s open-air market has generated {n2} articles speculating about their relationship status. Neither party has addressed the photograph. The sandwich vendor has confirmed the order was the smoked {commodity} special and described the experience as 'normal, mostly.'",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{celeb}'s fashion line panned by every reviewer; sells out in {n} hours",
+    story: [
+      "The debut collection from {celeb}'s fashion label received uniformly negative reviews from every major outlet in {empire} — words used include 'bewildering,' 'committed,' and 'not for everyone, and yet.' The collection sold out within {n} hours of release. {celeb} has shared every negative review with apparent delight.",
+    ],
+  },
+  {
+    category: "gossip",
+    template:
+      "{empire}'s official biographer admits draft was 'mostly gossip column clippings'",
+    story: [
+      "The authorized biographer of {empire}'s current administration has acknowledged in an interview that approximately {percent}% of the first draft consisted of material sourced from entertainment columns, social feeds, and one particularly well-sourced rumor blog. The biography has been sent back for revisions. The blog has been sent a formal acknowledgment.",
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// MILITARY (25 templates) — fleet movements, defections, arms deals
+// ---------------------------------------------------------------------------
+const militaryTemplates: FlavorTemplate[] = [
+  {
+    category: "military",
+    template:
+      "{rank} {officer} of {empire} promoted to command of {sector} fleet",
+    story: [
+      "{rank} {officer} has been confirmed as the new commanding officer of {empire}'s {sector} fleet, effective immediately. The promotion follows a {n}-cycle campaign during which {officer} is credited with resolving two border incidents without escalation. Defense analysts are calling the appointment 'the right hand for the wrong moment' and declining to elaborate.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{empire} announces {percent}% increase in fleet budget; rivals reviewing options",
+    story: [
+      "{empire}'s defense council has ratified a {percent}% increase in fleet construction spending for the coming cycle — the largest single-year increase in {n2} cycles. Officials cited 'evolving regional security requirements,' a phrase that four rival empires have described as 'concerning' in separate statements released within {n} hours of each other.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Defection: {rank} {officer} reportedly seeking asylum in {empire2}",
+    story: [
+      "{rank} {officer}, until recently a senior logistics commander in {empire}'s {sector} fleet, has reportedly crossed into {empire2} territory and filed for asylum. {empire} has characterized the departure as 'an unauthorized absence' and requested return. {empire2} has acknowledged receipt of 'an individual' and declined to confirm identity.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Joint fleet exercise in {sector} 'unrelated' to border incidents, says {empire}",
+    story: [
+      "{empire} and {empire2} have commenced a joint fleet exercise in {sector}, deploying a combined force of {n2} vessels. A spokesperson for {empire} described the exercise as 'routine and prescheduled,' a characterization that analysts note conflicts with the exercise not appearing in any prior schedule. The exercise is expected to last {n} cycles.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Arms convoy intercepted near {planet}; {empire} denies ownership three times",
+    story: [
+      "A freight convoy intercepted by {empire2} patrol vessels near {planet} has been found to contain weapons systems consistent with {empire} military hardware. {empire} has issued three separate statements: the first denying the convoy was theirs, the second denying it was armed, and the third clarifying that the first two statements were 'technically accurate in context.' Investigators are reviewing the context.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "New stealth corvette unveiled by {empire}; {pundit} calls it 'mostly press release'",
+    story: [
+      "{empire}'s defense industry premiered its latest stealth-class corvette at a ceremony in {port}, releasing detailed specifications and a holovid of the vessel performing evasion maneuvers. {pundit} published a response within the hour noting that the stealth system's effectiveness had been demonstrated 'on camera, which is a curious choice.' {empire}'s defense ministry has not responded.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{rank} {officer} testifies before {empire} council; transcript shows {percent}% redacted",
+    story: [
+      "The transcript of {rank} {officer}'s testimony before {empire}'s defense oversight council has been released with {percent}% of content redacted. The remaining text consists primarily of {officer} confirming their name, rank, and willingness to cooperate. Opposition council members have described the document as 'technically a transcript.' The council chair has adjourned the session.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Mercenary group operating in {sector} formally banned by three empires",
+    story: [
+      "Three empires have issued coordinated prohibitions against a private military contractor operating in {sector}, citing documentation of {n2} border violations and what one resolution calls 'a business model incompatible with regional stability.' The contractor has responded by registering a new entity under a slightly different name and continuing operations.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{empire} retires {rank} {officer} after {n2} cycles; statue planned at {port}",
+    story: [
+      "{rank} {officer} has formally retired from {empire}'s military after {n2} cycles of service, closing a career that included {n} commendations and two incidents that remain classified. A commemorative statue is planned for the {port} naval district. {officer}'s retirement speech lasted {n} minutes and contained no classified information, a fact three intelligence services confirmed independently.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Border patrol incident leaves {n} cargo ships impounded; {empire} apologizes diplomatically",
+    story: [
+      "A patrol vessel from {empire}'s border fleet has impounded {n} commercial cargo ships in what {empire2} is calling an illegal seizure and {empire} is calling a 'customs verification procedure of unusual duration.' Diplomatic channels have been activated. {empire} has issued an apology described by observers as 'technically an apology' and by the impounded crews as 'not an apology.'",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Naval intelligence leaks suggest {empire} testing FTL torpedoes in {sector}",
+    story: [
+      "Classified documents apparently originating from {empire}'s naval intelligence directorate have surfaced on a grey-market archive, including test parameters for what appears to be an FTL-capable weapons system being evaluated in {sector}. {empire} has confirmed the documents are classified, which most analysts are treating as confirmation of their authenticity. Testing, if it occurred, is described as 'successful within parameters.'",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{rank} {officer} disgraced after audit reveals {credits} unaccounted",
+    story: [
+      "An internal audit of {empire}'s {sector} logistics division has identified {credits} in procurement funds that cannot be accounted for under {rank} {officer}'s command. {officer} has been suspended pending investigation and has issued a statement through legal representation describing the discrepancy as 'a bookkeeping matter of unusual complexity.' The auditors have described it differently.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Disarmament summit in {port} ends without agreement; {pundit} unsurprised",
+    story: [
+      "A three-day disarmament summit hosted at {port} has concluded with a joint communiqué describing 'substantive progress in establishing frameworks for future dialogue.' No agreements were signed. {pundit}, who covered the summit, published a piece headlined 'As Expected' before the final session ended. The piece had been written in advance.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Patrol fleet in {sector} accidentally encounters second patrol fleet; embarrassment follows",
+    story: [
+      "Two {empire} patrol fleets operating in {sector} under separate command structures encountered each other in the same quadrant this cycle, each having classified the area as 'unmonitored' in their mission briefings. No incident occurred beyond what one after-action report describes as 'an extended period of mutual acknowledgment.' Command has convened a review of inter-fleet communication protocols.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Military contractor wins {credits} contract over {percent}% lower bid",
+    story: [
+      "{company} has been awarded a {credits} fleet maintenance contract by {empire}'s procurement office despite submitting a bid {percent}% higher than the next lowest offer. The procurement office cited 'operational reliability and institutional familiarity' as selection criteria. The lower-bidding contractor has filed a challenge. {pundit} has filed three opinion pieces.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Black-site facility on {planet} confirmed by satellite imagery; {empire} declines comment",
+    story: [
+      "Commercial satellite imagery published by an independent research institute shows a facility on {planet}'s southern continent matching no registered installation in {empire}'s infrastructure database. The facility has power, personnel, and landing pads. {empire}'s defense ministry has issued a statement consisting entirely of the phrase 'no comment.' Analysts are treating this as a partial confirmation.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{rank} {officer} retires to {port} estate; rumors of return persist",
+    story: [
+      "{rank} {officer} has retired to a private estate in {port}'s northern district following a career that ended under circumstances described in official records as 'mutual agreement.' Despite the retirement announcement, three separate sources have described {officer} as 'still very much involved' in ways none of them are willing to specify. The estate has declined all interview requests.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Border treaty between {empire} and {empire2} renewed for {n2} cycles",
+    story: [
+      "{empire} and {empire2} have formally renewed their {sector} border management treaty for an additional {n2} cycles following negotiations that lasted {n} months longer than scheduled. The renewed treaty includes three new clauses, two of which were described by both parties as 'important' and one of which neither party would discuss. It was signed without ceremony, which both parties called appropriate.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Veterans on {planet} march for hazard wages unpaid for {n} cycles",
+    story: [
+      "Several hundred veterans of {empire}'s {sector} campaigns marched through {planet}'s capital district this cycle, demanding payment of hazard wages outstanding for {n} cycles. {empire}'s veterans affairs office described the outstanding payments as 'under active review.' This is the fourth cycle in which the march has occurred and the fourth in which they have been described as under active review.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{empire} navy unveils flagship; {pundit} notes price equals healthcare budget",
+    story: [
+      "The {empire} navy has commissioned its new fleet flagship at a ceremony in {port}, with officials describing the vessel as 'a symbol of {empire}'s commitment to regional security.' The vessel cost {credits} to construct. {pundit} has published a comparison noting the figure equals {empire}'s civilian healthcare budget for {n} cycles. {empire}'s defense ministry called the comparison 'misleading in framing.'",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Cyberwarfare unit graduates first cohort; commencement classified",
+    story: [
+      "{empire}'s newly established cyberwarfare academy graduated its inaugural class this cycle in a ceremony that was not open to press, family members, or other branches of the military. A one-line announcement confirmed the event occurred. Graduates' names, assignments, and areas of specialization are classified. The academy's location is also classified, which makes the congratulatory banners outside it somewhat awkward.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Decommissioned battleship sold for scrap to {company}; reactor rumored intact",
+    story: [
+      "{empire}'s fleet decommissioning office has sold the former battleship Resolute to {company} for {credits}, with documentation listing the vessel as 'fully inert for salvage.' Sources within {company}'s acquisition division have indicated the vessel's main reactor is operational. {empire}'s decommissioning office has described this as 'a discrepancy we are looking into.'",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{rank} {officer}'s memoir banned in {empire}, bestseller in {empire2}",
+    story: [
+      "{rank} {officer}'s account of their {n2}-cycle career in {empire}'s military has been formally prohibited in {empire} under provisions of the Official Records Act, citing {n} passages deemed to contain restricted operational information. {empire2} published the book three cycles ago. It is currently in its {n}th printing and has sold {n2} copies. {officer} has declined to comment from an undisclosed location.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "Joint patrol agreement signed for {sector}; routes finally safe, say officials",
+    story: [
+      "A joint patrol agreement between {empire} and {empire2} covering {sector}'s major trade corridors has been signed and takes effect next cycle. Officials from both parties described the agreement as 'a historic step toward predictable safety.' Cargo operators in {sector} have cautiously welcomed the news and are awaiting the first patrol cycle before updating their insurance rates.",
+    ],
+  },
+  {
+    category: "military",
+    template:
+      "{empire} denies satellite showing fleet buildup near {planet}; satellite disagrees",
+    story: [
+      "{empire}'s foreign affairs ministry has rejected characterizations of satellite imagery showing a concentration of fleet vessels near {planet} as a 'buildup,' describing the presence as 'scheduled maintenance positioning.' The satellite, operated by an independent monitoring service, has released updated images showing four additional vessels in the same position. The ministry has described the updated images as 'context-dependent.'",
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// PROPAGANDA (25 templates) — state spin, disinformation, counter-narratives
+// ---------------------------------------------------------------------------
+const propagandaTemplates: FlavorTemplate[] = [
+  {
+    category: "propaganda",
+    template:
+      "{empire} state media reports {percent}% citizen approval; rival outlets dispute methodology",
+    story: [
+      "The official {empire} broadcast network has announced that {percent}% of citizens approve of current leadership — a figure {pundit} described as 'mathematically suspicious.' Independent surveys in {sector} show numbers ranging from {n} to {n2} percent. The state response cited 'foreign-funded methodological bias,' which the independent survey teams say is accurate in the sense that they are funded and from a different empire.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} ministry of truth issues clarification on yesterday's clarification",
+    story: [
+      "{empire}'s Office of Public Information has issued a formal clarification of a statement issued yesterday clarifying a statement from the day before. The newest clarification supersedes both prior statements and introduces three new terms that were not in either. A fourth clarification is expected by end of cycle. {pundit} has published a timeline.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "State news on {empire} celebrates {n2}-cycle peace; same broadcast lists three active conflicts",
+    story: [
+      "The same broadcast hour on {empire}'s state network celebrated {n2} cycles of uninterrupted peace in {sector} and then reported on three active armed conflicts in adjacent regions, describing each as 'containment operations' rather than conflicts. Linguists have noted that the distinction is definitional and have declined to say which definition applies. {pundit} declined no such thing.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} 'spontaneous citizens' rally' attracts identical signs and bottled water",
+    story: [
+      "A rally organized by what {empire} state media described as 'a spontaneous outpouring of popular support' was attended by {n2} participants, all carrying identical printed signs and all provided with the same brand of bottled water. Event photography shows the signs still in shrink-wrap at the {n}-minute mark. {empire}'s communications office called the images 'decontextualized.'",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Counter-narrative leaked: {empire} freight subsidies {percent}% higher than reported",
+    story: [
+      "An internal {empire} treasury document leaked to an independent archive shows freight subsidies {percent}% higher than the figure cited in official public accounts. {empire}'s finance ministry has confirmed the document's authenticity and described the discrepancy as 'a presentation difference reflecting different accounting frameworks.' The archive has published both figures side by side and let readers determine the framework.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{pundit} ridicules {empire} state media for using stock footage of victories",
+    story: [
+      "{pundit} has published a frame-by-frame analysis showing that {empire}'s state broadcast celebrated a recent military exercise using footage from a training simulation conducted {n2} cycles earlier. The footage was unaltered. {empire}'s media office called the analysis 'a bad-faith reading of inspirational illustration.' {pundit} has published a follow-up consisting entirely of the phrase 'inspirational illustration.'",
+    ],
+  },
+  {
+    category: "propaganda",
+    template: "{empire} bans documentary citing {n} unrelated legal paragraphs",
+    story: [
+      "A documentary examining freight industry subsidies in {sector} has been prohibited in {empire} under provisions of a communications act citing {n} separate paragraphs, none of which appear to apply to documentary film on their face. Legal analysts have described the prohibition as 'creative.' The documentary has been made available on every network outside {empire} and has been watched {n2}M times.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Education ministry in {empire} updates textbooks for {n}th time this cycle",
+    story: [
+      "{empire}'s ministry of education has issued its {n}th textbook revision of the current cycle, updating historical accounts of the {sector} founding period to reflect 'the most current scholarly consensus.' Educators have noted that the consensus appears to change faster than the academic calendar. The previous edition was adopted {n2} months ago.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Journalist on {planet} disappears after publishing freight corruption exposé",
+    story: [
+      "A journalist based on {planet} who published a detailed investigation into {empire} freight subsidy irregularities has been unreachable for {n} cycles following the piece's release. {empire} authorities have confirmed they are aware of the journalist's absence and have described it as 'a private matter.' The original publication has been taken offline in {empire} territories. Archived copies are circulating.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} announces 'historic' surplus; rival notes harvest hasn't occurred yet",
+    story: [
+      "{empire}'s agricultural bureau has announced a 'historic' grain surplus for the current growing cycle — a claim issued {n} cycles before the primary harvest is scheduled to begin. {empire2} has noted the timeline publicly. {empire}'s bureau has clarified that the surplus figure reflects 'projected actual yield based on current models,' a phrase that agricultural economists have begun using as an example in lectures.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} state holovid hits {n2}M views; analysts note {percent}% from bots",
+    story: [
+      "A state-produced holovid celebrating {empire}'s infrastructure investment program has reached {n2}M views on official channels. A media analytics firm has published findings suggesting {percent}% of those views were generated by automated accounts operating from {n} server clusters. {empire}'s media office has called the findings 'speculative' and the holovid has since received {n2} additional views.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} state radio jamming detected in {sector}; cause: 'technical maintenance'",
+    story: [
+      "Independent broadcast monitors have confirmed signal jamming in {sector} consistent with {empire} state radio equipment, disrupting {n2} independent and commercial channels over a {n}-cycle period. {empire}'s communications ministry has described the interference as 'residual output from scheduled transmitter maintenance.' The maintenance was not listed in any prior filing. Affected broadcasters are calling it a deliberate suppression.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Ministry on {empire} renames national holiday for {n}th time this decade",
+    story: [
+      "{empire}'s cultural affairs ministry has officially renamed the {sector} Liberation Day observance for the {n}th time in {n2} cycles, selecting a title that removes the word 'liberation' in favor of a phrase that translates roughly as 'Day of Appropriate Historical Reflection.' Previous names included two that have now been retroactively classified. Educators have updated their materials accordingly.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} cultural attache pens op-ed in {empire2} paper; authorship traced to AI",
+    story: [
+      "An opinion piece published in {empire2}'s primary broadsheet under the byline of {empire}'s cultural attaché has been identified by two independent linguistics firms as AI-generated text. {empire}'s cultural affairs office confirmed the attaché 'reviewed and approved' the piece, which is not the same as writing it. The broadsheet has issued an editor's note. The attaché has declined to write a follow-up.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Censored book in {empire} smuggled through {port}; sells for {credits} per copy",
+    story: [
+      "A memoir banned in {empire} is being distributed through {port}'s grey-market book circuit at {credits} per physical copy — {percent}% above the cover price of the legitimate edition available everywhere else. Demand outpaces supply. {empire} customs officials at {port} have seized {n} copies and have not asked where the remaining {n2} went.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} airs same heroic profile of {rank} {officer} for {n} cycles",
+    story: [
+      "{empire}'s state broadcast has aired the same forty-minute documentary profile of {rank} {officer} in its prime evening slot for {n} consecutive cycles, drawing notice from media analysts who track programming patterns. The network has described the repeat broadcasts as 'reflecting continued public interest.' Ratings for the profile have declined {percent}% each cycle. Interest continues to be reflected.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Enemy speeches in {empire} translation get new word inserted each version",
+    story: [
+      "Comparative analysis of {empire}'s official translations of {empire2} leadership speeches has found that each new version contains one additional negative adjective not present in the original. The trend has been consistent across {n2} speeches spanning {n} cycles. {empire}'s translation bureau has described the pattern as 'an artifact of increasing rhetorical precision.' The adjectives are getting longer.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Disinformation campaign linked to {empire} traced through {n} relay points",
+    story: [
+      "A coordinated disinformation network spreading fabricated trade data across {sector} media platforms has been traced, after analysis of {n2} source points, to infrastructure linked to {empire}'s information services division. {empire} has called the attribution 'technically unverifiable' and the data 'not fabricated, but contextualized.' Independent fact-checkers have published their methodology and are disputing both characterizations.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} state news reports drought; satellite shows record rainfall",
+    story: [
+      "{empire}'s agricultural broadcast has been reporting a severe drought in {planet}'s eastern regions for {n} cycles, including footage of cracked farmland and requests for disaster relief funding. Satellite imagery published by an independent monitoring group shows the same region receiving record rainfall. {empire}'s agricultural bureau has stated that its reporters 'observed conditions on the ground' and the satellite 'has a known calibration issue.'",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Whistleblower on {planet} exposes {company} bribes to {empire} broadcast officials",
+    story: [
+      "A former compliance officer at {company} has filed documentation with an independent oversight body detailing payments to {n2} officials within {empire}'s state broadcast network, describing the transfers as payments for favorable coverage of {company} freight operations in {sector}. {company} has called the claims 'categorically false.' {empire}'s broadcast network has not yet aired coverage of the story.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Ministry bans inquiry into {sector} historical events; archive sealed",
+    story: [
+      "{empire}'s ministry of historical affairs has issued a prohibition on academic publication of research related to events in {sector} during a specific {n2}-cycle period that the prohibition does not name. The archive covering that period has been moved to restricted access. Three researchers who had submitted papers on the period have had their institutional access reviewed. None have commented publicly.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Counter-propaganda lab at {empire2} university; first paper banned everywhere",
+    story: [
+      "A counter-disinformation research laboratory at {empire2}'s primary research university has published its inaugural paper analyzing state propaganda techniques used by four empires. All four empires have formally requested the paper's retraction. {empire2}'s university has declined. The paper has been downloaded {n2}M times. {pundit} called it 'the most banned thing to become required reading.'",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Sealed records in {empire} reveal {n2}-cycle cover-up; nobody surprised",
+    story: [
+      "{empire} has released {n2}-cycle-old sealed administrative records as part of a periodic declassification review, revealing that an incident described at the time as 'a navigational accident near {sector}' was a deliberate policy action. {pundit} published a response headlined 'Of Course It Was.' Historians have begun updating footnotes. Public reaction has been described by analysts as 'weary rather than outraged.'",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "Pirate radio on {planet} mocks {empire} state broadcast; ratings beat the original",
+    story: [
+      "An unlicensed broadcast operating from an unregistered transmitter somewhere on {planet} has been running satirical recreations of {empire} state news for {n} cycles, reaching an estimated {n2} listeners per broadcast. Audience research commissioned by the state network found that the pirate broadcast's ratings exceed the official signal in three districts. {empire} communications authorities are investigating the transmitter's location, which changes nightly.",
+    ],
+  },
+  {
+    category: "propaganda",
+    template:
+      "{empire} demands {empire2} retract documentary; {empire2} broadcasts it again instead",
+    story: [
+      "Following a formal diplomatic demand that {empire2} retract a documentary examining {empire}'s trade subsidy practices, {empire2}'s public broadcast network has scheduled three additional airings of the film across its primary channels. {empire2}'s foreign ministry described the scheduling as 'a programming decision unrelated to diplomatic correspondence.' {empire} has filed a second formal demand. {empire2} has announced a theatrical release.",
+    ],
+  },
+];
+
 // Rich template pools — templates with story bodies for new categories.
 const RICH_POOLS: Partial<Record<TickerCategory, FlavorTemplate[]>> = {
   anomaly: anomalyTemplates,
   music: musicTemplates,
   discovery: discoveryTemplates,
+  gossip: gossipTemplates,
+  military: militaryTemplates,
+  propaganda: propagandaTemplates,
 };
 
 // ── Registry ──────────────────────────────────────────────────
