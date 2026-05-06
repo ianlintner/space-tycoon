@@ -643,6 +643,14 @@ const TEMPLATE_POOLS: Record<TickerCategory, string[]> = {
   xenobiology: XENOBIOLOGY,
   obituary: OBITUARY,
   homage: HOMAGE,
+
+  // 2026-05 expansion — templates added in Tasks 12-13.
+  anomaly: [],
+  music: [],
+  discovery: [],
+  gossip: [],
+  military: [],
+  propaganda: [],
 };
 
 /** Flat list of every flavor template, useful for tests and counts. */

@@ -103,12 +103,22 @@ export function generateTickerFeed(
   // ── 4) Flavor news ────────────────────────────────────────────
   const remaining = Math.max(0, maxItems - items.length);
   if (remaining > 0) {
-    const chosenCategories = chooseFlavorCategories(rng, flavorCategoryCount);
+    // Filter out categories with no templates yet (e.g., 2026-05 expansion
+    // categories before Tasks 12-13 land); otherwise the round-robin cursor
+    // can stall on an empty pool.
+    const chosenCategories = chooseFlavorCategories(
+      rng,
+      flavorCategoryCount,
+    ).filter((c) => getTemplatesForCategory(c).length > 0);
     const usedTemplates = new Set<string>();
     let drawn = 0;
     let safety = 0;
 
-    while (drawn < remaining && safety < remaining * 6) {
+    while (
+      drawn < remaining &&
+      safety < remaining * 6 &&
+      chosenCategories.length > 0
+    ) {
       safety++;
       const cat = chosenCategories[drawn % chosenCategories.length];
       const inCategorySoFar = items.filter((i) => i.category === cat).length;
