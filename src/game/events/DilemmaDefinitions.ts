@@ -866,4 +866,404 @@ export const DILEMMA_TEMPLATES: DilemmaTemplate[] = [
       },
     ],
   },
+  // -------------------------------------------------------------------------
+  // Anomaly / Discovery dilemmas
+  // -------------------------------------------------------------------------
+  {
+    id: "ancient_ruins_rights",
+    category: "opportunity",
+    imageKey: "dilemma_ancient_ruins",
+    prompt:
+      "An anomaly investigation has uncovered ancient ruins in {empire} territory. Excavation rights are about to go up for auction.",
+    weight: 2,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "claim_excavation",
+        label: "Buy excavation rights outright",
+        outcomeDescription: "Expensive, high upside.",
+        baseSuccess: 50,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: -15000 },
+          { type: "modifyReputation", value: 8 },
+        ],
+      },
+      {
+        id: "partner_empire_dig",
+        label: "Partner with {empire}",
+        outcomeDescription: "Shared spoils, shared credit.",
+        baseSuccess: 70,
+        scalingTags: ["rep"],
+        effects: [
+          { type: "modifyCash", value: -6000 },
+          { type: "modifyReputation", value: 5 },
+        ],
+      },
+      {
+        id: "tip_off_rivals",
+        label: "Tip off rivals to start a bidding war",
+        outcomeDescription: "Watch the chaos from the sidelines.",
+        baseSuccess: 60,
+        scalingTags: [],
+        effects: [{ type: "modifyCash", value: 4000 }],
+      },
+    ],
+  },
+  {
+    id: "alien_contact_protocol",
+    category: "diplomatic",
+    imageKey: "dilemma_first_contact",
+    prompt:
+      "A first-contact signal has been confirmed near {port}. Imperial protocol demands immediate handoff — but your CEO sees other angles.",
+    weight: 1,
+    headwindWeight: 1,
+    tailwindWeight: 2,
+    options: [
+      {
+        id: "follow_protocol",
+        label: "Follow first-contact protocol exactly",
+        outcomeDescription: "Big rep gain, no economic upside.",
+        baseSuccess: 80,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 14 }],
+      },
+      {
+        id: "private_trade_contact",
+        label: "Establish private trade relations",
+        outcomeDescription: "Lucrative, illegal, fragile.",
+        baseSuccess: 35,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: 18000 },
+          { type: "modifyReputation", value: -8 },
+        ],
+      },
+      {
+        id: "handoff_with_terms",
+        label: "Hand off to empire with finder's terms",
+        outcomeDescription: "Modest cash, modest rep.",
+        baseSuccess: 75,
+        scalingTags: ["rep"],
+        effects: [
+          { type: "modifyCash", value: 6000 },
+          { type: "modifyReputation", value: 6 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "recovered_artifact_sale",
+    category: "opportunity",
+    imageKey: "dilemma_artifact",
+    prompt:
+      "Your salvage team recovered a sealed artifact near {port}. Three buyers are offering very different deals.",
+    weight: 2,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "auction_artifact",
+        label: "Auction it to the highest bidder",
+        outcomeDescription: "Maximum cash, no goodwill.",
+        baseSuccess: 75,
+        scalingTags: ["cash"],
+        effects: [{ type: "modifyCash", value: 13000 }],
+      },
+      {
+        id: "donate_to_museum",
+        label: "Donate it to a public museum",
+        outcomeDescription: "Goodwill across the empire.",
+        baseSuccess: 90,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 12 }],
+      },
+      {
+        id: "keep_for_research",
+        label: "Keep it for your R&D division",
+        outcomeDescription: "Tech upside; collectors are upset.",
+        baseSuccess: 65,
+        scalingTags: ["tech"],
+        effects: [
+          { type: "modifyCash", value: -2000 },
+          { type: "modifyReputation", value: -2 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "xenobiologist_hostage",
+    category: "narrative",
+    imageKey: "dilemma_xeno_hostage",
+    prompt:
+      "A xenobiologist working near {port} has been taken hostage by a militia. They want a ransom — or your fleet.",
+    weight: 1,
+    headwindWeight: 2,
+    tailwindWeight: 2,
+    options: [
+      {
+        id: "pay_ransom_xeno",
+        label: "Pay the ransom",
+        outcomeDescription: "Quick resolution, set a precedent.",
+        baseSuccess: 80,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: -8000 },
+          { type: "modifyReputation", value: 4 },
+        ],
+      },
+      {
+        id: "rescue_with_fleet",
+        label: "Mount a rescue with your fleet",
+        outcomeDescription: "Heroic, dangerous.",
+        baseSuccess: 40,
+        scalingTags: ["fleetSize", "fleetCondition"],
+        effects: [
+          { type: "modifyFleetCondition", value: -10 },
+          { type: "modifyReputation", value: 12 },
+        ],
+      },
+      {
+        id: "negotiate_via_empire",
+        label: "Push the empire to negotiate on your behalf",
+        outcomeDescription: "Slow but politically clean.",
+        baseSuccess: 65,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 6 }],
+      },
+    ],
+  },
+  // -------------------------------------------------------------------------
+  // Music / Culture dilemmas
+  // -------------------------------------------------------------------------
+  {
+    id: "tour_sponsorship",
+    category: "opportunity",
+    imageKey: "dilemma_tour",
+    prompt:
+      "A galactic pop sensation is launching a tour and looking for sponsorship. Your name on the marquee — or stay anonymous?",
+    weight: 3,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "sponsor_tour_dilemma",
+        label: "Sponsor the tour visibly",
+        outcomeDescription: "Brand lift across the galaxy.",
+        baseSuccess: 65,
+        scalingTags: ["cash", "rep"],
+        effects: [
+          { type: "modifyCash", value: -7000 },
+          { type: "modifyReputation", value: 8 },
+        ],
+      },
+      {
+        id: "quiet_sponsor",
+        label: "Sponsor anonymously",
+        outcomeDescription: "Influence without exposure.",
+        baseSuccess: 80,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: -4500 },
+          { type: "modifyReputation", value: 2 },
+        ],
+      },
+      {
+        id: "decline_tour",
+        label: "Decline — fund your own marketing instead",
+        outcomeDescription: "Predictable, uncreative.",
+        baseSuccess: 90,
+        scalingTags: [],
+        effects: [],
+      },
+    ],
+  },
+  {
+    id: "banned_album",
+    category: "narrative",
+    imageKey: "dilemma_banned_album",
+    prompt:
+      "A beloved artist just dropped an album; {empire} has banned it. Black market demand is exploding.",
+    weight: 2,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "smuggle_album",
+        label: "Smuggle the album through your freight network",
+        outcomeDescription: "Big margins, big legal risk.",
+        baseSuccess: 45,
+        scalingTags: ["cash"],
+        effects: [
+          { type: "modifyCash", value: 12000 },
+          { type: "modifyReputation", value: -5 },
+        ],
+      },
+      {
+        id: "publicly_decry_ban",
+        label: "Publicly decry the ban",
+        outcomeDescription: "Cultural credibility.",
+        baseSuccess: 70,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 6 }],
+      },
+      {
+        id: "stay_neutral_album",
+        label: "Stay neutral",
+        outcomeDescription: "No risk, no upside.",
+        baseSuccess: 95,
+        scalingTags: [],
+        effects: [],
+      },
+    ],
+  },
+  {
+    id: "musician_defection",
+    category: "diplomatic",
+    imageKey: "dilemma_musician_defect",
+    prompt:
+      "A celebrated musician is trying to defect from {empire}'s state-controlled label. They've asked for safe passage on your fleet.",
+    weight: 1,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "help_defect_musician",
+        label: "Help them defect",
+        outcomeDescription: "Cultural hero, diplomatic enemy.",
+        baseSuccess: 50,
+        scalingTags: ["rep", "navigation"],
+        effects: [{ type: "modifyReputation", value: 10 }],
+      },
+      {
+        id: "report_defection",
+        label: "Report the request to {empire}",
+        outcomeDescription: "Empire favor, artist hates you forever.",
+        baseSuccess: 80,
+        scalingTags: [],
+        effects: [{ type: "modifyReputation", value: 4 }],
+      },
+      {
+        id: "stall_decision",
+        label: "Stall and let the situation resolve itself",
+        outcomeDescription: "Cowardly but safe.",
+        baseSuccess: 90,
+        scalingTags: [],
+        effects: [{ type: "modifyReputation", value: -2 }],
+      },
+    ],
+  },
+  // -------------------------------------------------------------------------
+  // Propaganda dilemmas
+  // -------------------------------------------------------------------------
+  {
+    id: "state_media_plant",
+    category: "diplomatic",
+    imageKey: "dilemma_state_media",
+    prompt:
+      "{empire} state media offers a glowing profile of your company — in exchange for tariff concessions on a sensitive route.",
+    weight: 3,
+    headwindWeight: 2,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "accept_plant",
+        label: "Accept the deal",
+        outcomeDescription: "Free press; rep with rivals takes a hit.",
+        baseSuccess: 75,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 4 }],
+      },
+      {
+        id: "decline_plant",
+        label: "Decline politely",
+        outcomeDescription: "Independent press credibility.",
+        baseSuccess: 85,
+        scalingTags: [],
+        effects: [{ type: "modifyReputation", value: 2 }],
+      },
+      {
+        id: "leak_offer",
+        label: "Leak the offer to a rival outlet",
+        outcomeDescription:
+          "Massive scandal for {empire}; you become a target.",
+        baseSuccess: 50,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 8 }],
+      },
+    ],
+  },
+  {
+    id: "counter_narrative_leak",
+    category: "narrative",
+    imageKey: "dilemma_counter_leak",
+    prompt:
+      "An investigative journalist has shown you embarrassing data about {empire}'s freight subsidies. Publishing it would weaken them.",
+    weight: 2,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "leak_to_journalist",
+        label: "Help the journalist publish",
+        outcomeDescription: "{empire} weakened; expect retaliation.",
+        baseSuccess: 55,
+        scalingTags: ["rep"],
+        effects: [{ type: "modifyReputation", value: 8 }],
+      },
+      {
+        id: "sit_on_data",
+        label: "Sit on the data",
+        outcomeDescription: "Save it for later leverage.",
+        baseSuccess: 90,
+        scalingTags: [],
+        effects: [],
+      },
+      {
+        id: "warn_empire",
+        label: "Warn {empire} the leak is coming",
+        outcomeDescription: "Empire favor; journalist goes underground.",
+        baseSuccess: 70,
+        scalingTags: [],
+        effects: [{ type: "modifyReputation", value: -3 }],
+      },
+    ],
+  },
+  {
+    id: "journalist_protection",
+    category: "narrative",
+    imageKey: "dilemma_journalist",
+    prompt:
+      "An investigative journalist on the run from {empire} is asking for safe passage on your fleet. Their next story will rattle three empires.",
+    weight: 2,
+    headwindWeight: 1,
+    tailwindWeight: 3,
+    options: [
+      {
+        id: "shelter_journalist",
+        label: "Shelter them",
+        outcomeDescription: "Independent press hero; one empire furious.",
+        baseSuccess: 55,
+        scalingTags: ["rep", "navigation"],
+        effects: [{ type: "modifyReputation", value: 9 }],
+      },
+      {
+        id: "deny_journalist",
+        label: "Decline involvement",
+        outcomeDescription: "Stay neutral, lose moral high ground.",
+        baseSuccess: 90,
+        scalingTags: [],
+        effects: [{ type: "modifyReputation", value: -2 }],
+      },
+      {
+        id: "sell_journalist_out",
+        label: "Hand them over to {empire}",
+        outcomeDescription: "Empire favor; lasting infamy.",
+        baseSuccess: 80,
+        scalingTags: [],
+        effects: [{ type: "modifyReputation", value: -10 }],
+      },
+    ],
+  },
 ];
