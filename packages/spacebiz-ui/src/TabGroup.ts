@@ -72,7 +72,7 @@ export class TabGroup
 
       const labelText = scene.add
         .text(tabWidth / 2, this.tabHeight / 2, tab.label, {
-          fontSize: `${theme.fonts.body.size}px`,
+          fontSize: `${theme.button.fontSize}px`,
           fontFamily: theme.fonts.body.family,
           color: colorToString(
             isActive ? theme.colors.accent : theme.colors.textDim,

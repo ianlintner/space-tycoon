@@ -351,12 +351,35 @@ export class BootScene extends Phaser.Scene {
 
   /**
    * btn-normal, btn-hover, btn-pressed, btn-disabled (64x64 each):
-   * Gradient fills derived from each button color, chamfered border,
-   * and a 1px bottom accent line.
+   * Clean rounded-rect buttons with a 1px border and subtle top-edge highlight.
+   * These textures are retained for Modal.ts backward compatibility; the
+   * Button component draws its own Graphics bg at runtime.
    */
   private generateButtonTextures(theme: ThemeConfig): void {
     const size = 64;
-    const { chamfer, panel, glass, colors } = theme;
+    const { colors } = theme;
+    const r = 3; // corner radius in pixels on 64×64 canvas
+
+    const traceRounded = (
+      ctx: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      radius: number,
+    ) => {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    };
 
     const buttons: ReadonlyArray<[string, number]> = [
       ["btn-normal", colors.buttonBg],
@@ -367,32 +390,42 @@ export class BootScene extends Phaser.Scene {
 
     for (const [key, baseColor] of buttons) {
       const { tex, ctx } = this.makeCanvas(key, size, size);
+      const isDisabled = key === "btn-disabled";
+      const isPressed = key === "btn-pressed";
 
-      // Top: darken base color by 15%; bottom: lighten by 8%
-      const topColor = lerpColor(baseColor, 0x000000, 0.15);
-      const bottomColor = lerpColor(baseColor, 0xffffff, 0.08);
+      // Fill
+      const fillAlpha = isDisabled ? 0.75 : 0.95;
+      ctx.fillStyle = this.rgba(baseColor, fillAlpha);
+      traceRounded(ctx, 0, 0, size, size, r);
+      ctx.fill();
 
-      // Vertical gradient fill
-      const grad = ctx.createLinearGradient(0, 0, 0, size);
-      grad.addColorStop(0, this.rgba(topColor, glass.bgAlpha));
-      grad.addColorStop(1, this.rgba(bottomColor, glass.bgAlpha));
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, size, size);
+      // Top-edge highlight (subtle depth on non-pressed)
+      if (!isPressed && !isDisabled) {
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fillRect(2, 1, size - 4, 1);
+      }
 
-      // Chamfered border
-      ctx.lineWidth = panel.borderWidth;
-      ctx.strokeStyle = this.rgba(colors.panelBorder, 1);
-      this.traceChamferedRect(ctx, 1, 1, size - 2, size - 2, chamfer.size);
-      ctx.stroke();
-
-      // 1px bottom accent line along the chamfered bottom edge
-      const c = chamfer.size;
+      // Border: panelBorder color, lightened toward accent on hover
+      const borderBase = colors.panelBorder;
+      const borderColor =
+        key === "btn-hover"
+          ? lerpColor(borderBase, colors.accent, 0.4)
+          : borderBase;
+      const borderAlpha = isDisabled ? 0.3 : isPressed ? 0.5 : 0.75;
       ctx.lineWidth = 1;
-      ctx.strokeStyle = this.rgba(colors.accent, 0.4);
-      ctx.beginPath();
-      ctx.moveTo(c, size - 1);
-      ctx.lineTo(size - c, size - 1);
+      ctx.strokeStyle = this.rgba(borderColor, borderAlpha);
+      traceRounded(ctx, 0.5, 0.5, size - 1, size - 1, r);
       ctx.stroke();
+
+      // Bottom accent line (skip disabled)
+      if (!isDisabled) {
+        ctx.strokeStyle = this.rgba(colors.accent, 0.35);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(4, size - 1);
+        ctx.lineTo(size - 4, size - 1);
+        ctx.stroke();
+      }
 
       tex.refresh();
     }

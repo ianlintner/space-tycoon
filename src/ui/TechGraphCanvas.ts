@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 import type { Technology } from "../data/types.ts";
 import { TECH_GRAPH } from "../data/constants.ts";
-import { getTheme } from "@spacebiz/ui";
+import { applyClippingMask, getTheme } from "@spacebiz/ui";
 
 export const BRANCH_LABELS: Record<string, string> = {
   Logistics: "Logistics",
@@ -65,6 +65,7 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
   private currentState: TechGraphState | null = null;
   private bgHit: Phaser.GameObjects.Rectangle;
   private clipMask!: Phaser.GameObjects.Graphics;
+  private maskSyncBound!: () => void;
   private _onMove: ((ptr: Phaser.Input.Pointer) => void) | null = null;
   private _onUp: (() => void) | null = null;
   private _onWheel: (
@@ -105,24 +106,34 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
     // Apply initial zoom
     this.graphGroup.setScale(this.zoom);
 
-    // Clip mask — keeps graph content within the canvas bounds when panning/zooming
-    this.clipMask = scene.add.graphics().setVisible(false);
-    this.graphGroup.filters?.internal.addMask(this.clipMask);
-    this.updateClipMask();
+    // Clip mask — keeps graph content within the canvas bounds when panning
+    // or zooming. Applied to the graphGroup Container (the filter mask
+    // propagates to all children when set up correctly via applyClippingMask:
+    // it calls enableFilters() to allocate the filter camera, then
+    // filters.internal.addMask(maskShape, false, undefined, "world") so the
+    // mask Graphics is interpreted in world coordinates). The mask shape is
+    // repositioned each preupdate to track this canvas's world transform —
+    // same pattern as ScrollFrame in @spacebiz/ui.
+    this.clipMask = scene.make.graphics({});
+    this.redrawClipMask();
+    applyClippingMask(this.graphGroup, this.clipMask);
+    this.syncMaskPosition();
+    this.maskSyncBound = () => this.syncMaskPosition();
+    scene.events.on("preupdate", this.maskSyncBound, this);
 
     // Setup pan/zoom input
     this.setupPanZoom();
   }
 
-  private updateClipMask(): void {
+  private redrawClipMask(): void {
     this.clipMask.clear();
     this.clipMask.fillStyle(0xffffff);
-    this.clipMask.fillRect(
-      this.x,
-      this.y,
-      this.config.width,
-      this.config.height,
-    );
+    this.clipMask.fillRect(0, 0, this.config.width, this.config.height);
+  }
+
+  private syncMaskPosition(): void {
+    const matrix = this.getWorldTransformMatrix();
+    this.clipMask.setPosition(matrix.tx, matrix.ty);
   }
 
   private polarToXY(angle: number, radius: number): { x: number; y: number } {
@@ -268,7 +279,7 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
 
   override setPosition(x?: number, y?: number): this {
     super.setPosition(x, y);
-    if (this.clipMask) this.updateClipMask();
+    if (this.clipMask) this.syncMaskPosition();
     return this;
   }
 
@@ -278,7 +289,10 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
     this.config.height = height;
     this.bgHit.setSize(width, height);
     this.graphGroup.setPosition(width / 2 + this.panX, height / 2 + this.panY);
-    if (this.clipMask) this.updateClipMask();
+    if (this.clipMask) {
+      this.redrawClipMask();
+      this.syncMaskPosition();
+    }
     return this;
   }
 
@@ -325,6 +339,9 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
     if (this._onMove) this.scene.input.off("pointermove", this._onMove);
     if (this._onUp) this.scene.input.off("pointerup", this._onUp);
     if (this._onWheel) this.scene.input.off("wheel", this._onWheel);
+    if (this.maskSyncBound) {
+      this.scene.events.off("preupdate", this.maskSyncBound, this);
+    }
     this.clipMask?.destroy();
     super.destroy(fromScene);
   }

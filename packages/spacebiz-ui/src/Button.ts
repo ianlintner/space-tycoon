@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { getTheme, colorToString } from "./Theme.ts";
+import { getTheme, colorToString, lerpColor } from "./Theme.ts";
 import { playUiSfx } from "./UiSound.ts";
 import { autoButtonWidth, fitTextWithEllipsis } from "./TextMetrics.ts";
 import { registerWidget, slugifyLabel } from "./WidgetHooks.ts";
@@ -48,8 +48,11 @@ export interface ButtonConfig {
   fontSize?: number;
 }
 
+type BtnState = "normal" | "hover" | "pressed" | "disabled";
+
 export class Button extends Phaser.GameObjects.Container implements Focusable {
-  private bg: Phaser.GameObjects.NineSlice;
+  private bg: Phaser.GameObjects.Graphics;
+  private _btnState: BtnState = "normal";
   private label: Phaser.GameObjects.Text;
   private accentLine: Phaser.GameObjects.Rectangle;
   private focusRing: Phaser.GameObjects.Rectangle | null = null;
@@ -69,7 +72,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
     super(scene, config.x, config.y);
     const theme = getTheme();
 
-    const fontSize = config.fontSize ?? theme.fonts.body.size;
+    const fontSize = config.fontSize ?? theme.button.fontSize;
 
     // Determine width: explicit > autoWidth measured > minWidth fallback
     let width: number;
@@ -106,10 +109,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
 
     this.syncHitZonePosition();
 
-    const textureKey = this.isDisabled ? "btn-disabled" : "btn-normal";
-    this.bg = scene.add
-      .nineslice(0, 0, textureKey, undefined, width, height, 10, 10, 10, 10)
-      .setOrigin(0, 0);
+    this.bg = scene.add.graphics();
 
     // Optionally truncate label with ellipsis when it overflows fixed width
     const displayLabel =
@@ -143,6 +143,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
     // Focus ring — drawn behind everything else, hidden until focused.
     this.focusRing = createFocusRing(scene, width, height);
     this.add([this.focusRing, this.bg, this.accentLine, this.label]);
+    this.drawBg(this.isDisabled ? "disabled" : "normal");
 
     if (!this.isDisabled) {
       this.setupInteractive();
@@ -211,7 +212,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
         this.idleShimmerTween.stop();
         this.idleShimmerTween = null;
       }
-      this.setTexture("btn-hover");
+      this.drawBg("hover");
       this.scene.tweens.add({
         targets: this.accentLine,
         alpha: 0.8,
@@ -220,7 +221,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
       });
     });
     this.hitZone.on("pointerout", () => {
-      this.setTexture("btn-normal");
+      this.drawBg("normal");
       this.scene.tweens.add({
         targets: this.accentLine,
         alpha: 0.4,
@@ -229,19 +230,76 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
         onComplete: () => this.startIdleShimmer(),
       });
     });
-    this.hitZone.on("pointerdown", () => this.setTexture("btn-pressed"));
+    this.hitZone.on("pointerdown", () => this.drawBg("pressed"));
     this.hitZone.on("pointerup", () => {
-      this.setTexture("btn-hover");
+      this.drawBg("hover");
       playUiSfx("ui_click_primary");
       this.onClickFn();
     });
     this.hitZone.on("pointerupoutside", () => {
-      this.setTexture("btn-normal");
+      this.drawBg("normal");
     });
   }
 
-  private setTexture(key: string): void {
-    this.bg.setTexture(key);
+  private drawBg(state: BtnState): void {
+    this._btnState = state;
+    const theme = getTheme();
+    const w = this.widthPx;
+    const h = this.heightPx;
+    const r = 3;
+
+    this.bg.clear();
+    // Track dimensions on the Graphics object so tests and layout code can
+    // read bg.width / bg.height the same way they did with the NineSlice bg.
+    (this.bg as unknown as { width: number }).width = w;
+    (this.bg as unknown as { height: number }).height = h;
+
+    let fillColor: number;
+    let fillAlpha: number;
+    let borderColor: number;
+    let borderAlpha: number;
+
+    switch (state) {
+      case "hover":
+        fillColor = theme.colors.buttonHover;
+        fillAlpha = 0.98;
+        borderColor = lerpColor(
+          theme.colors.panelBorder,
+          theme.colors.accent,
+          0.4,
+        );
+        borderAlpha = 0.9;
+        break;
+      case "pressed":
+        fillColor = theme.colors.buttonPressed;
+        fillAlpha = 1.0;
+        borderColor = theme.colors.panelBorder;
+        borderAlpha = 0.5;
+        break;
+      case "disabled":
+        fillColor = theme.colors.buttonDisabled;
+        fillAlpha = 0.75;
+        borderColor = theme.colors.panelBorder;
+        borderAlpha = 0.3;
+        break;
+      default:
+        fillColor = theme.colors.buttonBg;
+        fillAlpha = 0.95;
+        borderColor = theme.colors.panelBorder;
+        borderAlpha = 0.75;
+    }
+
+    this.bg.fillStyle(fillColor, fillAlpha);
+    this.bg.fillRoundedRect(0, 0, w, h, r);
+
+    // Subtle 1px top-edge highlight adds gentle depth
+    if (state !== "pressed" && state !== "disabled") {
+      this.bg.fillStyle(0xffffff, 0.05);
+      this.bg.fillRect(2, 1, w - 4, 1);
+    }
+
+    this.bg.lineStyle(1, borderColor, borderAlpha);
+    this.bg.strokeRoundedRect(0.5, 0.5, w - 1, h - 1, r);
   }
 
   setDisabled(disabled: boolean): void {
@@ -253,7 +311,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
         this.idleShimmerTween.stop();
         this.idleShimmerTween = null;
       }
-      this.bg.setTexture("btn-disabled");
+      this.drawBg("disabled");
       this.hitZone.disableInteractive();
       this.label.setColor(colorToString(theme.color.text.muted));
       this.accentLine.setAlpha(0.25);
@@ -262,7 +320,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
         this.focusManager?.setFocus(null);
       }
     } else {
-      this.bg.setTexture("btn-normal");
+      this.drawBg("normal");
       this.setupInteractive();
       this.label.setColor(colorToString(theme.color.text.primary));
       this.accentLine.setAlpha(0.4);
@@ -329,12 +387,12 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
         this.idleShimmerTween.stop();
         this.idleShimmerTween = null;
       }
-      this.bg.setTexture("btn-hover");
+      this.drawBg("hover");
       this.accentLine.setAlpha(1);
       this.accentLine.setFillStyle(theme.color.accent.primary);
       this.label.setColor(colorToString(theme.color.accent.primary));
     } else {
-      this.bg.setTexture("btn-normal");
+      this.drawBg("normal");
       this.accentLine.setAlpha(0.4);
       this.accentLine.setFillStyle(theme.color.accent.primary);
       this.label.setColor(colorToString(theme.color.text.primary));
@@ -370,7 +428,7 @@ export class Button extends Phaser.GameObjects.Container implements Focusable {
     this.heightPx = height;
     // Children are constructed after the super.setSize() call in the
     // constructor; guard so the initial sizing call doesn't crash.
-    this.bg?.setSize(width, height);
+    if (this.bg) this.drawBg(this._btnState);
     if (this.accentLine) {
       this.accentLine.setPosition(2, height - 1);
       this.accentLine.setSize(width - 4, 1);

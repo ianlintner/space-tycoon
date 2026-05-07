@@ -129,6 +129,7 @@ export interface ThemeConfig {
     height: number;
     minWidth: number;
     borderWidth: number;
+    fontSize: number;
   };
   glow: {
     width: number;
@@ -190,7 +191,7 @@ const SHARED_TYPOGRAPHY = {
   },
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
   panel: { borderWidth: 2, cornerRadius: 4, titleHeight: 36 },
-  button: { height: 40, minWidth: 120, borderWidth: 2 },
+  button: { height: 40, minWidth: 120, borderWidth: 1, fontSize: 13 },
   glow: {
     width: 6,
     alpha: 0.25,

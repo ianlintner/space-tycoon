@@ -9,7 +9,13 @@ import {
   getLayout,
   attachReflowHandler,
 } from "../ui/index.ts";
-import { hasSaveGame, loadGameIntoStore } from "../game/SaveManager.ts";
+import {
+  hasSaveGame,
+  loadGameIntoStore,
+  hasFreshDraft,
+  loadDraftIntoStore,
+  deleteDraft,
+} from "../game/SaveManager.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import {
   hasResumableSandbox,
@@ -65,6 +71,7 @@ export class MainMenuScene extends Phaser.Scene {
   private heroConfig!: HeroConfig;
   private canContinue = false;
   private canResumeSandbox = false;
+  private canResumeDraft = false;
 
   // Decorative layer (rebuilt on every relayout — raw Phaser objects without setSize)
   private decorativeLayer: Phaser.GameObjects.GameObject[] = [];
@@ -87,6 +94,7 @@ export class MainMenuScene extends Phaser.Scene {
   private continueButton!: Button;
   private sandboxButton!: Button;
   private resumeSandboxButton: Button | null = null;
+  private resumeDraftButton: Button | null = null;
   private styleGuideButton: Button | null = null;
 
   constructor() {
@@ -102,6 +110,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.heroConfig = Phaser.Utils.Array.GetRandom([...HERO_CONFIGS]);
     this.canContinue = hasSaveGame();
     this.canResumeSandbox = hasResumableSandbox();
+    this.canResumeDraft = hasFreshDraft();
 
     // Title card built once — geometry applied in relayout().
     this.titlePanel = new Panel(this, {
@@ -174,11 +183,13 @@ export class MainMenuScene extends Phaser.Scene {
     });
     this.promptLabel.setOrigin(0, 0);
 
-    const statusText = this.canResumeSandbox
-      ? "Sandbox session detected — resume current simulation or start a new run."
-      : this.canContinue
-        ? "Saved company detected — continue from the last checkpoint."
-        : "No save detected — initialize a new company profile.";
+    const statusText = this.canResumeDraft
+      ? "Unsaved session detected — resume where you left off or start fresh."
+      : this.canResumeSandbox
+        ? "Sandbox session detected — resume current simulation or start a new run."
+        : this.canContinue
+          ? "Saved company detected — continue from the last checkpoint."
+          : "No save detected — initialize a new company profile.";
     this.statusLabel = new Label(this, {
       x: 0,
       y: 0,
@@ -258,6 +269,22 @@ export class MainMenuScene extends Phaser.Scene {
       });
     }
 
+    if (this.canResumeDraft) {
+      this.resumeDraftButton = new Button(this, {
+        x: 0,
+        y: 0,
+        width: 220,
+        height: 52,
+        label: "Resume Session",
+        onClick: () => {
+          if (loadDraftIntoStore()) {
+            deleteDraft();
+            this.scene.start("GameHUDScene");
+          }
+        },
+      });
+    }
+
     if (import.meta.env.DEV) {
       this.styleGuideButton = new Button(this, {
         x: 0,
@@ -302,8 +329,10 @@ export class MainMenuScene extends Phaser.Scene {
     const panelY = L.gameHeight - panelH - 22;
     const btnHeight = 52;
     const btnGap = 18;
-    const totalBtns = this.canResumeSandbox ? 4 : 3;
-    const btnWidth = this.canResumeSandbox ? 168 : 220;
+    const extraBtns =
+      (this.canResumeSandbox ? 1 : 0) + (this.canResumeDraft ? 1 : 0);
+    const totalBtns = 3 + extraBtns;
+    const btnWidth = totalBtns > 3 ? 168 : 220;
     const totalBtnWidth = btnWidth * totalBtns + btnGap * (totalBtns - 1);
     const btnStartX = panelX + (panelW - totalBtnWidth) / 2;
     const btnY = panelY + panelH - btnHeight - 28;
@@ -318,13 +347,26 @@ export class MainMenuScene extends Phaser.Scene {
     this.vignetteLabel.setPosition(textLeftX, panelY + 112);
 
     this.newGameButton.setPosition(btnStartX, btnY);
-    this.continueButton.setPosition(btnStartX + btnWidth + btnGap, btnY);
+    this.newGameButton.setSize(btnWidth, btnHeight);
+    this.continueButton.setPosition(btnStartX + (btnWidth + btnGap), btnY);
+    this.continueButton.setSize(btnWidth, btnHeight);
     this.sandboxButton.setPosition(btnStartX + (btnWidth + btnGap) * 2, btnY);
+    this.sandboxButton.setSize(btnWidth, btnHeight);
+    let nextSlot = 3;
     if (this.resumeSandboxButton) {
       this.resumeSandboxButton.setPosition(
-        btnStartX + (btnWidth + btnGap) * 3,
+        btnStartX + (btnWidth + btnGap) * nextSlot,
         btnY,
       );
+      this.resumeSandboxButton.setSize(btnWidth, btnHeight);
+      nextSlot++;
+    }
+    if (this.resumeDraftButton) {
+      this.resumeDraftButton.setPosition(
+        btnStartX + (btnWidth + btnGap) * nextSlot,
+        btnY,
+      );
+      this.resumeDraftButton.setSize(btnWidth, btnHeight);
     }
 
     if (this.styleGuideButton) {
