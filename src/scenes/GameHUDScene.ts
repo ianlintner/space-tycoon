@@ -1352,9 +1352,7 @@ export class GameHUDScene extends Phaser.Scene {
     // Stop current content scene (check it's actually running).
     // Exception: keep GalaxyMapScene alive when launching SimPlaybackScene
     // so it continues running as the 3D backdrop.
-    const keepForSim =
-      sceneName === "SimPlaybackScene" &&
-      this.activeContentScene === "GalaxyMapScene";
+    const keepForSim = sceneName === "SimPlaybackScene";
     if (
       !keepForSim &&
       (this.scene.isActive(this.activeContentScene) ||
@@ -1365,6 +1363,19 @@ export class GameHUDScene extends Phaser.Scene {
 
     if (this.scene.isActive(sceneName) || this.scene.isPaused(sceneName)) {
       this.scene.stop(sceneName);
+    }
+
+    // When launching SimPlaybackScene, GalaxyMapScene must be running as the
+    // 3D backdrop regardless of which tab the player was on. If it's not
+    // active (player came from Routes, Fleet, Tech, etc.) launch it now so
+    // the Three.js canvas has something to render — otherwise the backdrop
+    // is black for the entire simulation.
+    if (
+      sceneName === "SimPlaybackScene" &&
+      !this.scene.isActive("GalaxyMapScene") &&
+      !this.scene.isPaused("GalaxyMapScene")
+    ) {
+      this.scene.launch("GalaxyMapScene");
     }
 
     // Launch new content scene

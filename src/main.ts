@@ -41,6 +41,8 @@ import {
 import { CEO_PORTRAITS } from "./data/portraits.ts";
 import { EMPIRE_LEADER_PORTRAITS } from "./data/empireLeaderPortraits.ts";
 import { SHIP_TEMPLATES } from "./data/constants.ts";
+import { writeDraft } from "./game/SaveManager.ts";
+import { gameStore } from "./data/GameStore.ts";
 
 interface NavItem {
   id: string;
@@ -311,7 +313,7 @@ function renderSite(): void {
         <section id="overview" class="section hero hero--full-bleed">
           <div class="hero-shell">
             <div class="hero-stage hero-stage--full">
-              <div class="game-frame game-frame--hero" data-game-frame>
+              <div id="game-frame" class="game-frame game-frame--hero" data-game-frame>
                 <div class="game-frame__hud">
                   <div class="game-frame__cluster">
                     <span class="signal-light signal-light--teal"></span>
@@ -757,45 +759,73 @@ function setupFullscreenControl(): void {
   const toggle = document.querySelector<HTMLButtonElement>(
     "[data-fullscreen-toggle]",
   );
+  const game = activeGame;
 
-  if (!frame || !toggle) {
+  if (!frame || !toggle || !game) {
     return;
   }
 
-  if (!document.fullscreenEnabled || !frame.requestFullscreen) {
+  // Phaser's Device.Fullscreen probes vendor-prefixed APIs at boot — defer
+  // to it instead of document.fullscreenEnabled, which lies in some embed
+  // contexts.
+  if (!game.scale.fullscreen.available) {
     toggle.hidden = true;
     return;
   }
 
-  const syncButton = (): void => {
-    const isFullscreen = document.fullscreenElement === frame;
-    toggle.textContent = isFullscreen ? "Exit Full Screen" : "Full Screen";
-    toggle.setAttribute("aria-pressed", String(isFullscreen));
-    frame.classList.toggle("is-browser-fullscreen", isFullscreen);
-    // Bust the dedupe cache so resizeGameToViewport always runs after a
-    // fullscreen transition, even if source dims happen to match (e.g. a
-    // maximised browser window entering fullscreen) or if the ResizeObserver
-    // already fired and set lastIsFullscreen to the new value.
-    lastIsFullscreen = !isFullscreen;
-    window.requestAnimationFrame(resizeGameToViewport);
+  // Take the entire game-frame chrome (HUD + viewport) into fullscreen
+  // rather than just the canvas. Setting fullscreenTarget post-boot avoids
+  // Phaser's config-time string-ID resolution (which runs before this
+  // module renders the DOM in some load orders). Phaser's scale manager
+  // then owns the requestFullscreen/exit lifecycle, fires
+  // ENTER_FULLSCREEN / LEAVE_FULLSCREEN, and recomputes the FIT-mode
+  // display rect against the post-transition container box. The previous
+  // DOM-driven approach (frame.requestFullscreen + manual double-rAF
+  // refresh) raced with the browser's layout pass — Phaser's resize would
+  // read pre-transition dimensions and the canvas stayed at its windowed
+  // size after entering fullscreen.
+  game.scale.fullscreenTarget = frame;
+  const onEnter = (): void => {
+    toggle.textContent = "Exit Full Screen";
+    toggle.setAttribute("aria-pressed", "true");
+    frame.classList.add("is-browser-fullscreen");
+  };
+  const onLeave = (): void => {
+    toggle.textContent = "Full Screen";
+    toggle.setAttribute("aria-pressed", "false");
+    frame.classList.remove("is-browser-fullscreen");
   };
 
-  toggle.addEventListener("click", () => {
-    const request =
-      document.fullscreenElement === frame
-        ? document.exitFullscreen()
-        : frame.requestFullscreen({ navigationUI: "hide" });
+  game.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, onEnter);
+  game.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, onLeave);
 
-    request.catch((error: unknown) => {
-      console.warn("Fullscreen request failed", error);
-    });
+  // Phaser's docs require fullscreen requests to come from a `pointerup`
+  // gesture (not `pointerdown` and, per some browsers, not synthesised
+  // `click`). Bind pointerup directly. We still register `click` for
+  // keyboard activation (Enter/Space dispatches synthetic click on a
+  // <button>); the dedupe flag prevents both paths firing on a real click.
+  let inFlight = false;
+  const trigger = (): void => {
+    if (inFlight) return;
+    inFlight = true;
+    try {
+      game.scale.toggleFullscreen({ navigationUI: "hide" });
+    } finally {
+      // Reset on the next tick so the next click can fire.
+      setTimeout(() => {
+        inFlight = false;
+      }, 0);
+    }
+  };
+  toggle.addEventListener("pointerup", trigger);
+  toggle.addEventListener("click", trigger);
+
+  disposers.push(() => {
+    game.scale.off(Phaser.Scale.Events.ENTER_FULLSCREEN, onEnter);
+    game.scale.off(Phaser.Scale.Events.LEAVE_FULLSCREEN, onLeave);
+    toggle.removeEventListener("pointerup", trigger);
+    toggle.removeEventListener("click", trigger);
   });
-
-  document.addEventListener("fullscreenchange", syncButton);
-  disposers.push(() =>
-    document.removeEventListener("fullscreenchange", syncButton),
-  );
-  syncButton();
 }
 
 function mountGame(): void {
@@ -889,6 +919,57 @@ function mountGame(): void {
   disposers.push(() => window.removeEventListener("resize", scheduleResize));
 }
 
+function setupDraftSave(): void {
+  // Debounced idle callback — writes draft 3s after the last state change.
+  // requestIdleCallback keeps this off the frame budget; falls back to
+  // setTimeout on browsers that don't support it (e.g. Safari < 16.4).
+  const rIC =
+    typeof requestIdleCallback !== "undefined"
+      ? requestIdleCallback
+      : (cb: () => void) => window.setTimeout(cb, 200);
+  const cIC =
+    typeof cancelIdleCallback !== "undefined"
+      ? cancelIdleCallback
+      : (id: number) => clearTimeout(id);
+
+  let debounceTimer = 0;
+  let idleHandle = 0;
+
+  const scheduleWrite = (): void => {
+    clearTimeout(debounceTimer);
+    cIC(idleHandle);
+    debounceTimer = window.setTimeout(() => {
+      idleHandle = rIC(() => {
+        const state = gameStore.getState();
+        // Only draft when a real game is running (turn > 0, not over, not
+        // still on the default seed that hasn't been set up yet).
+        if (state.turn > 0 && !state.gameOver && state.playerEmpireId) {
+          writeDraft(state);
+        }
+      });
+    }, 3_000);
+  };
+
+  gameStore.on("stateChanged", scheduleWrite);
+
+  // Immediate write on tab hide — synchronous, before browser may suspend JS.
+  const onVisibilityChange = (): void => {
+    if (document.visibilityState !== "hidden") return;
+    const state = gameStore.getState();
+    if (state.turn > 0 && !state.gameOver && state.playerEmpireId) {
+      writeDraft(state);
+    }
+  };
+  document.addEventListener("visibilitychange", onVisibilityChange);
+
+  disposers.push(() => {
+    gameStore.off("stateChanged", scheduleWrite);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    clearTimeout(debounceTimer);
+    cIC(idleHandle);
+  });
+}
+
 renderSite();
 setupNavigation();
 setupSectionObserver();
@@ -896,6 +977,7 @@ setupAccordions();
 updateFooterYear();
 mountGame();
 setupFullscreenControl();
+setupDraftSave();
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {

@@ -5,6 +5,10 @@ import { initAdviserState } from "./adviser/AdviserEngine.ts";
 
 const SAVE_KEY = "sft_save";
 const AUTOSAVE_KEY = "sft_autosave";
+const DRAFT_KEY = "sft_draft";
+
+/** Age threshold in ms — drafts older than this are not offered as resume candidates. */
+const DRAFT_MAX_AGE_MS = 60_000;
 
 interface SaveEnvelope {
   version: 1;
@@ -182,4 +186,47 @@ export function loadGameIntoStore(): boolean {
   if (!state) return false;
   gameStore.setState(state);
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Draft save — mid-session snapshot for refresh-recovery
+// ---------------------------------------------------------------------------
+
+/** Write current state to the draft slot. Called on visibilitychange and debounced stateChanged. */
+export function writeDraft(state: GameState): void {
+  writeSave(DRAFT_KEY, state);
+}
+
+/** Load the draft state. Returns null if none exists or data is corrupted. */
+export function loadDraft(): GameState | null {
+  const state = readSave(DRAFT_KEY);
+  return state ? migrateSave(state) : null;
+}
+
+/** Load draft into the global game store. Returns true on success. */
+export function loadDraftIntoStore(): boolean {
+  const state = loadDraft();
+  if (!state) return false;
+  gameStore.setState(state);
+  return true;
+}
+
+/** Remove the draft slot (call after successful resume or new game). */
+export function deleteDraft(): void {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+/** Returns metadata for the draft, or null if none exists. */
+export function getDraftMeta(): SaveMeta | null {
+  return readSaveMeta(DRAFT_KEY);
+}
+
+/**
+ * Returns true when a draft exists AND was written within DRAFT_MAX_AGE_MS.
+ * Used by MainMenuScene to decide whether to offer "Resume session?".
+ */
+export function hasFreshDraft(): boolean {
+  const meta = getDraftMeta();
+  if (!meta) return false;
+  return Date.now() - meta.timestamp <= DRAFT_MAX_AGE_MS;
 }

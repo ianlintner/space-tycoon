@@ -18,7 +18,10 @@ import type { GameState, TurnResult } from "../data/types.ts";
 import { EventCategory } from "../data/types.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { buildGalaxyRouteTrafficVisuals } from "../game/routes/RouteManager.ts";
-import { getActiveGalaxyView } from "./galaxy3d/GalaxyView3D.ts";
+import {
+  getActiveGalaxyView,
+  setGalaxy3DDimmed,
+} from "./galaxy3d/GalaxyView3D.ts";
 
 function formatCash(amount: number): string {
   return "§" + Math.round(amount).toLocaleString("en-US");
@@ -75,6 +78,15 @@ export class SimPlaybackScene extends Phaser.Scene {
     // GalaxyMapScene stays running as the backdrop; this keeps its lanes current.
     const trafficVisuals = buildGalaxyRouteTrafficVisuals(this.newState);
     getActiveGalaxyView()?.setRoutes(trafficVisuals);
+
+    // Pre-#321 SimPlaybackScene built its own 3D canvas, which always started
+    // at full opacity. Now we reuse the live GalaxyMapScene canvas, so any
+    // CommunicationModal still up at end-turn (Rex onboarding, ambassador
+    // greetings, rival messages) leaves the galaxy dimmed at 0.12 — and that
+    // shows as a near-black main view through the playback. Force-clear any
+    // lingering dim state so the sim playback always renders against the
+    // full-opacity galaxy.
+    setGalaxy3DDimmed(false);
 
     // ── Revenue pop timers (projected onto 3D route curves) ───────────────────
     const routeRevenueMap = new Map<string, number>();

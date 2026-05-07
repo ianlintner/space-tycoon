@@ -319,6 +319,30 @@ class GameObjectFactoryStub {
     return c;
   }
 
+  graphics(): GameObjectStub {
+    const g = new GameObjectStub(this.scene);
+    // Stub out all Graphics drawing methods so Button.drawBg() runs without error.
+    (g as any).clear = () => g;
+    (g as any).fillStyle = (_color: number, _alpha?: number) => g;
+    (g as any).fillRoundedRect = (
+      _x: number,
+      _y: number,
+      _w: number,
+      _h: number,
+      _r: number,
+    ) => g;
+    (g as any).fillRect = (_x: number, _y: number, _w: number, _h: number) => g;
+    (g as any).lineStyle = (_lw: number, _color: number, _alpha?: number) => g;
+    (g as any).strokeRoundedRect = (
+      _x: number,
+      _y: number,
+      _w: number,
+      _h: number,
+      _r: number,
+    ) => g;
+    return g;
+  }
+
   existing<T>(go: T): T {
     return go;
   }
