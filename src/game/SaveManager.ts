@@ -45,25 +45,26 @@ function readSave(key: string): GameState | null {
 
 /** Migrate old TechState shapes that predate purchaseCount / queue fields. */
 function migrateTechState(tech: TechState): TechState {
-  // Old saves: have completedTechIds but no purchaseCount
-  if (!tech.purchaseCount || Object.keys(tech.purchaseCount).length === 0) {
-    if (tech.completedTechIds && tech.completedTechIds.length > 0) {
-      const purchaseCount: Record<string, number> = {};
-      for (const id of tech.completedTechIds) {
-        purchaseCount[id] = 1;
-      }
-      return {
-        ...tech,
-        purchaseCount,
-        queue: tech.queue ?? [],
-      };
+  // Always ensure both fields exist — old saves may lack either.
+  const hasPurchaseCount =
+    tech.purchaseCount != null && typeof tech.purchaseCount === "object";
+
+  const purchaseCount: Record<string, number> = hasPurchaseCount
+    ? { ...tech.purchaseCount }
+    : {};
+
+  // Synthesize purchaseCount from completedTechIds when missing (old save format).
+  if (!hasPurchaseCount && tech.completedTechIds?.length > 0) {
+    for (const id of tech.completedTechIds) {
+      purchaseCount[id] = 1;
     }
   }
-  // Ensure queue exists
-  if (!tech.queue) {
-    return { ...tech, queue: [] };
-  }
-  return tech;
+
+  return {
+    ...tech,
+    purchaseCount,
+    queue: Array.isArray(tech.queue) ? tech.queue : [],
+  };
 }
 
 /** Migrate older saves that lack newer fields. */

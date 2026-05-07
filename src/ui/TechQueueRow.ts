@@ -1,6 +1,8 @@
 import * as Phaser from "phaser";
 import { TECH_GRAPH } from "../data/constants.ts";
 import { getTheme, colorToString } from "@spacebiz/ui";
+import { effectiveCost } from "../game/tech/TechTree.ts";
+import type { TechState } from "../data/types.ts";
 
 export interface TechQueueRowConfig {
   x: number;
@@ -19,17 +21,6 @@ export interface TechQueueRowState {
 
 const TILE_SIZE = 52;
 const TILE_GAP = 6;
-
-function effectiveCostLocal(
-  techId: string,
-  purchaseCount: Record<string, number>,
-): number {
-  const node = TECH_GRAPH.find((n) => n.id === techId);
-  if (!node) return 0;
-  const count = purchaseCount[techId] ?? 0;
-  const scale = node.repeatCostScale ?? 1;
-  return Math.round(node.rpCost * Math.pow(scale, count));
-}
 
 export class TechQueueRow extends Phaser.GameObjects.Container {
   private config: TechQueueRowConfig;
@@ -74,7 +65,9 @@ export class TechQueueRow extends Phaser.GameObjects.Container {
 
       const tileX = index * (TILE_SIZE + TILE_GAP);
       const isActive = index === 0;
-      const cost = effectiveCostLocal(techId, state.purchaseCount);
+      const cost = effectiveCost(techId, {
+        purchaseCount: state.purchaseCount,
+      } as TechState);
       const progress =
         isActive && cost > 0 ? Math.min(state.researchPoints / cost, 1) : 0;
 

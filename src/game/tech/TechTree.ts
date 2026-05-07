@@ -41,12 +41,14 @@ export function isTechAvailable(techId: string, tech: TechState): boolean {
   // Non-repeatable already purchased
   if (!node.repeatable && (tech.purchaseCount[techId] ?? 0) >= 1) return false;
 
-  // Cargo pact mutual exclusivity
+  // Cargo pact mutual exclusivity — block if another pact is owned OR already queued
   if (CARGO_PACT_IDS.has(techId)) {
-    const alreadyOwned = [...CARGO_PACT_IDS].filter(
-      (id) => id !== techId && tech.completedTechIds.includes(id),
+    const conflict = [...CARGO_PACT_IDS].some(
+      (id) =>
+        id !== techId &&
+        (tech.completedTechIds.includes(id) || tech.queue.includes(id)),
     );
-    if (alreadyOwned.length > 0) return false;
+    if (conflict) return false;
   }
 
   // Center node is always available
@@ -108,6 +110,28 @@ export function removeFromQueue(tech: TechState, index: number): TechState {
   return { ...tech, queue, currentResearchId: queue[0] ?? null };
 }
 
+/**
+ * Check whether a tech already in the queue can still be purchased given the
+ * current state (handles cases like cargo-pact exclusivity being violated after
+ * the item was enqueued).  Unlike isTechAvailable, this skips the "not already
+ * queued" guard — the item is, by definition, in the queue.
+ */
+function canPurchaseQueuedTech(techId: string, tech: TechState): boolean {
+  const node = TECH_GRAPH.find((n) => n.id === techId);
+  if (!node) return false;
+  if (!node.repeatable && (tech.purchaseCount[techId] ?? 0) >= 1) return false;
+  if (CARGO_PACT_IDS.has(techId)) {
+    const conflict = [...CARGO_PACT_IDS].some(
+      (id) => id !== techId && tech.completedTechIds.includes(id),
+    );
+    if (conflict) return false;
+  }
+  if (techId === "fuel_efficiency_1") return true;
+  return node.edges.some((neighborId) =>
+    tech.completedTechIds.includes(neighborId),
+  );
+}
+
 export function processResearch(
   state: GameState,
   rpThisTurn: number,
@@ -117,9 +141,15 @@ export function processResearch(
     researchPoints: state.tech.researchPoints + rpThisTurn,
   };
 
-  // Chain completions while top of queue is affordable
+  // Chain completions while top of queue is affordable and still valid
   while (tech.queue.length > 0) {
     const headId = tech.queue[0];
+    // Re-validate: a queued cargo pact may have become invalid if another was
+    // completed earlier in this same chain. Skip (remove) invalid entries.
+    if (!canPurchaseQueuedTech(headId, tech)) {
+      tech = { ...tech, queue: tech.queue.slice(1) };
+      continue;
+    }
     const cost = effectiveCost(headId, tech);
     if (tech.researchPoints < cost) break;
     tech = applyPurchase(headId, {
