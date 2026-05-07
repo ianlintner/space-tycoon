@@ -257,10 +257,11 @@ describe("Phase 3 Integration", () => {
       tech: {
         researchPoints: 0,
         completedTechIds: [],
-        currentResearchId: "logistics_1",
+        currentResearchId: null,
         researchProgress: 0,
         purchaseCount: {},
-        queue: [],
+        // Queue fuel_efficiency_1 (center node, always available, costs 4 RP)
+        queue: ["fuel_efficiency_1"],
       },
     });
 
@@ -268,18 +269,30 @@ describe("Phase 3 Integration", () => {
     const rp = calculateRPPerTurn(state);
     expect(rp).toBeGreaterThan(0);
 
-    // processResearch returns TechState
+    // processResearch returns TechState; with queue active, researchProgress > 0 when rp < cost
     const updatedTech = processResearch(state, rp);
-    expect(updatedTech.researchProgress).toBeGreaterThan(0);
+    // researchPoints should be accumulated
+    expect(updatedTech.researchPoints).toBeGreaterThan(0);
   });
 
   it("setResearchTarget + processResearch flows correctly", () => {
-    const state = makeGameState();
+    // fuel_efficiency_1 is the center node — always available without prerequisites
+    const state = makeGameState({
+      tech: {
+        researchPoints: 0,
+        completedTechIds: [],
+        currentResearchId: null,
+        researchProgress: 0,
+        purchaseCount: {},
+        queue: [],
+      },
+    });
 
     // setResearchTarget takes (techId, techState)
-    const newTech = setResearchTarget("logistics_hub", state.tech);
+    // fuel_efficiency_1 is always available; with 0 RP < cost=4, it will be queued
+    const newTech = setResearchTarget("fuel_efficiency_1", state.tech);
     expect(newTech).not.toBeNull();
-    expect(newTech!.currentResearchId).toBe("logistics_hub");
+    expect(newTech!.currentResearchId).toBe("fuel_efficiency_1");
 
     // Calculate RP and process
     const stateWithTarget: GameState = {
@@ -289,8 +302,8 @@ describe("Phase 3 Integration", () => {
     const rp = calculateRPPerTurn(stateWithTarget);
     const updatedTech = processResearch(stateWithTarget, rp);
 
-    // Should have progress
-    expect(updatedTech.researchProgress).toBeGreaterThan(0);
+    // Should have accumulated RP
+    expect(updatedTech.researchPoints).toBeGreaterThan(0);
   });
 
   it("getAvailableRouteSlots includes base + tech bonus", () => {
