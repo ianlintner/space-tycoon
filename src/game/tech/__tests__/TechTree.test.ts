@@ -18,6 +18,8 @@ function makeTechState(overrides: Partial<TechState> = {}): TechState {
     completedTechIds: [],
     currentResearchId: null,
     researchProgress: 0,
+    purchaseCount: {},
+    queue: [],
     ...overrides,
   };
 }

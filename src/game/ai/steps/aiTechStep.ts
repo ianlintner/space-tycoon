@@ -88,6 +88,8 @@ export function processAITech(
     completedTechIds: [],
     currentResearchId: null,
     researchProgress: 0,
+    purchaseCount: {},
+    queue: [],
   };
 
   // Pick branch based on personality if no current research queued

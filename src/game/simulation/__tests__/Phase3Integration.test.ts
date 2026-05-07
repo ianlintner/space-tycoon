@@ -183,6 +183,8 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
       completedTechIds: [],
       currentResearchId: null,
       researchProgress: 0,
+      purchaseCount: {},
+      queue: [],
     },
     empireTradePolicies: {},
     interEmpireCargoLocks: [],
@@ -257,6 +259,8 @@ describe("Phase 3 Integration", () => {
         completedTechIds: [],
         currentResearchId: "logistics_1",
         researchProgress: 0,
+        purchaseCount: {},
+        queue: [],
       },
     });
 
@@ -297,6 +301,8 @@ describe("Phase 3 Integration", () => {
         completedTechIds: ["logistics_1"],
         currentResearchId: null,
         researchProgress: 0,
+        purchaseCount: {},
+        queue: [],
       },
     });
 
@@ -323,6 +329,8 @@ describe("Phase 3 Integration", () => {
         completedTechIds: ["logistics_1", "fuel_1", "nav_1"],
         currentResearchId: null,
         researchProgress: 0,
+        purchaseCount: {},
+        queue: [],
       },
     });
     const enhancedScore = calculateScore(enhancedState);

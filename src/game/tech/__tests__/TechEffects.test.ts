@@ -53,6 +53,8 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
       completedTechIds: [],
       currentResearchId: null,
       researchProgress: 0,
+      purchaseCount: {},
+      queue: [],
     },
     empireTradePolicies: {},
     interEmpireCargoLocks: [],
@@ -91,6 +93,8 @@ describe("Tech Effects", () => {
         completedTechIds: ["logistics_1", "logistics_2"],
         currentResearchId: null,
         researchProgress: 0,
+        purchaseCount: {},
+        queue: [],
       },
     });
     // logistics_1 = +1, logistics_2 = +1
@@ -109,6 +113,8 @@ describe("Tech Effects", () => {
         completedTechIds: ["logistics_1"],
         currentResearchId: null,
         researchProgress: 0,
+        purchaseCount: {},
+        queue: [],
       },
     });
     expect(hasTechEffect(state, "addRouteSlots")).toBe(true);
@@ -126,6 +132,8 @@ describe("Tech Effects", () => {
         completedTechIds: ["logistics_1", "logistics_2"], // logistics_2 has -0.1 licenseFee
         currentResearchId: null,
         researchProgress: 0,
+        purchaseCount: {},
+        queue: [],
       },
     });
     expect(getLicenseFeeMultiplier(state)).toBeCloseTo(0.9);
