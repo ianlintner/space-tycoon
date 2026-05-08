@@ -88,6 +88,9 @@ export class SimPlaybackScene extends Phaser.Scene {
     // full-opacity galaxy.
     setGalaxy3DDimmed(false);
 
+    // Speed up ship movement to reflect an active simulation quarter.
+    getActiveGalaxyView()?.setShipSpeedMultiplier(12);
+
     // ── Revenue pop timers (projected onto 3D route curves) ───────────────────
     const routeRevenueMap = new Map<string, number>();
     for (const rp of this.turnResult.routePerformance) {
@@ -617,6 +620,7 @@ export class SimPlaybackScene extends Phaser.Scene {
   private finishAnimation(): void {
     if (this.animationComplete) return;
     this.animationComplete = true;
+    getActiveGalaxyView()?.setShipSpeedMultiplier(1);
     gameStore.setState(this.newState);
     const theme = getTheme();
     const net = this.turnResult.netProfit;

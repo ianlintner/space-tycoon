@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import type {
   BorderPort,
   Empire,
@@ -15,6 +18,10 @@ import { applyView3DResize } from "../view3d/applyView3DResize.ts";
  * systems, and active trade routes as 3D curves. Mirrors the architecture of
  * SystemView3D — sibling canvas to Phaser, pointer-events disabled, camera
  * orbits a fixed centroid with bounds.
+ *
+ * Also renders all animated visual elements that were previously Phaser
+ * GameObjects in GalaxyMapScene: traffic ships, empire name labels, HQ markers,
+ * highlight ring, and route-origin ring.
  */
 
 export interface ViewportRect {
@@ -43,8 +50,13 @@ export interface GalaxyView3DOptions {
   designHeight: number;
 }
 
-const COORD_SCALE = 0.08;
-const Y_WOBBLE = 4;
+export interface HQMarker3D {
+  systemId: string;
+  isPlayer: boolean;
+}
+
+const COORD_SCALE = 0.16;
+const Y_WOBBLE = 8;
 
 /**
  * Stable DOM class for every Three.js galaxy canvas. Multiple scenes
@@ -104,6 +116,29 @@ const HYPERLANE_RESTRICTED_COLOR = 0xffaa00;
 const HYPERLANE_CLOSED_COLOR = 0xff4444;
 const ROUTE_PLAYER_COLOR = 0xffd178;
 const ROUTE_AI_COLOR = 0x9aa6c8;
+const SHIP_PLAYER_COLOR = 0xffd178;
+const SHIP_AI_COLOR = 0x9aa6c8;
+
+// Lazy-cached ship sprite texture (shared across all ship instances).
+let _shipTexture: THREE.CanvasTexture | null = null;
+function getShipTexture(_isPlayer: boolean): THREE.CanvasTexture {
+  // We only need the texture once (player/AI both use radial gradient, just tinted).
+  if (!_shipTexture) {
+    _shipTexture = createRadialGradientTexture(0xffffff);
+  }
+  return _shipTexture;
+}
+
+interface ShipInstance3D {
+  sprite: THREE.Sprite;
+  routeId: string;
+  ownerId: string;
+  t: number;
+  speed: number;
+  dir: 1 | -1;
+  waiting: boolean;
+  waitRemaining: number;
+}
 
 export class GalaxyView3D {
   private readonly canvas: HTMLCanvasElement;
@@ -127,6 +162,31 @@ export class GalaxyView3D {
   private readonly routeBaseOpacity: number[] = [];
   private routeCompanyFilter: string | null = null;
   private starfield: THREE.Points | null = null;
+  private nebulae: THREE.Sprite[] = [];
+  private readonly systemLabels = new Map<string, THREE.Sprite>();
+
+  // ── Empire name labels (3D sprites) ─────────────────────────────────────────
+  private readonly empireLabels3D = new Map<string, THREE.Sprite>();
+
+  // ── HQ markers (3D sprites) ──────────────────────────────────────────────────
+  private hqMarkers3D: THREE.Sprite[] = [];
+
+  // ── Highlight ring (selected system) ─────────────────────────────────────────
+  private highlightRing3D: THREE.Mesh | null = null;
+
+  // ── Route-origin ring ─────────────────────────────────────────────────────────
+  private originRing3D: THREE.Mesh | null = null;
+
+  // ── Traffic ships ─────────────────────────────────────────────────────────────
+  private ships3D: ShipInstance3D[] = [];
+  private shipSpeedMultiplier = 1;
+  private showShips3D = true;
+
+  // Bloom post-processing. Note: UnrealBloomPass runs on internal FBOs that
+  // don't respect the WebGL scissor, so bloom bleeds into areas that should
+  // be transparent. After composer.render() we use raw WebGL to clear the
+  // non-viewport strips back to alpha=0.
+  private composer: EffectComposer | null = null;
 
   private viewport: ViewportRect = { x: 0, y: 0, w: 0, h: 0 };
 
@@ -218,6 +278,18 @@ export class GalaxyView3D {
     // glowing-from-within look without having to rig N point lights.
     this.scene.add(new THREE.AmbientLight(0xc0c8e0, 1.0));
 
+    // Bloom post-processing: UnrealBloomPass gives stars and route lines a
+    // convincing glow without needing real point lights everywhere.
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    const bloom = new UnrealBloomPass(
+      new THREE.Vector2(this.designWidth, this.designHeight),
+      0.65, // strength — 30% lower than initial 0.9
+      0.45, // radius
+      0.72, // threshold — only proper star emissives bloom; halos/nebulae/sprites stay unaffected
+    );
+    this.composer.addPass(bloom);
+
     this.buildStarfield();
     this.syncCanvasPosition();
     this.observeResize();
@@ -241,6 +313,7 @@ export class GalaxyView3D {
     this.designWidth = width;
     this.designHeight = height;
     applyView3DResize(this.renderer, this.camera, width, height);
+    this.composer?.setSize(width, height);
   }
 
   setGalaxy(
@@ -253,6 +326,8 @@ export class GalaxyView3D {
     this.rebuildSystems(systems);
     this.rebuildEmpireHalos(systems, empires);
     this.rebuildHyperlanes(hyperlanes, borderPorts);
+    this.buildNebulae();
+    this.rebuildEmpireLabels3D(empires);
   }
 
   setRoutes(trafficVisuals: RouteTrafficVisual[]): void {
@@ -264,10 +339,33 @@ export class GalaxyView3D {
     this.canvas.style.opacity = String(Math.max(0, Math.min(1, opacity)));
   }
 
+  /**
+   * Update 3D system label visibility based on camera distance and user toggle.
+   * Call each frame from GalaxyMapScene.update(). Hidden when camera is too far
+   * out (labels would overlap and be unreadable) or when Names toggle is off.
+   */
+  updateSystemLabelLOD(
+    camDist: number,
+    halfExtent: number,
+    namesOn: boolean,
+  ): void {
+    const visible = namesOn && camDist < halfExtent * 2.2;
+    for (const label of this.systemLabels.values()) {
+      label.visible = visible;
+    }
+  }
+
   /** Toggle the empire territory bubbles. */
   setEmpireHalosVisible(visible: boolean): void {
     for (const halo of this.empireHalos.values()) {
       halo.visible = visible;
+    }
+  }
+
+  /** Toggle the empire name label sprites. */
+  setEmpireLabelsVisible(visible: boolean): void {
+    for (const label of this.empireLabels3D.values()) {
+      label.visible = visible;
     }
   }
 
@@ -276,10 +374,12 @@ export class GalaxyView3D {
    * When set, routes whose owner doesn't match get ghosted to a dim alpha so
    * the player can still see the lane network without the visual noise of
    * unrelated companies' traffic.
+   * Also updates ship visibility: non-matching ships are hidden.
    */
   setRouteCompanyFilter(ownerId: string | null): void {
     this.routeCompanyFilter = ownerId;
     this.applyRouteFilterAlpha();
+    this.applyShipFilter();
   }
 
   /**
@@ -395,6 +495,318 @@ export class GalaxyView3D {
     this.applyCameraOrbit();
   }
 
+  // ── Traffic ships ──────────────────────────────────────────────────────────
+
+  /**
+   * Rebuild the 3D ship sprites from route traffic visuals.
+   * Replaces GalaxyMapScene.rebuildTrafficShips().
+   */
+  setShips(
+    visuals: RouteTrafficVisual[],
+    isPlayerRoute: (routeId: string) => boolean,
+  ): void {
+    this.clearShips3D();
+
+    for (const visual of visuals) {
+      if (visual.assignedShips.length === 0) continue;
+      if (visual.visibleUnits === 0) continue;
+
+      const player = isPlayerRoute(visual.routeId);
+      const color = player ? SHIP_PLAYER_COLOR : SHIP_AI_COLOR;
+      const tex = getShipTexture(player);
+
+      for (let i = 0; i < visual.visibleUnits; i++) {
+        const mat = new THREE.SpriteMaterial({
+          map: tex,
+          color,
+          transparent: true,
+          opacity: 0.95,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(1.2, 1.2, 1);
+        sprite.visible = this.showShips3D;
+        this.scene.add(sprite);
+
+        this.ships3D.push({
+          sprite,
+          routeId: visual.routeId,
+          ownerId: visual.ownerId,
+          t: i / Math.max(1, visual.visibleUnits),
+          speed: 0.012 + Math.random() * 0.01,
+          dir: Math.random() < 0.5 ? 1 : -1,
+          waiting: false,
+          waitRemaining: 0,
+        });
+      }
+    }
+
+    this.applyShipFilter();
+  }
+
+  /**
+   * Advance ship positions along their route curves. Call each frame with
+   * delta time in seconds.
+   */
+  updateShips(dt: number): void {
+    const filter = this.routeCompanyFilter;
+
+    for (const ship of this.ships3D) {
+      const curve = this.routeCurves.get(ship.routeId);
+
+      // Filter or layer-off: hide ship entirely.
+      const filteredOut = filter !== null && ship.ownerId !== filter;
+      if (!this.showShips3D || filteredOut) {
+        ship.sprite.visible = false;
+        continue;
+      }
+      if (!curve) {
+        ship.sprite.visible = false;
+        continue;
+      }
+
+      // Wait countdown at terminus.
+      if (ship.waiting) {
+        ship.waitRemaining -= dt;
+        if (ship.waitRemaining <= 0) {
+          ship.waiting = false;
+          ship.waitRemaining = 0;
+        }
+      } else {
+        ship.t += ship.speed * this.shipSpeedMultiplier * ship.dir * dt;
+        if (ship.t >= 1) {
+          ship.t = 1;
+          ship.dir = -1;
+          if (Math.random() < 0.45) {
+            ship.waiting = true;
+            ship.waitRemaining = 0.8 + Math.random() * 2.5;
+          }
+        } else if (ship.t <= 0) {
+          ship.t = 0;
+          ship.dir = 1;
+          if (Math.random() < 0.45) {
+            ship.waiting = true;
+            ship.waitRemaining = 0.8 + Math.random() * 2.5;
+          }
+        }
+      }
+
+      curve.getPointAt(ship.t, this.tmpVec);
+      ship.sprite.position.set(
+        this.tmpVec.x,
+        this.tmpVec.y + 0.5,
+        this.tmpVec.z,
+      );
+      ship.sprite.visible = true;
+    }
+  }
+
+  /** Show or hide all traffic ship sprites. */
+  setShipsVisible(visible: boolean): void {
+    this.showShips3D = visible;
+    for (const ship of this.ships3D) {
+      ship.sprite.visible = visible;
+    }
+    if (visible) {
+      // Re-apply filter so non-matching ships get hidden again after show.
+      this.applyShipFilter();
+    }
+  }
+
+  /** Set the playback speed multiplier for ship movement. */
+  setShipSpeedMultiplier(multiplier: number): void {
+    this.shipSpeedMultiplier = multiplier;
+  }
+
+  private applyShipFilter(): void {
+    const filter = this.routeCompanyFilter;
+    if (!this.showShips3D) return;
+    for (const ship of this.ships3D) {
+      ship.sprite.visible = filter === null || ship.ownerId === filter;
+    }
+  }
+
+  private clearShips3D(): void {
+    for (const ship of this.ships3D) {
+      this.scene.remove(ship.sprite);
+      const mat = ship.sprite.material as THREE.SpriteMaterial;
+      mat.dispose();
+    }
+    this.ships3D = [];
+  }
+
+  // ── Empire name labels ─────────────────────────────────────────────────────
+
+  private rebuildEmpireLabels3D(empires: Empire[]): void {
+    for (const label of this.empireLabels3D.values()) {
+      this.scene.remove(label);
+      const mat = label.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.empireLabels3D.clear();
+
+    for (const emp of empires) {
+      const centroid = this.empireCentroids.get(emp.id);
+      if (!centroid) continue;
+
+      const labelSprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: createLabelTexture(emp.name),
+          transparent: true,
+          opacity: 0.78,
+          depthWrite: false,
+          sizeAttenuation: true,
+        }),
+      );
+      // Float above the territory halo centroid.
+      labelSprite.position.set(centroid.x, centroid.y + 3, centroid.z);
+      labelSprite.scale.set(10, 2.5, 1);
+      this.scene.add(labelSprite);
+      this.empireLabels3D.set(emp.id, labelSprite);
+    }
+  }
+
+  // ── HQ markers ────────────────────────────────────────────────────────────
+
+  /**
+   * Rebuild the 3D HQ marker sprites from the provided marker data.
+   * Replaces the Phaser dot+label approach in GalaxyMapScene.buildHQMarkers().
+   */
+  setHQMarkers3D(markers: HQMarker3D[]): void {
+    this.clearHQMarkers3D();
+
+    for (const m of markers) {
+      const pos = this.systemPositions.get(m.systemId);
+      if (!pos) continue;
+
+      const tex = createHQMarkerTexture(m.isPlayer);
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: false,
+        sizeAttenuation: true,
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.position.set(pos.x, pos.y + 2.0, pos.z);
+      sprite.scale.set(2, 2, 1);
+      this.scene.add(sprite);
+      this.hqMarkers3D.push(sprite);
+    }
+  }
+
+  private clearHQMarkers3D(): void {
+    for (const sprite of this.hqMarkers3D) {
+      this.scene.remove(sprite);
+      const mat = sprite.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.hqMarkers3D = [];
+  }
+
+  // ── Highlight ring ────────────────────────────────────────────────────────
+
+  /**
+   * Show a pulsing ring around the given system (white additive).
+   * Pass null to hide.
+   */
+  setHighlightedSystem(systemId: string | null): void {
+    if (!systemId) {
+      if (this.highlightRing3D) {
+        this.highlightRing3D.visible = false;
+      }
+      return;
+    }
+    const pos = this.systemPositions.get(systemId);
+    if (!pos) {
+      if (this.highlightRing3D) this.highlightRing3D.visible = false;
+      return;
+    }
+
+    if (!this.highlightRing3D) {
+      const geom = new THREE.RingGeometry(1.4, 1.8, 48);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      this.highlightRing3D = new THREE.Mesh(geom, mat);
+      // Flat ring in the XZ plane (galaxy plane).
+      this.highlightRing3D.rotation.x = -Math.PI / 2;
+      this.scene.add(this.highlightRing3D);
+    }
+
+    this.highlightRing3D.position.set(pos.x, pos.y, pos.z);
+    this.highlightRing3D.visible = true;
+  }
+
+  // ── Route origin ring ─────────────────────────────────────────────────────
+
+  /**
+   * Show a pulsing teal ring around the route-origin system.
+   * Pass null to hide.
+   */
+  setRouteOriginSystem(systemId: string | null): void {
+    if (!systemId) {
+      if (this.originRing3D) {
+        this.originRing3D.visible = false;
+      }
+      return;
+    }
+    const pos = this.systemPositions.get(systemId);
+    if (!pos) {
+      if (this.originRing3D) this.originRing3D.visible = false;
+      return;
+    }
+
+    if (!this.originRing3D) {
+      const geom = new THREE.RingGeometry(1.6, 2.1, 48);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x00ffcc,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      this.originRing3D = new THREE.Mesh(geom, mat);
+      this.originRing3D.rotation.x = -Math.PI / 2;
+      this.scene.add(this.originRing3D);
+    }
+
+    this.originRing3D.position.set(pos.x, pos.y, pos.z);
+    this.originRing3D.visible = true;
+  }
+
+  // ── Per-frame update (called by GalaxyMapScene.update) ────────────────────
+
+  /**
+   * Advance all animated 3D elements. dt is in seconds.
+   */
+  update(dt: number): void {
+    this.updateShips(dt);
+
+    const now = performance.now();
+
+    // Highlight ring pulse.
+    if (this.highlightRing3D?.visible) {
+      const mat = this.highlightRing3D.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.55 + 0.25 * Math.sin(now * 0.003);
+    }
+
+    // Route-origin ring pulse (offset phase).
+    if (this.originRing3D?.visible) {
+      const mat = this.originRing3D.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.55 + 0.25 * Math.sin(now * 0.003 + Math.PI * 0.6);
+    }
+  }
+
   destroy(): void {
     this.destroyed = true;
     if (this.rafId !== null) {
@@ -436,6 +848,52 @@ export class GalaxyView3D {
     this.routeCurves.clear();
     this.starfield?.geometry.dispose();
     if (this.starfield) (this.starfield.material as THREE.Material).dispose();
+    for (const label of this.systemLabels.values()) {
+      this.scene.remove(label);
+      const mat = label.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.systemLabels.clear();
+    for (const neb of this.nebulae) {
+      this.scene.remove(neb);
+      const mat = neb.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.nebulae = [];
+
+    // Empire labels.
+    for (const label of this.empireLabels3D.values()) {
+      this.scene.remove(label);
+      const mat = label.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.empireLabels3D.clear();
+
+    // HQ markers.
+    this.clearHQMarkers3D();
+
+    // Traffic ships.
+    this.clearShips3D();
+
+    // Rings.
+    if (this.highlightRing3D) {
+      this.scene.remove(this.highlightRing3D);
+      this.highlightRing3D.geometry.dispose();
+      (this.highlightRing3D.material as THREE.Material).dispose();
+      this.highlightRing3D = null;
+    }
+    if (this.originRing3D) {
+      this.scene.remove(this.originRing3D);
+      this.originRing3D.geometry.dispose();
+      (this.originRing3D.material as THREE.Material).dispose();
+      this.originRing3D = null;
+    }
+
+    this.composer?.dispose();
+    this.composer = null;
 
     this.renderer.dispose();
     this.canvas.parentElement?.removeChild(this.canvas);
@@ -506,6 +964,13 @@ export class GalaxyView3D {
       mat.dispose();
     }
     this.systemHalos.clear();
+    for (const label of this.systemLabels.values()) {
+      this.scene.remove(label);
+      const mat = label.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.systemLabels.clear();
     this.systemPositions.clear();
 
     for (const sys of systems) {
@@ -543,6 +1008,24 @@ export class GalaxyView3D {
       halo.scale.set(3.4, 3.4, 1);
       this.scene.add(halo);
       this.systemHalos.set(sys.id, halo);
+
+      // 3D text label — billboarded sprite above the star, hidden at far zoom.
+      const labelSprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: createLabelTexture(sys.name),
+          transparent: true,
+          opacity: 0.92,
+          depthWrite: false,
+          sizeAttenuation: true,
+        }),
+      );
+      // Float the label 1.8 world units above the star sphere.
+      labelSprite.position.set(pos.x, pos.y + 1.8, pos.z);
+      // Scale to a readable world-space size; the sizeAttenuation perspective
+      // shrinks them naturally as the camera pulls back, matching the stars.
+      labelSprite.scale.set(8, 2, 1);
+      this.scene.add(labelSprite);
+      this.systemLabels.set(sys.id, labelSprite);
     }
   }
 
@@ -775,6 +1258,62 @@ export class GalaxyView3D {
     }
   }
 
+  private buildNebulae(): void {
+    // Remove existing nebulae before rebuilding (called when galaxy changes).
+    for (const neb of this.nebulae) {
+      this.scene.remove(neb);
+      const mat = neb.material as THREE.SpriteMaterial;
+      mat.map?.dispose();
+      mat.dispose();
+    }
+    this.nebulae = [];
+
+    // Palette of nebula colors: warm emission (orange/red), cool reflection
+    // (blue/teal), and neutral dust (purple/grey). Matches Stellaris-style
+    // interstellar medium coloring.
+    const NEBULA_COLORS = [
+      0xff6a28, // emission orange
+      0xd44020, // deep red
+      0x2868e8, // cool blue
+      0x1ba8c8, // teal
+      0x8040c0, // purple
+      0xc07040, // golden dust
+      0x204080, // deep indigo
+    ];
+
+    const ext = this.galaxyHalfExtent;
+    const rng = mulberry32(0xbeef1234); // stable seed — same nebulae every load
+
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+      const color = NEBULA_COLORS[i % NEBULA_COLORS.length];
+      const angle = rng() * Math.PI * 2;
+      // Distribute across 0.15–0.9 of the half-extent so nebulae fill the
+      // disc without piling up at the centre or hanging beyond the fringe.
+      const radius = (0.15 + rng() * 0.75) * ext;
+      const nx = Math.cos(angle) * radius + this.centroidX;
+      const nz = Math.sin(angle) * radius + this.centroidZ;
+      const ny = (rng() - 0.5) * 6; // slight vertical scatter
+
+      const size = (8 + rng() * 28) * (ext / 80); // scale with galaxy size
+
+      const tex = createNebulaTexture(color);
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        color,
+        transparent: true,
+        opacity: 0.07 + rng() * 0.07,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.position.set(nx, ny, nz);
+      sprite.scale.set(size, size * (0.5 + rng() * 0.6), 1);
+      this.scene.add(sprite);
+      this.nebulae.push(sprite);
+    }
+  }
+
   private buildStarfield(): void {
     const count = 1200;
     const positions = new Float32Array(count * 3);
@@ -851,7 +1390,60 @@ export class GalaxyView3D {
       this.viewport.h,
     );
     this.renderer.setScissorTest(true);
-    this.renderer.render(this.scene, this.camera);
+    if (this.composer) {
+      // Disable scissor for the composer's internal multi-pass bloom FBOs —
+      // they must render the full image so bloom on viewport-edge stars looks
+      // correct. The scissor is restored after.
+      this.renderer.setScissorTest(false);
+      this.composer.render();
+      // Bloom bleeds outside the viewport into what should be transparent.
+      // Clear the non-viewport strips with raw WebGL so the sidebar chrome
+      // (rendered by Phaser below z-index 2) isn't obscured.
+      this.clearOutsideViewport(yFromBottom);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
+  }
+
+  private clearOutsideViewport(yFromBottom: number): void {
+    const gl = this.renderer.getContext();
+    // Raw WebGL calls (gl.scissor, gl.clear) operate in physical drawing-buffer
+    // pixels, while this.viewport and designWidth/Height are in logical CSS
+    // (design) pixels. On HiDPI/Retina displays (pixelRatio = 2) we must scale
+    // every coordinate before passing it to gl.scissor, otherwise the clears
+    // hit completely wrong areas and bloom bleeds past the viewport borders.
+    const dpr = this.renderer.getPixelRatio();
+    gl.enable(gl.SCISSOR_TEST);
+    gl.clearColor(0, 0, 0, 0);
+    const vx = Math.round(this.viewport.x * dpr);
+    const vw = Math.round(this.viewport.w * dpr);
+    const vh = Math.round(this.viewport.h * dpr);
+    const dw = Math.round(this.designWidth * dpr);
+    const dh = Math.round(this.designHeight * dpr);
+    const yfb = Math.round(yFromBottom * dpr);
+    // Left strip (nav sidebar)
+    if (vx > 0) {
+      gl.scissor(0, 0, vx, dh);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    // Right strip
+    const rx = vx + vw;
+    if (rx < dw) {
+      gl.scissor(rx, 0, dw - rx, dh);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    // Bottom strip (in WebGL y-up coords, below the viewport)
+    if (yfb > 0) {
+      gl.scissor(vx, 0, vw, yfb);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    // Top strip (above the viewport in WebGL y-up coords)
+    const ty = yfb + vh;
+    if (ty < dh) {
+      gl.scissor(vx, ty, vw, dh - ty);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    gl.disable(gl.SCISSOR_TEST);
   }
 
   private syncCanvasPosition(): void {
@@ -877,6 +1469,135 @@ export class GalaxyView3D {
 
 function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
+}
+
+/**
+ * System name label texture. White text with a dark semi-transparent backing
+ * pill so it reads against both bright nebulae and dark space.
+ */
+function createLabelTexture(name: string): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  const fontSize = 22;
+  const padding = 10;
+  canvas.height = fontSize + padding * 2;
+  // Measure text width first
+  const ctx = canvas.getContext("2d")!;
+  ctx.font = `500 ${fontSize}px "Inter", "Segoe UI", sans-serif`;
+  const textW = ctx.measureText(name).width;
+  canvas.width = Math.ceil(textW + padding * 3);
+  // Re-get context after resize (some browsers require this)
+  const ctx2 = canvas.getContext("2d")!;
+  ctx2.font = `500 ${fontSize}px "Inter", "Segoe UI", sans-serif`;
+  // Dark pill background for readability
+  const rx = padding / 2;
+  const ry = padding / 2;
+  const rw = canvas.width - padding;
+  const rh = canvas.height - padding;
+  ctx2.fillStyle = "rgba(0, 0, 10, 0.55)";
+  ctx2.beginPath();
+  ctx2.roundRect(rx, ry, rw, rh, 6);
+  ctx2.fill();
+  // Text shadow for extra pop
+  ctx2.shadowColor = "rgba(0, 20, 60, 0.9)";
+  ctx2.shadowBlur = 4;
+  ctx2.fillStyle = "#d8e8ff";
+  ctx2.textAlign = "center";
+  ctx2.textBaseline = "middle";
+  ctx2.fillText(name, canvas.width / 2, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/**
+ * HQ marker texture: small diamond shape, white for player, yellow for AI.
+ * Rendered to a 32×32 canvas so it stays crisp at the 2×2 world-unit scale.
+ */
+function createHQMarkerTexture(isPlayer: boolean): THREE.CanvasTexture {
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  const half = size / 2;
+  const d = half * 0.65; // half-diagonal of diamond
+
+  // Dark backing circle for contrast against both dark space and bright stars.
+  ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+  ctx.beginPath();
+  ctx.arc(half, half, half * 0.85, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Diamond shape.
+  ctx.fillStyle = isPlayer ? "#ffffff" : "#ffd178";
+  ctx.beginPath();
+  ctx.moveTo(half, half - d);
+  ctx.lineTo(half + d, half);
+  ctx.lineTo(half, half + d);
+  ctx.lineTo(half - d, half);
+  ctx.closePath();
+  ctx.fill();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/** Mulberry32 — fast seeded PRNG. Returns a function that produces [0,1) values. */
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0;
+  return (): number => {
+    s += 0x6d2b79f5;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Nebula texture: soft wispy cloud shape with asymmetric falloff to break
+ * the perfect-circle look. Rendered once per nebula at 256×256.
+ */
+function createNebulaTexture(centerColor: number): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const r = (centerColor >> 16) & 0xff;
+  const g = (centerColor >> 8) & 0xff;
+  const b = centerColor & 0xff;
+  const cx = size / 2;
+  const cy = size / 2;
+  // Primary soft blob
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx * 0.95);
+  grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.9)`);
+  grad.addColorStop(0.25, `rgba(${r}, ${g}, ${b}, 0.5)`);
+  grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.15)`);
+  grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  // Off-centre secondary lobe for asymmetry
+  const ox = cx * 0.3;
+  const oy = cy * -0.2;
+  const grad2 = ctx.createRadialGradient(
+    cx + ox,
+    cy + oy,
+    0,
+    cx + ox,
+    cy + oy,
+    cx * 0.55,
+  );
+  grad2.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.4)`);
+  grad2.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.1)`);
+  grad2.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+  ctx.globalCompositeOperation = "screen";
+  ctx.fillStyle = grad2;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
 }
 
 function hashString(str: string): number {
