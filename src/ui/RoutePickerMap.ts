@@ -53,7 +53,11 @@ interface PlanetHit {
   id: string;
   mx: number;
   my: number;
-  r: number;
+}
+
+interface StarHit {
+  mx: number;
+  my: number;
 }
 
 export class RoutePickerMap {
@@ -64,9 +68,11 @@ export class RoutePickerMap {
   private readonly height: number;
   private readonly depth: number;
   private readonly graphics: Phaser.GameObjects.Graphics;
+  private readonly flashGraphics: Phaser.GameObjects.Graphics;
   private readonly hitZone: Phaser.GameObjects.Zone;
   private hoverLabel: Phaser.GameObjects.Text;
   private planetHits: PlanetHit[] = [];
+  private barrenStarHits: StarHit[] = [];
   private planetById = new Map<string, Planet>();
   private currentHover: string | null = null;
   private readonly onPlanetClick?: (planetId: string) => void;
@@ -84,6 +90,9 @@ export class RoutePickerMap {
 
     this.graphics = this.scene.add.graphics();
     this.graphics.setDepth(this.depth);
+
+    this.flashGraphics = this.scene.add.graphics();
+    this.flashGraphics.setDepth(this.depth + 3);
 
     const theme = getTheme();
     this.hoverLabel = this.scene.add.text(
@@ -112,7 +121,7 @@ export class RoutePickerMap {
     this.hitZone.setInteractive();
 
     this.hitZone.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      const planetId = this.findPlanetAt(pointer.worldX, pointer.worldY);
+      const planetId = this.findNearestPlanet(pointer.worldX, pointer.worldY);
       if (planetId !== this.currentHover) {
         this.currentHover = planetId;
         this.updateHoverLabel(planetId);
@@ -127,9 +136,13 @@ export class RoutePickerMap {
       }
     });
     this.hitZone.on("pointerup", (pointer: Phaser.Input.Pointer) => {
-      const planetId = this.findPlanetAt(pointer.worldX, pointer.worldY);
+      const planetId = this.findNearestPlanet(pointer.worldX, pointer.worldY);
       if (planetId) {
         this.onPlanetClick?.(planetId);
+      } else {
+        // Clicked near a barren star — flash red to communicate no trade destinations
+        const star = this.findNearestBarrenStar(pointer.worldX, pointer.worldY);
+        if (star) this.flashBarrenAt(star.mx, star.my);
       }
     });
 
@@ -138,13 +151,14 @@ export class RoutePickerMap {
 
   /**
    * Render the galaxy with all systems + their planets.
-   * Plants are clickable. If cargoType is set, planet halos scale with
+   * Planets are clickable. If cargoType is set, planet halos scale with
    * demand-match (or production-match) for that cargo.
    */
   draw(opts: RoutePickerDrawOptions): void {
     this.graphics.clear();
     this.drawBackground();
     this.planetHits = [];
+    this.barrenStarHits = [];
     this.planetById.clear();
     for (const p of opts.planets) this.planetById.set(p.id, p);
 
@@ -213,6 +227,14 @@ export class RoutePickerMap {
       }
     }
 
+    // Track barren stars (systems with no planets) for red-flash feedback
+    for (const sys of opts.systems) {
+      if (!planetsBySystem.has(sys.id)) {
+        const c = sysPos.get(sys.id)!;
+        this.barrenStarHits.push({ mx: c.mx, my: c.my });
+      }
+    }
+
     // Draw existing active routes as dim lines (planet → planet)
     this.graphics.lineStyle(1, theme.colors.accent, 0.12);
     for (const route of opts.activeRoutes) {
@@ -225,10 +247,11 @@ export class RoutePickerMap {
       this.graphics.strokePath();
     }
 
-    // Draw star centers (dim)
+    // Draw star centers — barren stars slightly dimmer
     for (const sys of opts.systems) {
       const p = sysPos.get(sys.id)!;
-      this.graphics.fillStyle(sys.starColor, 0.55);
+      const isBarren = !planetsBySystem.has(sys.id);
+      this.graphics.fillStyle(sys.starColor, isBarren ? 0.3 : 0.55);
       this.graphics.fillCircle(p.mx, p.my, 1.4);
     }
 
@@ -268,7 +291,7 @@ export class RoutePickerMap {
       this.graphics.fillStyle(baseColor, isOrigin || isDest ? 1.0 : 0.85);
       this.graphics.fillCircle(pos.mx, pos.my, 2.3);
 
-      hits.push({ id: planet.id, mx: pos.mx, my: pos.my, r: 6 });
+      hits.push({ id: planet.id, mx: pos.mx, my: pos.my });
     }
 
     // Draw the proposed route line (origin → destination) if both set
@@ -292,15 +315,20 @@ export class RoutePickerMap {
     this.updateHoverLabel(this.currentHover);
   }
 
-  /** Find planet under a world-space point, or null. */
-  findPlanetAt(worldX: number, worldY: number): string | null {
+  /**
+   * Returns the nearest planet to (worldX, worldY), regardless of distance.
+   * The hitZone bounds valid clicks to the map area, so any click inside the
+   * map should resolve to the nearest planet rather than failing a fixed-radius
+   * test (which breaks with dense galaxies where stars are only a few px apart).
+   */
+  findNearestPlanet(worldX: number, worldY: number): string | null {
     let bestId: string | null = null;
     let bestDist = Infinity;
     for (const hit of this.planetHits) {
       const dx = hit.mx - worldX;
       const dy = hit.my - worldY;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < hit.r && d < bestDist) {
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
         bestDist = d;
         bestId = hit.id;
       }
@@ -308,14 +336,56 @@ export class RoutePickerMap {
     return bestId;
   }
 
+  /**
+   * Returns the nearest barren star position within BARREN_SNAP_PX pixels,
+   * or null if none is close enough. Used to trigger the red-flash feedback.
+   */
+  private findNearestBarrenStar(
+    worldX: number,
+    worldY: number,
+  ): StarHit | null {
+    const BARREN_SNAP_PX2 = 20 * 20;
+    let best: StarHit | null = null;
+    let bestDist = Infinity;
+    for (const s of this.barrenStarHits) {
+      const dx = s.mx - worldX;
+      const dy = s.my - worldY;
+      const d = dx * dx + dy * dy;
+      if (d < BARREN_SNAP_PX2 && d < bestDist) {
+        bestDist = d;
+        best = s;
+      }
+    }
+    return best;
+  }
+
+  /** Animate a brief red ring at (mx, my) to signal no planets here. */
+  private flashBarrenAt(mx: number, my: number): void {
+    this.flashGraphics.clear();
+    this.flashGraphics.setAlpha(1);
+    this.flashGraphics.lineStyle(2, 0xff3333, 0.9);
+    this.flashGraphics.strokeCircle(mx, my, 6);
+
+    this.scene.tweens.add({
+      targets: this.flashGraphics,
+      alpha: 0,
+      duration: 350,
+      ease: "Quad.easeOut",
+      onComplete: () => {
+        this.flashGraphics.clear();
+      },
+    });
+  }
+
   destroy(): void {
     this.graphics.destroy();
+    this.flashGraphics.destroy();
     this.hitZone.destroy();
     this.hoverLabel.destroy();
   }
 
   getGameObjects(): Phaser.GameObjects.GameObject[] {
-    return [this.graphics, this.hoverLabel, this.hitZone];
+    return [this.graphics, this.flashGraphics, this.hoverLabel, this.hitZone];
   }
 
   private drawBackground(): void {
