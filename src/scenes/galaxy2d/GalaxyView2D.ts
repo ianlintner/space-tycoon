@@ -65,6 +65,11 @@ const SYSTEM_LABEL_DEFAULT_VISIBLE = true;
 // Empire name labels — large, faint, centered on each empire's territory.
 const EMPIRE_LABEL_DEPTH = 700;
 
+// Empire territory polygons — translucent fills behind systems but above bg.
+const TERRITORY_DEPTH = 100;
+const TERRITORY_FILL_ALPHA = 0.08;
+const TERRITORY_STROKE_ALPHA = 0.18;
+
 // HQ markers — sprite above the home system.
 const HQ_MARKER_DEPTH = 880;
 const HQ_MARKER_Y_OFFSET_WORLD = 2.4;
@@ -185,6 +190,13 @@ export class GalaxyView2D {
   // HQ markers — small chevron sprites above home systems.
   private readonly hqMarkerSprites: Phaser.GameObjects.Image[] = [];
   private readonly hqMarkerSystemIds: string[] = [];
+
+  // Empire territory polygons (Voronoi cells) — translucent fills.
+  private territoryGfx: Phaser.GameObjects.Graphics | null = null;
+  private territoryPolygons: Array<{
+    color: number;
+    worldVerts: Array<{ x: number; y: number; z: number }>;
+  }> = [];
 
   // Highlight (white) and route-origin (teal) rings, drawn via a single Graphics.
   private ringsGfx: Phaser.GameObjects.Graphics | null = null;
@@ -408,6 +420,31 @@ export class GalaxyView2D {
 
     this.computeEmpireCentroids(systems, empires);
     this.rebuildEmpireLabels(empires);
+    this.rebuildTerritoryPolygons(empires);
+  }
+
+  private rebuildTerritoryPolygons(empires: Empire[]): void {
+    this.territoryPolygons = [];
+    if (!this.territoryGfx) {
+      this.territoryGfx = this.scene.add.graphics();
+      this.territoryGfx.setDepth(TERRITORY_DEPTH);
+      this.galaxyContainer.add(this.territoryGfx);
+    } else {
+      this.territoryGfx.clear();
+    }
+    for (const emp of empires) {
+      const poly = emp.territoryPolygon;
+      if (!poly || poly.vertices.length < 3) continue;
+      // Polygon vertices live in the same (x, y) galaxy-coord space as
+      // StarSystem.x/y. Convert to world (3D) coords using the same transform
+      // worldPosFor() applies (scale + centroid offset, y on disc plane).
+      const worldVerts = poly.vertices.map((v) => ({
+        x: v.x * COORD_SCALE - this.centroidX,
+        y: -0.6, // sit just below the disc plane so stars render on top
+        z: v.y * COORD_SCALE - this.centroidZ,
+      }));
+      this.territoryPolygons.push({ color: emp.color, worldVerts });
+    }
   }
 
   update(dt: number): void {
@@ -586,6 +623,43 @@ export class GalaxyView2D {
       };
       drawRing(this.highlightSystemId, 0xffffff, 0.85);
       drawRing(this.originSystemId, 0x4dd0e1, 0.9);
+    }
+
+    // Empire territory polygons — translucent fills behind systems.
+    if (this.territoryGfx) {
+      this.territoryGfx.clear();
+      for (const poly of this.territoryPolygons) {
+        if (poly.worldVerts.length < 3) continue;
+        const screenPts: Array<{ x: number; y: number }> = [];
+        let allVisible = true;
+        for (const wv of poly.worldVerts) {
+          this.scratchNdcA.x = wv.x;
+          this.scratchNdcA.y = wv.y;
+          this.scratchNdcA.z = wv.z;
+          const proj = projectToScreenDesignInto(
+            this.scratchNdcB,
+            this.scratchNdcA,
+            viewProj,
+            this.viewport,
+          );
+          if (!proj.visible) {
+            allVisible = false;
+            break;
+          }
+          screenPts.push({ x: proj.x, y: proj.y });
+        }
+        if (!allVisible || screenPts.length < 3) continue;
+        this.territoryGfx.fillStyle(poly.color, TERRITORY_FILL_ALPHA);
+        this.territoryGfx.beginPath();
+        this.territoryGfx.moveTo(screenPts[0].x, screenPts[0].y);
+        for (let i = 1; i < screenPts.length; i++) {
+          this.territoryGfx.lineTo(screenPts[i].x, screenPts[i].y);
+        }
+        this.territoryGfx.closePath();
+        this.territoryGfx.fillPath();
+        this.territoryGfx.lineStyle(1, poly.color, TERRITORY_STROKE_ALPHA);
+        this.territoryGfx.strokePath();
+      }
     }
 
     // Hyperlanes — redrawn per frame.
@@ -799,6 +873,12 @@ export class GalaxyView2D {
       this.hyperlanesGfx = null;
     }
     this.hyperlaneSegments = [];
+
+    if (this.territoryGfx) {
+      this.territoryGfx.destroy();
+      this.territoryGfx = null;
+    }
+    this.territoryPolygons = [];
 
     if (this.bgStarsGfx) {
       this.bgStarsGfx.destroy();
