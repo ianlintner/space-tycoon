@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome } from "../../../data/types.ts";
 import {
   isLocalRoute,
   getAvailableLocalRouteSlots,
@@ -31,6 +32,11 @@ const planets: Planet[] = [
     x: 10,
     y: 10,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
   {
     id: "planet-0-0-1",
@@ -40,6 +46,11 @@ const planets: Planet[] = [
     x: 20,
     y: 20,
     population: 50,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
   {
     id: "planet-0-1-0",
@@ -49,6 +60,11 @@ const planets: Planet[] = [
     x: 100,
     y: 100,
     population: 80,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
 ];
 

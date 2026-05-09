@@ -1,5 +1,4 @@
 import * as Phaser from "phaser";
-import * as THREE from "three";
 import { gameStore } from "../data/GameStore.ts";
 import {
   getTheme,
@@ -8,22 +7,13 @@ import {
   Tooltip,
   Dropdown,
   getLayout,
-  getShipColor,
-  getShipIconKey,
-  getShipMapKey,
-  getShipMapAnimKey,
   attachReflowHandler,
   GalaxySidebarPanel,
   SceneUiDirector,
 } from "../ui/index.ts";
 import type { GalaxySidebarData } from "../ui/index.ts";
 import { openRouteBuilder } from "../ui/RouteBuilderPanel.ts";
-import {
-  getEmpireFlagKey,
-  generateEmpireFlags,
-  FLAG_WIDTH,
-  FLAG_HEIGHT,
-} from "@rogue-universe/shared";
+import { generateEmpireFlags } from "@rogue-universe/shared";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { isEmpireAccessible } from "../game/empire/EmpireAccessManager.ts";
 import {
@@ -37,43 +27,18 @@ import {
   getUsedGalacticRouteSlots,
 } from "../game/routes/RouteManager.ts";
 import type { RouteTrafficVisual } from "../game/routes/RouteManager.ts";
-import { GalaxyView3D, setActiveGalaxyView } from "./galaxy3d/GalaxyView3D.ts";
-import type { ProjectedScreen, Vec3 } from "./galaxy3d/GalaxyView3D.ts";
+import { setActiveGalaxyView } from "./galaxy2d/ActiveGalaxyView.ts";
+import { GalaxyView2D } from "./galaxy2d/GalaxyView2D.ts";
+import type { HQMarker3D } from "./galaxy2d/GalaxyView2D.ts";
+import type { ProjectedScreen, Vec3 } from "./galaxy2d/types.ts";
 
 import type { GameHUDScene } from "./GameHUDScene.ts";
-import type { Empire, GameState, Ship, StarSystem } from "../data/types.ts";
+import type { Empire, GameState, StarSystem } from "../data/types.ts";
 
 interface SystemMarker {
   system: StarSystem;
   hitbox: Phaser.GameObjects.Zone;
-  nameText: Phaser.GameObjects.Text;
-  flag: Phaser.GameObjects.Image | null;
-  lockIcon: Phaser.GameObjects.Text | null;
   accessible: boolean;
-}
-
-interface EmpireMarker {
-  empire: Empire;
-  nameText: Phaser.GameObjects.Text;
-}
-
-interface TrafficShip {
-  routeId: string;
-  ship: Ship;
-  ownerId: string;
-  sprite:
-    | Phaser.GameObjects.Sprite
-    | Phaser.GameObjects.Image
-    | Phaser.GameObjects.Arc;
-  t: number;
-  speed: number;
-  dir: 1 | -1;
-  /** Base display size (px) used as reference for zoom scaling. */
-  baseSize: number;
-  /** Whether the ship is currently docked/waiting at a terminus. */
-  waiting: boolean;
-  /** Seconds remaining in the current wait. */
-  waitRemaining: number;
 }
 
 interface LayerToggleButton {
@@ -85,25 +50,15 @@ interface LayerToggleButton {
   setOn: (on: boolean) => void;
 }
 
-interface HQMarker {
-  systemId: string;
-  companyName: string;
-  isPlayer: boolean;
-  dot: Phaser.GameObjects.Arc;
-  label: Phaser.GameObjects.Text;
-}
-
 const VIZ_TOP_STRIP = 60;
 const VIZ_BOTTOM_STRIP = 60; // layer toggle row height
 const TOGGLE_ROW_GAP = 8;
 const TOGGLE_FILTER_WIDTH = 220;
 
 export class GalaxyMapScene extends Phaser.Scene {
-  private view3D: GalaxyView3D | null = null;
+  private view3D: GalaxyView2D | null = null;
   private vizRect = { x: 0, y: 0, w: 0, h: 0 };
   private systemMarkers: SystemMarker[] = [];
-  private empireMarkers: EmpireMarker[] = [];
-  private trafficShips: TrafficShip[] = [];
   private empireInfoCard: Phaser.GameObjects.Container | null = null;
   private routeTrafficStateKey: string | null = null;
 
@@ -120,19 +75,15 @@ export class GalaxyMapScene extends Phaser.Scene {
   private companyFilterButton: LayerToggleButton | null = null;
   private sidebar: GalaxySidebarPanel | null = null;
 
-  // ── System highlight ring ─────────────────────────────────────────────────
-  private highlightedSystemId: string | null = null;
-  private highlightRing: Phaser.GameObjects.Arc | null = null;
-
-  // ── Company HQ icons (projected each frame like the highlight ring) ────────
-  private hqMarkers: HQMarker[] = [];
-
   // ── Route-builder selection mode ──────────────────────────────────────────
   private ui!: SceneUiDirector;
   private routeOriginSystemId: string | null = null;
-  private routeOriginRing: Phaser.GameObjects.Arc | null = null;
   private holdTimerEvent: Phaser.Time.TimerEvent | null = null;
   private holdFired = false;
+
+  // ── Keyboard pan (WASD + arrow keys) ─────────────────────────────────────
+  private panKeys: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
+  private panKeysWASD: Record<string, Phaser.Input.Keyboard.Key> | null = null;
 
   // ── Navigation dropdown (top-strip, right side) ───────────────────────────
   private navDropdown: Dropdown | null = null;
@@ -156,10 +107,6 @@ export class GalaxyMapScene extends Phaser.Scene {
   private lastHyperlanesRef: GameState["hyperlanes"] | null = null;
   private lastBorderPortsRef: GameState["borderPorts"] | null = null;
 
-  // Reused per-frame scratch (no GC churn in update loop).
-  private readonly tmpWorld = new THREE.Vector3();
-  private readonly tmpWorldNext = new THREE.Vector3();
-
   constructor() {
     super({ key: "GalaxyMapScene" });
   }
@@ -180,9 +127,8 @@ export class GalaxyMapScene extends Phaser.Scene {
     // chrome. The left sidebar slot becomes the galaxy info panel.
     this.vizRect = this.computeVizRect(L);
 
-    const phaserCanvas = this.game.canvas;
-    this.view3D = new GalaxyView3D({
-      phaserCanvas,
+    this.view3D = new GalaxyView2D({
+      scene: this,
       designWidth: L.gameWidth,
       designHeight: L.gameHeight,
     });
@@ -193,6 +139,9 @@ export class GalaxyMapScene extends Phaser.Scene {
       state.hyperlanes ?? [],
       state.borderPorts ?? [],
       empires,
+    );
+    this.view3D.setAccessibleEmpireIds(
+      empires.filter((e) => isEmpireAccessible(e.id, state)).map((e) => e.id),
     );
     const initialVisuals = buildGalaxyRouteTrafficVisuals(state);
     this.view3D.setRoutes(initialVisuals);
@@ -208,11 +157,18 @@ export class GalaxyMapScene extends Phaser.Scene {
     this.mapTooltip.setDepth(2000);
 
     this.buildSystemMarkers(state);
-    this.buildEmpireMarkers(state);
     this.buildHQMarkers(state);
     this.rebuildTrafficShips(state, initialVisuals);
     this.installCameraInput();
     this.installInfoCardDismiss();
+
+    // Start the camera zoomed in on the player's homeworld system.
+    const homeworldPlanet = state.galaxy.planets.find(
+      (p) => p.id === state.homeworldPlanetId,
+    );
+    if (homeworldPlanet) {
+      this.view3D.focusOnSystem(homeworldPlanet.systemId, true);
+    }
 
     // ── HUD overlay (top-of-content strip) ─────────────────────────────────
     this.buildHud(state, theme, L);
@@ -261,7 +217,7 @@ export class GalaxyMapScene extends Phaser.Scene {
         this.lastHyperlanesRef = nextState.hyperlanes ?? null;
         this.lastBorderPortsRef = nextState.borderPorts ?? null;
         this.rebuildSystemMarkers(nextState);
-        this.rebuildEmpireMarkers(nextState);
+        this.buildHQMarkers(nextState);
       } else if (
         (galaxyMaybeChanged || hyperlanesMaybeChanged || portsMaybeChanged) &&
         hyperlanesChanged
@@ -285,26 +241,22 @@ export class GalaxyMapScene extends Phaser.Scene {
           this.routeTrafficStateKey = nextKey;
         }
       }
+
+      // Re-tint system labels whenever the unlocked-empires set changes.
+      this.view3D.setAccessibleEmpireIds(
+        nextState.galaxy.empires
+          .filter((e) => isEmpireAccessible(e.id, nextState))
+          .map((e) => e.id),
+      );
     };
     gameStore.on("stateChanged", handleStateChanged);
 
     const cleanup = (): void => {
       gameStore.off("stateChanged", handleStateChanged);
-      for (const t of this.trafficShips) {
-        t.sprite.destroy();
-      }
-      this.trafficShips = [];
       for (const m of this.systemMarkers) {
         m.hitbox.destroy();
-        m.nameText.destroy();
-        m.flag?.destroy();
-        m.lockIcon?.destroy();
       }
       this.systemMarkers = [];
-      for (const m of this.empireMarkers) {
-        m.nameText.destroy();
-      }
-      this.empireMarkers = [];
       this.sidebar?.destroy();
       this.sidebar = null;
       for (const t of this.layerToggles) {
@@ -320,15 +272,11 @@ export class GalaxyMapScene extends Phaser.Scene {
         this.companyFilterButton = null;
       }
       this.destroyInfoCard();
-      this.highlightRing?.destroy();
-      this.highlightRing = null;
-      this.highlightedSystemId = null;
       this.navDropdown?.destroy();
       this.navDropdown = null;
       this.mapTooltip?.destroy();
       this.mapTooltip = null;
-      this.routeOriginRing?.destroy();
-      this.routeOriginRing = null;
+      this.routeOriginSystemId = null;
       this.holdTimerEvent?.remove();
       this.holdTimerEvent = null;
       setActiveGalaxyView(null);
@@ -340,32 +288,11 @@ export class GalaxyMapScene extends Phaser.Scene {
   }
 
   /**
-   * Place a pulsing accent ring at a system's projected screen position.
+   * Place a pulsing accent ring at a system's 3D world position.
    * Call with `null` to clear the highlight.
    */
   highlightSystem(systemId: string | null): void {
-    if (this.highlightRing) {
-      this.highlightRing.destroy();
-      this.highlightRing = null;
-    }
-    this.highlightedSystemId = systemId;
-    if (!systemId) return;
-    const theme = getTheme();
-    this.highlightRing = this.add
-      .arc(0, 0, 22, 0, 360, false, theme.colors.accent, 0)
-      .setStrokeStyle(2, theme.colors.accent, 0.9)
-      .setDepth(55);
-    // Pulse tween — yoyo scale to draw attention.
-    this.tweens.add({
-      targets: this.highlightRing,
-      scaleX: 1.35,
-      scaleY: 1.35,
-      alpha: 0.6,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.InOut",
-    });
+    this.view3D?.setHighlightedSystem(systemId);
   }
 
   /**
@@ -385,28 +312,34 @@ export class GalaxyMapScene extends Phaser.Scene {
     this.highlightSystem(null);
   }
 
+  /** Scale ship movement speed. 1 = planning (default), ~12 = sim playback. */
+  setShipSpeedMultiplier(multiplier: number): void {
+    this.view3D?.setShipSpeedMultiplier(multiplier);
+  }
+
   override update(_time: number, delta: number): void {
     if (!this.view3D) return;
     this.updateSystemMarkers();
-    this.updateEmpireMarkers();
-    this.updateTrafficShips(delta);
-    this.updateHighlightRing();
-    this.updateRouteOriginRing();
-    this.updateHQMarkers();
+    this.applyKeyboardPan(delta);
+    this.view3D.update(delta / 1000);
   }
 
-  private updateHighlightRing(): void {
-    if (!this.highlightRing || !this.highlightedSystemId || !this.view3D)
-      return;
-    const world = this.view3D.getSystemWorldPosition(this.highlightedSystemId);
-    if (!world) {
-      this.highlightRing.setVisible(false);
-      return;
-    }
-    const proj = this.view3D.projectToScreenDesign(world);
-    this.highlightRing.setVisible(proj.visible);
-    if (proj.visible) {
-      this.highlightRing.setPosition(proj.x, proj.y);
+  private applyKeyboardPan(delta: number): void {
+    if (!this.view3D) return;
+    // World-units per ms → ~6 units at 60 fps. Scaled by zoom in view3D.translate.
+    const speed = 0.1 * delta;
+    let dx = 0;
+    let dy = 0;
+
+    const k = this.panKeys;
+    const w = this.panKeysWASD;
+    if (k?.left.isDown || w?.["A"]?.isDown) dx -= speed;
+    if (k?.right.isDown || w?.["D"]?.isDown) dx += speed;
+    if (k?.up.isDown || w?.["W"]?.isDown) dy += speed;
+    if (k?.down.isDown || w?.["S"]?.isDown) dy -= speed;
+
+    if (dx !== 0 || dy !== 0) {
+      this.view3D.translate(dx, dy);
     }
   }
 
@@ -424,23 +357,8 @@ export class GalaxyMapScene extends Phaser.Scene {
   }
 
   private setRouteOrigin(systemId: string): void {
-    const theme = getTheme();
-    this.routeOriginRing?.destroy();
     this.routeOriginSystemId = systemId;
-    this.routeOriginRing = this.add
-      .arc(0, 0, 20, 0, 360, false, theme.colors.profit, 0)
-      .setStrokeStyle(2, theme.colors.profit, 0.9)
-      .setDepth(56)
-      .setVisible(false);
-    this.tweens.add({
-      targets: this.routeOriginRing,
-      scaleX: 1.25,
-      scaleY: 1.25,
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.InOut",
-    });
+    this.view3D?.setRouteOriginSystem(systemId);
     this.hudHintText?.setText(
       "Hold to set origin · Click another star to create route\nEsc to cancel",
     );
@@ -450,25 +368,38 @@ export class GalaxyMapScene extends Phaser.Scene {
   }
 
   clearRouteSelection(): void {
-    this.routeOriginRing?.destroy();
-    this.routeOriginRing = null;
+    this.view3D?.setRouteOriginSystem(null);
     this.routeOriginSystemId = null;
     this.hudHintText?.setText(
       "Hold a star to start a route · Click to view system\nScroll to zoom · Drag to pan",
     );
   }
 
-  private updateRouteOriginRing(): void {
-    if (!this.routeOriginRing || !this.routeOriginSystemId || !this.view3D)
-      return;
-    const world = this.view3D.getSystemWorldPosition(this.routeOriginSystemId);
-    if (!world) {
-      this.routeOriginRing.setVisible(false);
-      return;
+  /** Show or hide the HUD chrome (title, slots, hints, sidebar, toggles,
+   *  system hitboxes). GalaxyView2D galaxy rendering is intentionally left
+   *  visible so SimPlaybackScene can use it as a live backdrop. */
+  setHudVisible(visible: boolean): void {
+    this.hudBackdropLeft?.setVisible(visible);
+    this.hudBackdropRight?.setVisible(visible);
+    this.hudTitleLabel?.setVisible(visible);
+    this.hudSlotsLabel?.setVisible(visible);
+    this.hudHintText?.setVisible(visible);
+    this.navDropdown?.setVisible(visible);
+    this.sidebar?.setVisible(visible);
+    for (const t of this.layerToggles) {
+      t.bg.setVisible(visible);
+      t.label.setVisible(visible);
+      t.hit.setVisible(visible);
     }
-    const proj = this.view3D.projectToScreenDesign(world);
-    this.routeOriginRing.setVisible(proj.visible);
-    if (proj.visible) this.routeOriginRing.setPosition(proj.x, proj.y);
+    if (this.companyFilterButton) {
+      this.companyFilterButton.bg.setVisible(visible);
+      this.companyFilterButton.label.setVisible(visible);
+      this.companyFilterButton.hit.setVisible(visible);
+    }
+    for (const m of this.systemMarkers) {
+      m.hitbox.setVisible(visible);
+    }
+    if (!visible) this.mapTooltip?.setVisible(false);
   }
 
   private openRouteBuilderFor(
@@ -501,6 +432,7 @@ export class GalaxyMapScene extends Phaser.Scene {
         const fresh = gameStore.getState();
         const visuals = buildGalaxyRouteTrafficVisuals(fresh);
         this.view3D?.setRoutes(visuals);
+        this.rebuildTrafficShips(fresh, visuals);
         this.routeTrafficStateKey = buildGalaxyRouteTrafficStateKey(fresh);
       },
       onCancel: () => {
@@ -510,13 +442,6 @@ export class GalaxyMapScene extends Phaser.Scene {
   }
 
   private buildHQMarkers(state: GameState): void {
-    for (const m of this.hqMarkers) {
-      m.dot.destroy();
-      m.label.destroy();
-    }
-    this.hqMarkers = [];
-
-    const theme = getTheme();
     const { systems, planets } = state.galaxy;
 
     const resolveSystem = (planetId: string | undefined): string | null => {
@@ -524,82 +449,22 @@ export class GalaxyMapScene extends Phaser.Scene {
       return planets.find((p) => p.id === planetId)?.systemId ?? null;
     };
 
-    const entries: { systemId: string; name: string; isPlayer: boolean }[] = [];
+    const markers: HQMarker3D[] = [];
 
     const playerSystemId = resolveSystem(state.homeworldPlanetId);
     if (playerSystemId && systems.find((s) => s.id === playerSystemId)) {
-      entries.push({
-        systemId: playerSystemId,
-        name: state.companyName,
-        isPlayer: true,
-      });
+      markers.push({ systemId: playerSystemId, isPlayer: true });
     }
 
     for (const ai of state.aiCompanies) {
       if (ai.bankrupt) continue;
       const sysId = resolveSystem(ai.homeworldPlanetId);
       if (!sysId || !systems.find((s) => s.id === sysId)) continue;
-      if (entries.some((e) => e.systemId === sysId && !e.isPlayer)) continue;
-      entries.push({ systemId: sysId, name: ai.name, isPlayer: false });
+      if (markers.some((m) => m.systemId === sysId && !m.isPlayer)) continue;
+      markers.push({ systemId: sysId, isPlayer: false });
     }
 
-    const PLAYER_COLOR = theme.colors.accent;
-    const AI_COLOR = 0x888888;
-
-    for (const entry of entries) {
-      const color = entry.isPlayer ? PLAYER_COLOR : AI_COLOR;
-      const dot = this.add
-        .arc(0, 0, 5, 0, 360, false, color, 0.9)
-        .setDepth(60)
-        .setVisible(false);
-      const labelText = entry.isPlayer ? `⌂ ${entry.name}` : `⌂ ${entry.name}`;
-      const label = this.add
-        .text(0, 0, labelText, {
-          fontSize: "9px",
-          fontFamily: theme.fonts.caption.family,
-          color: entry.isPlayer
-            ? colorToString(PLAYER_COLOR)
-            : colorToString(AI_COLOR),
-        })
-        .setDepth(61)
-        .setVisible(false);
-
-      if (this.mapTooltip) {
-        const tooltipText = entry.isPlayer
-          ? `${entry.name}\n(Your HQ)`
-          : `${entry.name} HQ`;
-        this.mapTooltip.attachTo(dot, tooltipText);
-        this.mapTooltip.attachTo(label, tooltipText);
-      }
-
-      this.hqMarkers.push({
-        systemId: entry.systemId,
-        companyName: entry.name,
-        isPlayer: entry.isPlayer,
-        dot,
-        label,
-      });
-    }
-  }
-
-  private updateHQMarkers(): void {
-    if (!this.view3D) return;
-    for (const m of this.hqMarkers) {
-      const world = this.view3D.getSystemWorldPosition(m.systemId);
-      if (!world) {
-        m.dot.setVisible(false);
-        m.label.setVisible(false);
-        continue;
-      }
-      const proj = this.view3D.projectToScreenDesign(world);
-      const vis = proj.visible;
-      m.dot.setVisible(vis);
-      m.label.setVisible(vis);
-      if (vis) {
-        m.dot.setPosition(proj.x, proj.y - 14);
-        m.label.setPosition(proj.x + 8, proj.y - 20);
-      }
-    }
+    this.view3D?.setHQMarkers3D(markers);
   }
 
   private computeVizRect(L: ReturnType<typeof getLayout>): {
@@ -1015,17 +880,12 @@ export class GalaxyMapScene extends Phaser.Scene {
   private setEmpiresVisible(on: boolean): void {
     this.showEmpires = on;
     this.view3D?.setEmpireHalosVisible(on);
+    this.view3D?.setEmpireLabelsVisible(on);
   }
 
   private setShipsVisible(on: boolean): void {
     this.showShips = on;
-    for (const t of this.trafficShips) {
-      (
-        t.sprite as Phaser.GameObjects.GameObject & {
-          setVisible?: (v: boolean) => unknown;
-        }
-      ).setVisible?.(on);
-    }
+    this.view3D?.setShipsVisible(on);
   }
 
   private cycleCompanyFilter(): void {
@@ -1037,7 +897,6 @@ export class GalaxyMapScene extends Phaser.Scene {
   }
 
   private buildSystemMarkers(state: GameState): void {
-    const theme = getTheme();
     const { systems, empires } = state.galaxy;
     const empireMap = new Map(empires.map((e) => [e.id, e] as const));
     const accessibleByEmp = new Map<string, boolean>();
@@ -1052,42 +911,7 @@ export class GalaxyMapScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5)
         .setInteractive({ cursor: "pointer", useHandCursor: true });
 
-      const nameText = this.add
-        .text(0, 0, sys.name, {
-          fontSize: `${theme.fonts.caption.size}px`,
-          fontFamily: theme.fonts.caption.family,
-          color: colorToString(
-            accessible ? theme.colors.text : theme.colors.textDim,
-          ),
-          stroke: "#000000",
-          strokeThickness: 2,
-        })
-        .setOrigin(0.5, 0)
-        .setAlpha(accessible ? 1 : 0.45)
-        .setDepth(50);
-
-      let flag: Phaser.GameObjects.Image | null = null;
       const empire = empireMap.get(sys.empireId);
-      if (empire && empire.homeSystemId === sys.id) {
-        const flagKey = getEmpireFlagKey(empire.id);
-        if (this.textures.exists(flagKey)) {
-          flag = this.add
-            .image(0, 0, flagKey)
-            .setOrigin(0.5, 1)
-            .setAlpha(0.85)
-            .setDepth(48);
-          flag.setDisplaySize(FLAG_WIDTH, FLAG_HEIGHT);
-        }
-      }
-
-      let lockIcon: Phaser.GameObjects.Text | null = null;
-      if (!accessible) {
-        lockIcon = this.add
-          .text(0, 0, "🔒", { fontSize: "12px" })
-          .setOrigin(0, 0.5)
-          .setAlpha(0.7)
-          .setDepth(50);
-      }
 
       // Tooltip: show system name + empire, with lock status if inaccessible.
       if (this.mapTooltip) {
@@ -1146,100 +970,33 @@ export class GalaxyMapScene extends Phaser.Scene {
         this.holdFired = false;
       });
 
-      this.systemMarkers.push({
-        system: sys,
-        hitbox,
-        nameText,
-        flag,
-        lockIcon,
-        accessible,
-      });
+      this.systemMarkers.push({ system: sys, hitbox, accessible });
     }
   }
 
   private rebuildSystemMarkers(state: GameState): void {
-    for (const m of this.systemMarkers) {
-      m.hitbox.destroy();
-      m.nameText.destroy();
-      m.flag?.destroy();
-      m.lockIcon?.destroy();
-    }
+    for (const m of this.systemMarkers) m.hitbox.destroy();
     this.systemMarkers = [];
     this.buildSystemMarkers(state);
   }
 
   /**
-   * Build a label for each empire, positioned at the empire's territory
-   * centroid. Always visible (light tinted) so the political layer reads
-   * even when zoomed in close enough to drop system labels.
+   * Rebuild 3D ships from the latest route traffic visuals.
+   * Delegates entirely to GalaxyView3D.
    */
-  private buildEmpireMarkers(state: GameState): void {
-    const theme = getTheme();
-    for (const emp of state.galaxy.empires) {
-      const accessible = isEmpireAccessible(emp.id, state);
-      // Tint by empire color, lightened toward white for legibility against
-      // the dim halo. Earlier this rendered at body+1 fontSize / alpha 0.7
-      // and crowded the system label layer in dense regions (Drax/Zenthari).
-      // Now reads as a quieter political backdrop, with a per-frame zoom
-      // gate (see updateEmpireMarkers) hiding it entirely when the camera
-      // is close to a system.
-      const baseColor = emp.color;
-      const tinted = lightenHex(baseColor, 0.55);
-      const nameText = this.add
-        .text(0, 0, emp.name, {
-          fontSize: `${theme.fonts.body.size}px`,
-          fontFamily: theme.fonts.body.family,
-          color: colorToString(tinted),
-          stroke: "#000000",
-          strokeThickness: 2,
-        })
-        .setOrigin(0.5, 0.5)
-        .setAlpha(accessible ? 0.32 : 0.24)
-        .setDepth(45);
-
-      // Tooltip on empire label showing political summary.
-      if (this.mapTooltip) {
-        const tipText = `${emp.name}\nDisposition: ${emp.disposition}\nTariff: ${Math.round(emp.tariffRate * 100)}%`;
-        this.mapTooltip.attachTo(nameText, tipText);
-      }
-
-      this.empireMarkers.push({ empire: emp, nameText });
-    }
-  }
-
-  private rebuildEmpireMarkers(state: GameState): void {
-    for (const m of this.empireMarkers) {
-      m.nameText.destroy();
-    }
-    this.empireMarkers = [];
-    this.buildEmpireMarkers(state);
-  }
-
-  private updateEmpireMarkers(): void {
+  private rebuildTrafficShips(
+    _state: GameState,
+    visuals: RouteTrafficVisual[],
+  ): void {
     if (!this.view3D) return;
-    // Zoom-based hide: when the player has pulled in close to a region
-    // (cameraDistance < halfExtent * 0.95), the per-empire label sits over
-    // 5–10 system labels in the same frustum and crowds them out. At that
-    // zoom the player no longer needs the political context — they're
-    // looking at one or two systems. The "Empires" toggle still wins if
-    // the player wants the layer off entirely.
-    const camDist = this.view3D.getCameraDistance();
-    const halfExtent = this.view3D.getGalaxyHalfExtent();
-    const zoomedIn = camDist < halfExtent * 0.95;
-    for (const m of this.empireMarkers) {
-      if (!this.showEmpires || zoomedIn) {
-        m.nameText.setVisible(false);
-        continue;
-      }
-      const centroid = this.view3D.getEmpireCentroid(m.empire.id);
-      if (!centroid) {
-        m.nameText.setVisible(false);
-        continue;
-      }
-      const proj = this.view3D.projectToScreenDesign(centroid);
-      m.nameText.setVisible(proj.visible);
-      if (!proj.visible) continue;
-      m.nameText.setPosition(proj.x, proj.y);
+    const view = this.view3D;
+    view.setShips(visuals, (routeId) => {
+      return visuals.find((v) => v.routeId === routeId)?.ownerId === "player";
+    });
+    // Apply current layer/filter state to newly spawned ships.
+    view.setShipsVisible(this.showShips);
+    if (this.companyFilter !== null) {
+      view.setRouteCompanyFilter(this.companyFilter);
     }
   }
 
@@ -1252,8 +1009,10 @@ export class GalaxyMapScene extends Phaser.Scene {
     // alike. Star hitboxes stay clickable regardless.
     const camDist = this.view3D.getCameraDistance();
     const halfExtent = this.view3D.getGalaxyHalfExtent();
-    // Combine LOD distance gating with the player's manual Names toggle.
-    const showSystemLabels = this.showSystemNames && camDist < halfExtent * 2.0;
+
+    // Labels are now rendered as 3D sprites inside GalaxyView3D — delegate
+    // LOD and toggle control there.
+    this.view3D.updateSystemLabelLOD(camDist, halfExtent, this.showSystemNames);
 
     // Grid-based collision avoidance: bucket each visible system's projected
     // centre into a fixed cell. The first system in a cell shows its label,
@@ -1262,8 +1021,6 @@ export class GalaxyMapScene extends Phaser.Scene {
     // ones so the politically-important names aren't suppressed.
     const cellSize = 56;
     const occupied = new Set<string>();
-    // Two-pass: pass 1 reserves cells for accessible systems, pass 2 fills
-    // remaining cells with locked systems. Both build screen positions.
     type Project = { proj: ProjectedScreen; world: Vec3 } | null;
     const projects: Project[] = new Array(this.systemMarkers.length);
     for (let i = 0; i < this.systemMarkers.length; i++) {
@@ -1303,201 +1060,12 @@ export class GalaxyMapScene extends Phaser.Scene {
       const p = projects[i];
       if (!p) {
         m.hitbox.setVisible(false);
-        m.nameText.setVisible(false);
-        m.flag?.setVisible(false);
-        m.lockIcon?.setVisible(false);
         continue;
       }
       const visible = p.proj.visible;
       m.hitbox.setVisible(visible);
-      m.nameText.setVisible(
-        visible && showSystemLabels && labelDecisions[i] === true,
-      );
-      m.flag?.setVisible(visible);
-      m.lockIcon?.setVisible(visible);
       if (!visible) continue;
       m.hitbox.setPosition(p.proj.x, p.proj.y);
-      m.nameText.setPosition(p.proj.x, p.proj.y + 12);
-      if (m.flag) m.flag.setPosition(p.proj.x, p.proj.y - 16);
-      if (m.lockIcon) m.lockIcon.setPosition(p.proj.x + 12, p.proj.y - 6);
-    }
-  }
-
-  private rebuildTrafficShips(
-    state: GameState,
-    visuals: RouteTrafficVisual[],
-  ): void {
-    for (const t of this.trafficShips) {
-      t.sprite.destroy();
-    }
-    this.trafficShips = [];
-
-    const fleetByOwner = new Map<string, Map<string, Ship>>();
-    fleetByOwner.set("player", new Map(state.fleet.map((s) => [s.id, s])));
-    for (const c of state.aiCompanies) {
-      fleetByOwner.set(c.id, new Map(c.fleet.map((s) => [s.id, s])));
-    }
-
-    for (const visual of visuals) {
-      if (visual.assignedShips.length === 0) continue;
-      if (visual.visibleUnits === 0) continue;
-
-      for (let i = 0; i < visual.visibleUnits; i++) {
-        const ship = visual.assignedShips[i % visual.assignedShips.length];
-        const { sprite, baseSize } = this.createShipSprite(ship);
-        if (!this.showShips) {
-          (
-            sprite as Phaser.GameObjects.GameObject & {
-              setVisible?: (v: boolean) => unknown;
-            }
-          ).setVisible?.(false);
-        }
-        this.trafficShips.push({
-          routeId: visual.routeId,
-          ship,
-          ownerId: visual.ownerId,
-          sprite,
-          baseSize,
-          t: i / Math.max(1, visual.visibleUnits),
-          speed: 0.012 + Math.random() * 0.01,
-          dir: Math.random() < 0.5 ? 1 : -1,
-          waiting: false,
-          waitRemaining: 0,
-        });
-      }
-    }
-  }
-
-  private createShipSprite(ship: Ship): {
-    sprite:
-      | Phaser.GameObjects.Sprite
-      | Phaser.GameObjects.Image
-      | Phaser.GameObjects.Arc;
-    baseSize: number;
-  } {
-    const tint = getShipColor(ship.class);
-    const mapKey = getShipMapKey(ship.class);
-    const animKey = getShipMapAnimKey(ship.class);
-    const iconKey = getShipIconKey(ship.class);
-
-    if (mapKey && animKey && this.textures.exists(mapKey)) {
-      const sprite = this.add
-        .sprite(0, 0, mapKey, "1")
-        .setDisplaySize(14, 14)
-        .setTint(tint)
-        .setDepth(40);
-      sprite.play(animKey);
-      return { sprite, baseSize: 14 };
-    }
-    if (iconKey && this.textures.exists(iconKey)) {
-      return {
-        sprite: this.add
-          .image(0, 0, iconKey)
-          .setDisplaySize(10, 10)
-          .setTint(tint)
-          .setDepth(40),
-        baseSize: 10,
-      };
-    }
-    return {
-      sprite: this.add.circle(0, 0, 2, tint, 0.85).setDepth(40),
-      baseSize: 2,
-    };
-  }
-
-  private updateTrafficShips(delta: number): void {
-    if (!this.view3D) return;
-    const dt = delta / 1000;
-    const v3 = this.view3D;
-    const tmp = this.tmpWorld;
-    const tmpNext = this.tmpWorldNext;
-    const filter = this.companyFilter;
-
-    // Zoom-based scale: ships shrink as you pull back, grow as you zoom in.
-    const camDist = v3.getCameraDistance();
-    const halfExtent = v3.getGalaxyHalfExtent();
-    const zoomMin = halfExtent * 0.6; // closest possible
-    const zoomMax = halfExtent * 8; // furthest possible
-    const zoomT = Math.max(
-      0,
-      Math.min(1, (camDist - zoomMin) / (zoomMax - zoomMin)),
-    );
-    // scale ranges from 2.0 at max zoom-in to 0.6 at max zoom-out
-    const zoomScale = 2.0 - zoomT * 1.4;
-
-    for (const ts of this.trafficShips) {
-      const curve = v3.getRouteCurve(ts.routeId);
-      const sprite = ts.sprite as Phaser.GameObjects.GameObject & {
-        setPosition: (x: number, y: number) => unknown;
-        setVisible?: (v: boolean) => unknown;
-        setRotation?: (r: number) => unknown;
-        setAlpha?: (a: number) => unknown;
-        setDisplaySize?: (w: number, h: number) => unknown;
-        setRadius?: (r: number) => unknown;
-      };
-      // Layer toggle: ship layer off → fully hidden, no further work.
-      if (!this.showShips) {
-        sprite.setVisible?.(false);
-        continue;
-      }
-      if (!curve) {
-        sprite.setVisible?.(false);
-        continue;
-      }
-
-      // Wait countdown: ship docked at terminus.
-      if (ts.waiting) {
-        ts.waitRemaining -= dt;
-        if (ts.waitRemaining <= 0) {
-          ts.waiting = false;
-          ts.waitRemaining = 0;
-        }
-      } else {
-        ts.t += ts.speed * ts.dir * dt;
-        if (ts.t >= 1) {
-          ts.t = 1;
-          ts.dir = -1;
-          if (Math.random() < 0.45) {
-            ts.waiting = true;
-            ts.waitRemaining = 0.8 + Math.random() * 2.5;
-          }
-        } else if (ts.t <= 0) {
-          ts.t = 0;
-          ts.dir = 1;
-          if (Math.random() < 0.45) {
-            ts.waiting = true;
-            ts.waitRemaining = 0.8 + Math.random() * 2.5;
-          }
-        }
-      }
-
-      curve.getPointAt(ts.t, tmp);
-      const lookT = Math.min(1, Math.max(0, ts.t + 0.02 * ts.dir));
-      curve.getPointAt(lookT, tmpNext);
-
-      const proj = v3.projectToScreenDesign({ x: tmp.x, y: tmp.y, z: tmp.z });
-      const projNext = v3.projectToScreenDesign({
-        x: tmpNext.x,
-        y: tmpNext.y,
-        z: tmpNext.z,
-      });
-      sprite.setVisible?.(proj.visible);
-      if (!proj.visible) continue;
-      sprite.setPosition(proj.x, proj.y);
-      sprite.setRotation?.(
-        Math.atan2(projNext.y - proj.y, projNext.x - proj.x),
-      );
-
-      // Apply zoom-dependent size each frame.
-      const scaled = ts.baseSize * zoomScale;
-      sprite.setDisplaySize?.(scaled, scaled);
-      sprite.setRadius?.(Math.max(1, scaled * 0.5));
-
-      // Filter ghosting: non-matching ships drop to a low alpha but remain
-      // visible so the player can see they're still flying — full hide is
-      // via the Ships layer toggle.
-      const ghosted = filter !== null && ts.ownerId !== filter;
-      sprite.setAlpha?.(ghosted ? 0.18 : 1);
     }
   }
 
@@ -1547,6 +1115,14 @@ export class GalaxyMapScene extends Phaser.Scene {
     this.input.on("pointerup", onUp);
     this.input.on("pointerupoutside", onUp);
     this.input.on("pointermove", onMove);
+
+    // Keyboard pan — arrow keys + WASD
+    this.panKeys = this.input.keyboard?.createCursorKeys() ?? null;
+    this.panKeysWASD =
+      (this.input.keyboard?.addKeys("W,A,S,D") as Record<
+        string,
+        Phaser.Input.Keyboard.Key
+      >) ?? null;
 
     const cleanup = (): void => {
       this.input.off("wheel", onWheel);
@@ -1651,14 +1227,4 @@ export class GalaxyMapScene extends Phaser.Scene {
 
     return container;
   }
-}
-
-function lightenHex(hex: number, t: number): number {
-  const r = (hex >> 16) & 0xff;
-  const g = (hex >> 8) & 0xff;
-  const b = hex & 0xff;
-  const lr = Math.round(r + (255 - r) * t);
-  const lg = Math.round(g + (255 - g) * t);
-  const lb = Math.round(b + (255 - b) * t);
-  return (lr << 16) | (lg << 8) | lb;
 }

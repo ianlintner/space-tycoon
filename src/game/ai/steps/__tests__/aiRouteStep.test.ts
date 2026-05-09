@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { simulateAIRoutes } from "../aiRouteStep.ts";
 import { SeededRNG } from "../../../../utils/SeededRNG.ts";
-import { CargoType, ShipClass, PlanetType } from "../../../../data/types.ts";
+import {
+  CargoType,
+  ShipClass,
+  PlanetType,
+  PlanetBiome,
+} from "../../../../data/types.ts";
 import type {
   GameState,
   AICompany,
@@ -89,6 +94,11 @@ const planets: Planet[] = [
     x: 0,
     y: 0,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
   {
     id: "p-b",
@@ -98,6 +108,11 @@ const planets: Planet[] = [
     x: 100,
     y: 0,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
   {
     id: "p-c",
@@ -107,6 +122,11 @@ const planets: Planet[] = [
     x: 200,
     y: 0,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
 ];
 
@@ -296,6 +316,11 @@ describe("simulateAIRoutes — scope multiplier parity", () => {
         x: 5,
         y: 5,
         population: 100,
+        biome: PlanetBiome.Colony,
+        productionTags: [],
+        consumptionTags: [],
+        productionScale: 1.0,
+        populationCap: 10,
       },
     ];
     const localMarkets: Record<string, PlanetMarket> = {};

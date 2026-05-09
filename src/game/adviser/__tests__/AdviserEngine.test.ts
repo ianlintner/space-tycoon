@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome } from "../../../data/types.ts";
 import {
   initAdviserState,
   generateTurnMessages,
@@ -93,6 +94,11 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           x: 110,
           y: 110,
           population: 1000000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
       ],
     },

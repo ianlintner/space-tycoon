@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome } from "../../../data/types.ts";
 import {
   findPath,
   getReachableSystems,
@@ -51,6 +52,11 @@ function makePlanet(
     x,
     y,
     population: 1000,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   };
 }
 

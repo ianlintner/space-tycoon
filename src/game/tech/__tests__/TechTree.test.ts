@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome } from "../../../data/types.ts";
 import {
   isTechAvailable,
   getAvailableTechs,
@@ -337,6 +338,11 @@ describe("Tech Tree System", () => {
               x: 0,
               y: 0,
               population: 1000,
+              biome: PlanetBiome.Colony,
+              productionTags: [],
+              consumptionTags: [],
+              productionScale: 1.0,
+              populationCap: 10,
             },
             {
               id: "planet-2",
@@ -346,6 +352,11 @@ describe("Tech Tree System", () => {
               x: 0,
               y: 0,
               population: 1000,
+              biome: PlanetBiome.Colony,
+              productionTags: [],
+              consumptionTags: [],
+              productionScale: 1.0,
+              populationCap: 10,
             },
           ],
         },

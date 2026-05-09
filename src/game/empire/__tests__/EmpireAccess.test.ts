@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome, EmpireArchetype } from "../../../data/types.ts";
 import {
   findAdjacentEmpires,
   isEmpireAccessible,
@@ -27,6 +28,8 @@ function makeEmpire(id: string, homeSystemId: string): Empire {
     disposition: "neutral",
     leaderName: `Leader ${id}`,
     leaderPortrait: { portraitId: "leader-01", category: "human" },
+    archetype: EmpireArchetype.Balanced,
+    ownedSpecials: [],
   };
 }
 
@@ -83,6 +86,11 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
           x: 0,
           y: 0,
           population: 1000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
         {
           id: "planet-2",
@@ -92,6 +100,11 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
           x: 10,
           y: 0,
           population: 1000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
         {
           id: "planet-3",
@@ -101,6 +114,11 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
           x: 0,
           y: 20,
           population: 1000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
       ],
     },
@@ -451,7 +469,7 @@ describe("Empire Access", () => {
         id: "test-sys-1",
         name: "System Alpha",
         sectorId: "s1",
-        empireId: state.galaxy.empires[0]?.id ?? "emp1",
+        empireId: state.playerEmpireId,
         x: 0,
         y: 0,
         starColor: 0xffffff,
@@ -460,7 +478,7 @@ describe("Empire Access", () => {
         id: "test-sys-2",
         name: "System Beta",
         sectorId: "s1",
-        empireId: state.galaxy.empires[0]?.id ?? "emp1",
+        empireId: state.playerEmpireId,
         x: 100,
         y: 0,
         starColor: 0xffffff,
@@ -473,6 +491,11 @@ describe("Empire Access", () => {
         x: 0,
         y: 0,
         population: 100000,
+        biome: PlanetBiome.Colony,
+        productionTags: [],
+        consumptionTags: [],
+        productionScale: 1.0,
+        populationCap: 10,
       };
       const planet2: import("../../../data/types.ts").Planet = {
         id: "tp-2",
@@ -482,6 +505,11 @@ describe("Empire Access", () => {
         x: 100,
         y: 0,
         population: 500000,
+        biome: PlanetBiome.Colony,
+        productionTags: [],
+        consumptionTags: [],
+        productionScale: 1.0,
+        populationCap: 10,
       };
       return {
         ...state,

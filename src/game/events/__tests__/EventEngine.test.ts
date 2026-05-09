@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome } from "../../../data/types.ts";
 import { selectEvents, applyEventEffects, tickEvents } from "../EventEngine.ts";
 import type { GalaxyInfo } from "../EventEngine.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
@@ -58,6 +59,11 @@ function makeGalaxy(): GalaxyInfo {
       x: 120,
       y: 110,
       population: 1_000_000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
     {
       id: "planet-a2",
@@ -67,6 +73,11 @@ function makeGalaxy(): GalaxyInfo {
       x: 140,
       y: 130,
       population: 50_000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
     {
       id: "planet-b1",
@@ -76,6 +87,11 @@ function makeGalaxy(): GalaxyInfo {
       x: 310,
       y: 210,
       population: 200_000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
   ];
 

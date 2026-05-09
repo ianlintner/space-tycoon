@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { EmpireArchetype } from "../../../data/types.ts";
 import {
   initializeDiplomacy,
   setDiplomaticStatus,
@@ -16,6 +17,8 @@ function makeEmpire(id: string, homeSystemId: string): Empire {
     disposition: "neutral",
     leaderName: `Leader ${id}`,
     leaderPortrait: { portraitId: "leader-01", category: "human" },
+    archetype: EmpireArchetype.Balanced,
+    ownedSpecials: [],
   };
 }
 

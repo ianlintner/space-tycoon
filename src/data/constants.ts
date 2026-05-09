@@ -14,7 +14,7 @@ import {
 
 // ── Save Version ───────────────────────────────────────────────
 /** Increment when GameState shape changes in a save-incompatible way */
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 // ── Action Points ──────────────────────────────────────────────
 export const ACTION_POINTS_PER_TURN = 2;
@@ -584,47 +584,6 @@ export const SHIP_TEMPLATES: Record<ShipClass, ShipTemplate> = {
   },
 };
 
-export const PLANET_CARGO_PROFILES: Record<
-  PlanetType,
-  { produces: CargoType[]; demands: CargoType[] }
-> = {
-  [PlanetType.Agricultural]: {
-    produces: [CargoType.Food],
-    demands: [],
-  },
-  [PlanetType.Mining]: {
-    produces: [CargoType.RawMaterials, CargoType.Hazmat],
-    demands: [],
-  },
-  [PlanetType.TechWorld]: {
-    produces: [CargoType.Technology],
-    demands: [],
-  },
-  [PlanetType.Manufacturing]: {
-    produces: [CargoType.Medical],
-    demands: [],
-  },
-  [PlanetType.LuxuryWorld]: {
-    produces: [CargoType.Luxury],
-    demands: [],
-  },
-  [PlanetType.CoreWorld]: {
-    produces: [],
-    demands: [
-      CargoType.Food,
-      CargoType.Technology,
-      CargoType.Luxury,
-      CargoType.Medical,
-      CargoType.Passengers,
-      CargoType.Hazmat,
-    ],
-  },
-  [PlanetType.Frontier]: {
-    produces: [],
-    demands: [CargoType.Food, CargoType.Medical, CargoType.Technology],
-  },
-};
-
 export const PLANET_PASSENGER_VOLUME: Record<PlanetType, number> = {
   [PlanetType.Agricultural]: 15,
   [PlanetType.Mining]: 15,
@@ -633,16 +592,6 @@ export const PLANET_PASSENGER_VOLUME: Record<PlanetType, number> = {
   [PlanetType.LuxuryWorld]: 60,
   [PlanetType.CoreWorld]: 100,
   [PlanetType.Frontier]: 25,
-};
-
-export const PLANET_INDUSTRY_INPUT: Record<PlanetType, CargoType | null> = {
-  [PlanetType.Agricultural]: null,
-  [PlanetType.Mining]: null,
-  [PlanetType.TechWorld]: CargoType.RawMaterials,
-  [PlanetType.Manufacturing]: CargoType.Passengers,
-  [PlanetType.LuxuryWorld]: CargoType.Food,
-  [PlanetType.CoreWorld]: null,
-  [PlanetType.Frontier]: null,
 };
 
 export const INDUSTRY_INPUT_SUPPLY_MULTIPLIER = 2.0;
@@ -657,6 +606,46 @@ export const BASE_CARGO_PRICES: Record<CargoType, number> = {
   [CargoType.Hazmat]: 46,
   [CargoType.Medical]: 50,
 };
+
+export const PER_CAPITA_DEMAND: Partial<Record<CargoType, number>> = {
+  [CargoType.Food]: 1.0,
+  [CargoType.Medical]: 0.1,
+  [CargoType.Luxury]: 0.2,
+  [CargoType.Passengers]: 0.05,
+};
+
+export const FOOD_DEFICIT_TURNS_TO_SHRINK = 3;
+export const FOOD_SURPLUS_TURNS_TO_GROW = 5;
+export const POP_SHRINK_RATE_PER_TURN = 0.02;
+export const POP_GROW_RATE_PER_TURN = 0.01;
+
+export const GALAXY_TIERS = {
+  quick: {
+    systemCount: 300,
+    empireCount: 11,
+    planetsPerSystem: { min: 1, max: 4 },
+  },
+  standard: {
+    systemCount: 450,
+    empireCount: 12,
+    planetsPerSystem: { min: 1, max: 4 },
+  },
+  epic: {
+    systemCount: 600,
+    empireCount: 14,
+    planetsPerSystem: { min: 1, max: 4 },
+  },
+} as const;
+
+export const REQUIRED_PRODUCER_TYPES: CargoType[] = [
+  CargoType.Food,
+  CargoType.RawMaterials,
+  CargoType.Technology,
+  CargoType.Medical,
+  CargoType.Luxury,
+];
+
+export const SPECIAL_CHARTER_TIER_THRESHOLD = "respected";
 
 // ── Cargo diversity scoring bonus ──────────────────────────────
 
