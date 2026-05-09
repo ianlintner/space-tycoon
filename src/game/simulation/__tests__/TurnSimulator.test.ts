@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome, EmpireArchetype } from "../../../data/types.ts";
 import { simulateTurn } from "../TurnSimulator.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
 import {
@@ -184,6 +185,11 @@ function makePlanets(): Planet[] {
       x: 110,
       y: 110,
       population: 1000000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
     {
       id: "planet-b",
@@ -193,6 +199,11 @@ function makePlanets(): Planet[] {
       x: 310,
       y: 210,
       population: 200000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
   ];
 }
@@ -442,6 +453,8 @@ describe("TurnSimulator", () => {
               homeSystemId: "sys-1",
               leaderName: "Ari Vale",
               leaderPortrait: { portraitId: "leader-1", category: "human" },
+              archetype: EmpireArchetype.Balanced,
+              ownedSpecials: [],
             },
           ],
         },

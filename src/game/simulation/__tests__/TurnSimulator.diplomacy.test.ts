@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { simulateTurn } from "../TurnSimulator.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
-import { CargoType, ShipClass, PlanetType } from "../../../data/types.ts";
+import {
+  CargoType,
+  ShipClass,
+  PlanetType,
+  PlanetBiome,
+} from "../../../data/types.ts";
 import type {
   GameState,
   Ship,
@@ -115,6 +120,11 @@ function makePlanets(): Planet[] {
       x: 110,
       y: 110,
       population: 1000000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
     {
       id: "planet-b",
@@ -124,6 +134,11 @@ function makePlanets(): Planet[] {
       x: 310,
       y: 210,
       population: 200000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
   ];
 }

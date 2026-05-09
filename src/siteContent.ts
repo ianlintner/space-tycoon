@@ -1,10 +1,52 @@
 import {
   BASE_CARGO_PRICES,
   MAX_TURNS,
-  PLANET_CARGO_PROFILES,
   STARTING_CASH,
   SHIP_TEMPLATES,
 } from "./data/constants.ts";
+
+// Static cheat-sheet mapping for the marketing/help site. The real per-planet
+// production/consumption now lives on each Planet (productionTags/consumptionTags
+// driven by biome). This is just illustrative copy by planet family.
+const PLANET_FAMILY_PROFILES: Record<
+  PlanetType,
+  { produces: CargoType[]; demands: CargoType[] }
+> = {
+  [PlanetType.Agricultural]: {
+    produces: [CargoType.Food],
+    demands: [],
+  },
+  [PlanetType.Mining]: {
+    produces: [CargoType.RawMaterials, CargoType.Hazmat],
+    demands: [],
+  },
+  [PlanetType.TechWorld]: {
+    produces: [CargoType.Technology],
+    demands: [CargoType.RawMaterials],
+  },
+  [PlanetType.Manufacturing]: {
+    produces: [CargoType.Medical],
+    demands: [CargoType.Passengers],
+  },
+  [PlanetType.LuxuryWorld]: {
+    produces: [CargoType.Luxury],
+    demands: [CargoType.Food],
+  },
+  [PlanetType.CoreWorld]: {
+    produces: [],
+    demands: [
+      CargoType.Food,
+      CargoType.Technology,
+      CargoType.Luxury,
+      CargoType.Medical,
+      CargoType.Passengers,
+    ],
+  },
+  [PlanetType.Frontier]: {
+    produces: [],
+    demands: [CargoType.Food, CargoType.Medical, CargoType.Technology],
+  },
+};
 import { CargoType, PlanetType, ShipClass } from "./data/types.ts";
 
 export interface HeroMetric {
@@ -299,7 +341,7 @@ export const STARTER_FLEET_CARDS: CheatSheetCard[] = STARTER_SHIPS.map(
 );
 
 export const PLANET_CHEAT_SHEET: CheatSheetCard[] = Object.entries(
-  PLANET_CARGO_PROFILES,
+  PLANET_FAMILY_PROFILES,
 ).map(([planetType, profile]) => ({
   title: labelFor(planetType),
   caption: "Typical production and demand by planet family",

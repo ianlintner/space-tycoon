@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { PlanetBiome } from "../../data/types.ts";
 import {
   saveGame,
   loadGame,
@@ -174,6 +175,11 @@ describe("SaveManager", () => {
               x: 130,
               y: 230,
               population: 1000000,
+              biome: PlanetBiome.Colony,
+              productionTags: [],
+              consumptionTags: [],
+              productionScale: 1.0,
+              populationCap: 10,
             },
           ],
         },

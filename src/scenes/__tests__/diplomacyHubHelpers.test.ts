@@ -16,7 +16,7 @@ import {
   getAmbientGreeting,
   type HubActionDescriptor,
 } from "../diplomacyHubHelpers.ts";
-import { EMPTY_DIPLOMACY_STATE } from "../../data/types.ts";
+import { EMPTY_DIPLOMACY_STATE, EmpireArchetype } from "../../data/types.ts";
 import type {
   AICompany,
   Empire,
@@ -33,6 +33,8 @@ const empire: Empire = {
   homeSystemId: "sys-1",
   leaderName: "Emperor Vex IX",
   leaderPortrait: { portraitId: "p1", category: "alien" },
+  archetype: EmpireArchetype.Balanced,
+  ownedSpecials: [],
 };
 
 const rival: AICompany = {

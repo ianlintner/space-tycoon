@@ -5,6 +5,7 @@ import {
   radiansPerQuarter,
 } from "../OrbitalMechanics.ts";
 import type { Planet } from "../../../data/types.ts";
+import { PlanetBiome } from "../../../data/types.ts";
 
 function makePlanet(overrides: Partial<Planet> = {}): Planet {
   return {
@@ -19,6 +20,11 @@ function makePlanet(overrides: Partial<Planet> = {}): Planet {
     orbitPeriodQuarters: 4,
     orbitPhase: 0,
     orbitInclination: 0,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
     ...overrides,
   };
 }

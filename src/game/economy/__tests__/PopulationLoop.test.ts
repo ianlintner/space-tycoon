@@ -3,8 +3,6 @@ import { tickPopulation } from "../PopulationLoop.ts";
 import {
   FOOD_DEFICIT_TURNS_TO_SHRINK,
   FOOD_SURPLUS_TURNS_TO_GROW,
-  POP_SHRINK_RATE_PER_TURN,
-  POP_GROW_RATE_PER_TURN,
 } from "../../../data/constants.ts";
 
 describe("tickPopulation", () => {

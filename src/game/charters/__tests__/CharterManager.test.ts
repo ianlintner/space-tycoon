@@ -9,7 +9,11 @@ import type {
   Planet,
   StarSystem,
 } from "../../../data/types.ts";
-import { SpecialId } from "../../../data/types.ts";
+import {
+  SpecialId,
+  PlanetBiome,
+  EmpireArchetype,
+} from "../../../data/types.ts";
 import {
   PLAYER_COMPANY_ID,
   DEFAULT_EMPIRE_POOL_BY_STANCE,
@@ -56,6 +60,8 @@ function makeEmpire(
           ...pool,
         }
       : undefined,
+    archetype: EmpireArchetype.Balanced,
+    ownedSpecials: [],
   };
 }
 
@@ -80,6 +86,11 @@ function makePlanet(id: string, systemId: string): Planet {
     x: 0,
     y: 0,
     population: 1_000_000,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   };
 }
 

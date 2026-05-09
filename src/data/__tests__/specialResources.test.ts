@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CargoType, PlanetType, SpecialId } from "../types.ts";
+import { PlanetType, SpecialId } from "../types.ts";
 import {
   SPECIALS,
   getSpecial,

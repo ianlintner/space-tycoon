@@ -584,47 +584,6 @@ export const SHIP_TEMPLATES: Record<ShipClass, ShipTemplate> = {
   },
 };
 
-export const PLANET_CARGO_PROFILES: Record<
-  PlanetType,
-  { produces: CargoType[]; demands: CargoType[] }
-> = {
-  [PlanetType.Agricultural]: {
-    produces: [CargoType.Food],
-    demands: [],
-  },
-  [PlanetType.Mining]: {
-    produces: [CargoType.RawMaterials, CargoType.Hazmat],
-    demands: [],
-  },
-  [PlanetType.TechWorld]: {
-    produces: [CargoType.Technology],
-    demands: [],
-  },
-  [PlanetType.Manufacturing]: {
-    produces: [CargoType.Medical],
-    demands: [],
-  },
-  [PlanetType.LuxuryWorld]: {
-    produces: [CargoType.Luxury],
-    demands: [],
-  },
-  [PlanetType.CoreWorld]: {
-    produces: [],
-    demands: [
-      CargoType.Food,
-      CargoType.Technology,
-      CargoType.Luxury,
-      CargoType.Medical,
-      CargoType.Passengers,
-      CargoType.Hazmat,
-    ],
-  },
-  [PlanetType.Frontier]: {
-    produces: [],
-    demands: [CargoType.Food, CargoType.Medical, CargoType.Technology],
-  },
-};
-
 export const PLANET_PASSENGER_VOLUME: Record<PlanetType, number> = {
   [PlanetType.Agricultural]: 15,
   [PlanetType.Mining]: 15,
@@ -633,16 +592,6 @@ export const PLANET_PASSENGER_VOLUME: Record<PlanetType, number> = {
   [PlanetType.LuxuryWorld]: 60,
   [PlanetType.CoreWorld]: 100,
   [PlanetType.Frontier]: 25,
-};
-
-export const PLANET_INDUSTRY_INPUT: Record<PlanetType, CargoType | null> = {
-  [PlanetType.Agricultural]: null,
-  [PlanetType.Mining]: null,
-  [PlanetType.TechWorld]: CargoType.RawMaterials,
-  [PlanetType.Manufacturing]: CargoType.Passengers,
-  [PlanetType.LuxuryWorld]: CargoType.Food,
-  [PlanetType.CoreWorld]: null,
-  [PlanetType.Frontier]: null,
 };
 
 export const INDUSTRY_INPUT_SUPPLY_MULTIPLIER = 2.0;

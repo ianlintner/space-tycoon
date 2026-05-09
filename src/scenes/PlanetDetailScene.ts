@@ -169,8 +169,8 @@ export class PlanetDetailScene extends Phaser.Scene {
     });
 
     // Industry chain status (only for producer planets with an input requirement)
-    const inputCargo = getInputCargo(planet.type);
-    const outputCargo = getOutputCargo(planet.type);
+    const inputCargo = getInputCargo(planet);
+    const outputCargo = getOutputCargo(planet);
     if (inputCargo !== null && outputCargo !== null) {
       const allRoutes = [
         ...state.activeRoutes,

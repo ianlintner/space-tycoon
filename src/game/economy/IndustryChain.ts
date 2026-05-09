@@ -1,41 +1,30 @@
-import type {
-  Planet,
-  ActiveRoute,
-  PlanetType,
-  CargoType,
-} from "../../data/types.ts";
-import {
-  PLANET_INDUSTRY_INPUT,
-  PLANET_CARGO_PROFILES,
-} from "../../data/constants.ts";
+import type { Planet, ActiveRoute, CargoType } from "../../data/types.ts";
 
 /**
- * Legacy lookup by planet type. Prefer `getInputCargosForPlanet` which reads
- * `planet.consumptionTags` directly. Retained for callers (PlanetDetailScene,
- * tests) that only have a PlanetType handy.
+ * Returns the primary input cargo this planet consumes (first consumption tag),
+ * or null if the planet has no consumption requirements. UI uses this to show
+ * "Industry input: X" on planets that need a feeder.
  */
-export function getInputCargo(planetType: PlanetType): CargoType | null {
-  return PLANET_INDUSTRY_INPUT[planetType] ?? null;
+export function getInputCargo(planet: Planet): CargoType | null {
+  return (planet.consumptionTags[0] as CargoType | undefined) ?? null;
 }
 
-// NOTE: returns only the primary output (produces[0]). Secondary outputs (e.g. Mining's Hazmat)
-// are not boosted. Safe today because no multi-output planet has an industry input requirement.
-export function getOutputCargo(planetType: PlanetType): CargoType | null {
-  return PLANET_CARGO_PROFILES[planetType]?.produces[0] ?? null;
+/**
+ * Returns the primary output cargo this planet produces (first production tag),
+ * or null if the planet has no production. Secondary outputs (e.g. Hazmat from
+ * a mining world) are intentionally not surfaced here — the chain UI only
+ * highlights the primary product.
+ */
+export function getOutputCargo(planet: Planet): CargoType | null {
+  return (planet.productionTags[0] as CargoType | undefined) ?? null;
 }
 
 /**
  * Tag-based input lookup. A planet's `consumptionTags` represent the cargo
- * types it consumes as industry inputs. Falls back to the legacy
- * PLANET_INDUSTRY_INPUT table when a planet has no consumption tags (test
- * fixtures that pre-date the tag system).
+ * types it consumes as industry inputs.
  */
 function getInputCargosForPlanet(planet: Planet): CargoType[] {
-  if (planet.consumptionTags && planet.consumptionTags.length > 0) {
-    return planet.consumptionTags as CargoType[];
-  }
-  const legacy = PLANET_INDUSTRY_INPUT[planet.type];
-  return legacy ? [legacy] : [];
+  return (planet.consumptionTags ?? []) as CargoType[];
 }
 
 /**

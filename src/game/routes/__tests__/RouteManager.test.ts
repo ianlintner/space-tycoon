@@ -18,7 +18,7 @@ import {
   scanAllRouteOpportunities,
 } from "../RouteManager.ts";
 import { createNewGame } from "../../NewGameSetup.ts";
-import { CargoType, PlanetType } from "../../../data/types.ts";
+import { CargoType, PlanetType, PlanetBiome } from "../../../data/types.ts";
 import type {
   Planet,
   StarSystem,
@@ -45,6 +45,11 @@ function makePlanet(overrides: Partial<Planet> = {}): Planet {
     x: 0,
     y: 0,
     population: 1000000,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
     ...overrides,
   };
 }

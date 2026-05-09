@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { EmpireArchetype } from "../../../data/types.ts";
 import { generateAmbassadors } from "../AmbassadorGenerator.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
 import type { Empire, AICompany } from "../../../data/types.ts";
@@ -12,6 +13,8 @@ const empire: Empire = {
   homeSystemId: "sys-1",
   leaderName: "Emperor Vex IX",
   leaderPortrait: { portraitId: "p1", category: "alien" },
+  archetype: EmpireArchetype.Balanced,
+  ownedSpecials: [],
 };
 
 const rival: AICompany = {
