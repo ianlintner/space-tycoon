@@ -1,4 +1,5 @@
-import { CargoType, GoodCategory } from "./types.ts";
+import type { CargoType } from "./types.ts";
+import { GoodCategory } from "./types.ts";
 
 const CARGO_TO_CATEGORY: Record<CargoType, GoodCategory> = {
   food: GoodCategory.Bulk,
