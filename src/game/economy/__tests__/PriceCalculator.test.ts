@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { calculatePrice } from "../PriceCalculator.ts";
-import { CargoType } from "../../../data/types.ts";
+import { CargoType, SpecialId } from "../../../data/types.ts";
 import type { CargoMarketEntry } from "../../../data/types.ts";
 import { BASE_CARGO_PRICES } from "../../../data/constants.ts";
+import { IMPORT_MULTIPLIER } from "../../../data/goodCategories.ts";
+import { SPECIAL_PRICE_MULTIPLIER } from "../../../data/specialResources.ts";
 
 function makeEntry(
   overrides: Partial<CargoMarketEntry> = {},
@@ -122,6 +124,126 @@ describe("PriceCalculator", () => {
         expect(price).toBeGreaterThan(0);
         expect(price).toBeCloseTo(BASE_CARGO_PRICES[cargoType], 1);
       }
+    });
+  });
+
+  describe("PriceContext: cross-empire import multiplier", () => {
+    it("applies 1.25x multiplier to Premium (Luxury) goods on cross-empire import", () => {
+      const entry = makeEntry();
+      const normalPrice = calculatePrice(entry, {
+        cargoType: CargoType.Luxury,
+      });
+      const importPrice = calculatePrice(entry, {
+        cargoType: CargoType.Luxury,
+        isCrossEmpireImport: true,
+      });
+      expect(importPrice).toBeCloseTo(normalPrice * IMPORT_MULTIPLIER, 2);
+    });
+
+    it("applies 1.25x multiplier to Premium (Passengers) goods on cross-empire import", () => {
+      const entry = makeEntry();
+      const normalPrice = calculatePrice(entry, {
+        cargoType: CargoType.Passengers,
+      });
+      const importPrice = calculatePrice(entry, {
+        cargoType: CargoType.Passengers,
+        isCrossEmpireImport: true,
+      });
+      expect(importPrice).toBeCloseTo(normalPrice * IMPORT_MULTIPLIER, 2);
+    });
+
+    it("does NOT apply import multiplier to non-Premium goods (Food)", () => {
+      const entry = makeEntry();
+      const normalPrice = calculatePrice(entry, { cargoType: CargoType.Food });
+      const importPrice = calculatePrice(entry, {
+        cargoType: CargoType.Food,
+        isCrossEmpireImport: true,
+      });
+      expect(importPrice).toBeCloseTo(normalPrice, 2);
+    });
+
+    it("does NOT apply import multiplier to non-Premium goods (Technology)", () => {
+      const entry = makeEntry();
+      const normalPrice = calculatePrice(entry, {
+        cargoType: CargoType.Technology,
+      });
+      const importPrice = calculatePrice(entry, {
+        cargoType: CargoType.Technology,
+        isCrossEmpireImport: true,
+      });
+      expect(importPrice).toBeCloseTo(normalPrice, 2);
+    });
+
+    it("import multiplier is not applied when isCrossEmpireImport is false/undefined", () => {
+      const entry = makeEntry();
+      const price1 = calculatePrice(entry, { cargoType: CargoType.Luxury });
+      const price2 = calculatePrice(entry, {
+        cargoType: CargoType.Luxury,
+        isCrossEmpireImport: false,
+      });
+      expect(price1).toBeCloseTo(price2, 2);
+    });
+  });
+
+  describe("PriceContext: special cargo premium", () => {
+    it("special cargo uses 2.5x base price and ignores saturation", () => {
+      const highSatEntry = makeEntry({ saturation: 1.0 });
+      const price = calculatePrice(highSatEntry, {
+        cargoType: CargoType.Luxury,
+        specialId: SpecialId.LuxPleasureGarden,
+      });
+      const expected =
+        BASE_CARGO_PRICES[CargoType.Luxury] * SPECIAL_PRICE_MULTIPLIER;
+      expect(price).toBeCloseTo(expected, 2);
+    });
+
+    it("special cargo ignores demand/supply ratio", () => {
+      // Normally high supply vs demand would depress price; special should not care
+      const lowDemandEntry = makeEntry({ baseDemand: 1, baseSupply: 100 });
+      const price = calculatePrice(lowDemandEntry, {
+        cargoType: CargoType.Food,
+        specialId: SpecialId.FoodGenesis,
+      });
+      const expected =
+        BASE_CARGO_PRICES[CargoType.Food] * SPECIAL_PRICE_MULTIPLIER;
+      expect(price).toBeCloseTo(expected, 2);
+    });
+
+    it("special cargo ignores trend modifiers", () => {
+      const fallingEntry = makeEntry({ trend: "falling" });
+      const price = calculatePrice(fallingEntry, {
+        cargoType: CargoType.Technology,
+        specialId: SpecialId.TechJokaero,
+      });
+      const expected =
+        BASE_CARGO_PRICES[CargoType.Technology] * SPECIAL_PRICE_MULTIPLIER;
+      expect(price).toBeCloseTo(expected, 2);
+    });
+
+    it("special cargo + cross-empire Premium stacks import multiplier on top", () => {
+      const entry = makeEntry();
+      const price = calculatePrice(entry, {
+        cargoType: CargoType.Luxury,
+        specialId: SpecialId.LuxPleasureGarden,
+        isCrossEmpireImport: true,
+      });
+      const expected =
+        BASE_CARGO_PRICES[CargoType.Luxury] *
+        SPECIAL_PRICE_MULTIPLIER *
+        IMPORT_MULTIPLIER;
+      expect(price).toBeCloseTo(expected, 2);
+    });
+
+    it("special cargo with non-Premium type does NOT get import multiplier", () => {
+      const entry = makeEntry();
+      const price = calculatePrice(entry, {
+        cargoType: CargoType.Food,
+        specialId: SpecialId.FoodGenesis,
+        isCrossEmpireImport: true,
+      });
+      const expected =
+        BASE_CARGO_PRICES[CargoType.Food] * SPECIAL_PRICE_MULTIPLIER;
+      expect(price).toBeCloseTo(expected, 2);
     });
   });
 });
