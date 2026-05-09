@@ -6,7 +6,12 @@ import {
 } from "../RouteMarket.ts";
 import { scoutRoute } from "../RouteScout.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
-import { CargoType, PlanetType } from "../../../data/types.ts";
+import {
+  CargoType,
+  EmpireArchetype,
+  PlanetBiome,
+  PlanetType,
+} from "../../../data/types.ts";
 import type {
   GameState,
   Planet,
@@ -69,6 +74,11 @@ function makeTwoPlanets(): Planet[] {
       x: 0,
       y: 0,
       population: 1_000_000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [CargoType.Food, CargoType.Medical],
+      productionScale: 1.0,
+      populationCap: 2_000_000,
     },
     {
       id: "planet-b",
@@ -78,6 +88,11 @@ function makeTwoPlanets(): Planet[] {
       x: 200,
       y: 200,
       population: 200_000,
+      biome: PlanetBiome.CoreExtraction,
+      productionTags: [CargoType.RawMaterials],
+      consumptionTags: [],
+      productionScale: 1.2,
+      populationCap: 500_000,
     },
   ];
 }
@@ -138,6 +153,8 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           homeSystemId: "sys-1",
           leaderName: "Leader",
           leaderPortrait: { portraitId: "p-01", category: "human" },
+          archetype: EmpireArchetype.Balanced,
+          ownedSpecials: [],
         },
       ],
       systems: makeSystems(),
@@ -499,6 +516,11 @@ describe("scope-aware market generation", () => {
         x: 0,
         y: 0,
         population: 100,
+        biome: PlanetBiome.Colony,
+        productionTags: [],
+        consumptionTags: [CargoType.Food],
+        productionScale: 1.0,
+        populationCap: 500,
       },
       {
         id: "planet-a2",
@@ -508,6 +530,11 @@ describe("scope-aware market generation", () => {
         x: 5,
         y: 5,
         population: 100,
+        biome: PlanetBiome.ResearchCluster,
+        productionTags: [CargoType.Technology],
+        consumptionTags: [],
+        productionScale: 1.0,
+        populationCap: 500,
       },
       {
         id: "planet-b",
@@ -517,6 +544,11 @@ describe("scope-aware market generation", () => {
         x: 100,
         y: 0,
         population: 100,
+        biome: PlanetBiome.CoreExtraction,
+        productionTags: [CargoType.RawMaterials],
+        consumptionTags: [],
+        productionScale: 1.0,
+        populationCap: 500,
       },
       {
         id: "planet-c",
@@ -526,6 +558,11 @@ describe("scope-aware market generation", () => {
         x: 200,
         y: 0,
         population: 100,
+        biome: PlanetBiome.Breadbasket,
+        productionTags: [CargoType.Food],
+        consumptionTags: [],
+        productionScale: 1.0,
+        populationCap: 500,
       },
     ];
   }
@@ -547,6 +584,8 @@ describe("scope-aware market generation", () => {
             homeSystemId: "sys-1",
             leaderName: "L1",
             leaderPortrait: { portraitId: "p-01", category: "human" },
+            archetype: EmpireArchetype.Balanced,
+            ownedSpecials: [],
           },
           {
             id: "emp-2",
@@ -557,6 +596,8 @@ describe("scope-aware market generation", () => {
             homeSystemId: "sys-3",
             leaderName: "L2",
             leaderPortrait: { portraitId: "p-02", category: "human" },
+            archetype: EmpireArchetype.Balanced,
+            ownedSpecials: [],
           },
         ],
         systems: richSystems,
