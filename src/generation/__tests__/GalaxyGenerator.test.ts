@@ -163,6 +163,47 @@ describe("GalaxyGenerator", () => {
     }
   });
 
+  it("hyperlane edges are planar (no crossing hyperlanes)", () => {
+    const galaxy = generateGalaxy(
+      42,
+      "standard",
+      GalaxyShape.Spiral,
+      HyperlaneDensity.Medium,
+    );
+    const sysById = new Map(galaxy.systems.map((s) => [s.id, s]));
+    const segs = galaxy.hyperlanes.map((hl) => ({
+      x1: sysById.get(hl.systemA)!.x,
+      y1: sysById.get(hl.systemA)!.y,
+      x2: sysById.get(hl.systemB)!.x,
+      y2: sysById.get(hl.systemB)!.y,
+    }));
+    for (let i = 0; i < segs.length; i++) {
+      for (let j = i + 1; j < segs.length; j++) {
+        const a = segs[i];
+        const b = segs[j];
+        // Skip adjacent segments (share an endpoint)
+        if (
+          (a.x1 === b.x1 && a.y1 === b.y1) ||
+          (a.x1 === b.x2 && a.y1 === b.y2) ||
+          (a.x2 === b.x1 && a.y2 === b.y1) ||
+          (a.x2 === b.x2 && a.y2 === b.y2)
+        )
+          continue;
+        function cross(ax: number, ay: number, bx: number, by: number) {
+          return ax * by - ay * bx;
+        }
+        const d1 = cross(b.x2 - b.x1, b.y2 - b.y1, a.x1 - b.x1, a.y1 - b.y1);
+        const d2 = cross(b.x2 - b.x1, b.y2 - b.y1, a.x2 - b.x1, a.y2 - b.y1);
+        const d3 = cross(a.x2 - a.x1, a.y2 - a.y1, b.x1 - a.x1, b.y1 - a.y1);
+        const d4 = cross(a.x2 - a.x1, a.y2 - a.y1, b.x2 - a.x1, b.y2 - a.y1);
+        const crosses =
+          ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+          ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+        expect(crosses).toBe(false);
+      }
+    }
+  });
+
   it("hyperlane network stays corridor-like instead of web-like", () => {
     for (const seed of [13, 42, 101, 500, 9001]) {
       const galaxy = generateGalaxy(

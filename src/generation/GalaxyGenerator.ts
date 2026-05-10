@@ -1,3 +1,4 @@
+import Delaunator from "delaunator";
 import { SeededRNG } from "../utils/SeededRNG.ts";
 import { NameGenerator } from "./NameGenerator.ts";
 import {
@@ -566,67 +567,8 @@ function hasSharedNeighbor(
   return false;
 }
 
-function cross2d(ax: number, ay: number, bx: number, by: number): number {
-  return ax * by - ay * bx;
-}
-
-function segmentsCross(
-  ax1: number,
-  ay1: number,
-  ax2: number,
-  ay2: number,
-  bx1: number,
-  by1: number,
-  bx2: number,
-  by2: number,
-): boolean {
-  const eps = 0.01;
-  if (
-    (Math.abs(ax1 - bx1) < eps && Math.abs(ay1 - by1) < eps) ||
-    (Math.abs(ax1 - bx2) < eps && Math.abs(ay1 - by2) < eps) ||
-    (Math.abs(ax2 - bx1) < eps && Math.abs(ay2 - by1) < eps) ||
-    (Math.abs(ax2 - bx2) < eps && Math.abs(ay2 - by2) < eps)
-  ) {
-    return false;
-  }
-  const d1 = cross2d(bx2 - bx1, by2 - by1, ax1 - bx1, ay1 - by1);
-  const d2 = cross2d(bx2 - bx1, by2 - by1, ax2 - bx1, ay2 - by1);
-  const d3 = cross2d(ax2 - ax1, ay2 - ay1, bx1 - ax1, by1 - ay1);
-  const d4 = cross2d(ax2 - ax1, ay2 - ay1, bx2 - ax1, by2 - ay1);
-  return (
-    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
-  );
-}
-
-function wouldCrossKeptEdges(
-  a: number,
-  b: number,
-  systems: StarSystem[],
-  keptEdgeList: Array<[number, number]>,
-): boolean {
-  const ax1 = systems[a].x;
-  const ay1 = systems[a].y;
-  const ax2 = systems[b].x;
-  const ay2 = systems[b].y;
-  for (const [ka, kb] of keptEdgeList) {
-    if (ka === a || ka === b || kb === a || kb === b) continue;
-    if (
-      segmentsCross(
-        ax1,
-        ay1,
-        ax2,
-        ay2,
-        systems[ka].x,
-        systems[ka].y,
-        systems[kb].x,
-        systems[kb].y,
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
+function nextHalfedge(e: number): number {
+  return e % 3 === 2 ? e - 2 : e + 1;
 }
 
 function generateHyperlanes(
@@ -643,19 +585,30 @@ function generateHyperlanes(
   const maxConn = densityCfg.maxConn;
   const targetEdges = edgeCountTarget(systems.length, densityCfg.keepRatio);
 
-  const allEdges: Edge[] = [];
-  const nearestNeighborDist = new Float64Array(systems.length);
-  for (let i = 0; i < systems.length; i++)
-    nearestNeighborDist[i] = Number.POSITIVE_INFINITY;
+  // Build Delaunay triangulation — O(n log n) and planar by construction.
+  // HYPERLANE_DENSITY_CONFIGS comment already says "fraction of Delaunay edges";
+  // this makes that literally true instead of a superset approximation.
+  const coords = new Float64Array(systems.length * 2);
   for (let i = 0; i < systems.length; i++) {
-    for (let j = i + 1; j < systems.length; j++) {
-      const dx = systems[i].x - systems[j].x;
-      const dy = systems[i].y - systems[j].y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      allEdges.push({ a: i, b: j, dist });
-      if (dist < nearestNeighborDist[i]) nearestNeighborDist[i] = dist;
-      if (dist < nearestNeighborDist[j]) nearestNeighborDist[j] = dist;
-    }
+    coords[i * 2] = systems[i].x;
+    coords[i * 2 + 1] = systems[i].y;
+  }
+  const delaunay = new Delaunator(coords);
+
+  const allEdges: Edge[] = [];
+  const nearestNeighborDist = new Float64Array(systems.length).fill(Infinity);
+  for (let e = 0; e < delaunay.triangles.length; e++) {
+    // Skip the reverse half-edge so each undirected edge is processed once.
+    // Hull edges (halfedges[e] === -1) have no reverse — always include them.
+    if (delaunay.halfedges[e] !== -1 && e > delaunay.halfedges[e]) continue;
+    const a = delaunay.triangles[e];
+    const b = delaunay.triangles[nextHalfedge(e)];
+    const dx = systems[a].x - systems[b].x;
+    const dy = systems[a].y - systems[b].y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    allEdges.push({ a, b, dist });
+    if (dist < nearestNeighborDist[a]) nearestNeighborDist[a] = dist;
+    if (dist < nearestNeighborDist[b]) nearestNeighborDist[b] = dist;
   }
   allEdges.sort((a, b) => a.dist - b.dist);
 
@@ -690,7 +643,6 @@ function generateHyperlanes(
   }
 
   const keptEdges = new Set<string>();
-  const keptEdgeList: Array<[number, number]> = [];
   const connCount = new Int32Array(systems.length);
   const adjacency: Array<Set<number>> = Array.from(
     { length: systems.length },
@@ -703,7 +655,6 @@ function generateHyperlanes(
     if (keptEdges.has(key)) return false;
     if (connCount[a] >= maxConn || connCount[b] >= maxConn) return false;
     keptEdges.add(key);
-    keptEdgeList.push([Math.min(a, b), Math.max(a, b)]);
     connCount[a]++;
     connCount[b]++;
     adjacency[a].add(b);
@@ -716,7 +667,6 @@ function generateHyperlanes(
     const key = edgeKey(a, b);
     if (keptEdges.has(key)) return false;
     keptEdges.add(key);
-    keptEdgeList.push([Math.min(a, b), Math.max(a, b)]);
     connCount[a]++;
     connCount[b]++;
     adjacency[a].add(b);
@@ -745,7 +695,6 @@ function generateHyperlanes(
     if (e.dist > longEdgeLimit) continue;
 
     if (hasSharedNeighbor(adjacency, e.a, e.b) && rng.next() < 0.8) continue;
-    if (wouldCrossKeptEdges(e.a, e.b, systems, keptEdgeList)) continue;
 
     const edgeScore = scoreEdgeForShape(
       systems[e.a],
@@ -778,7 +727,6 @@ function generateHyperlanes(
       const key = edgeKey(c.a, c.b);
       if (keptEdges.has(key)) continue;
       keptEdges.add(key);
-      keptEdgeList.push([Math.min(c.a, c.b), Math.max(c.a, c.b)]);
       connCount[c.a]++;
       connCount[c.b]++;
       adjacency[c.a].add(c.b);
