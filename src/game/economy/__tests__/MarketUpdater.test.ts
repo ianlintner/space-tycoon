@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { updateMarket } from "../MarketUpdater.ts";
-import { CargoType, PlanetType } from "../../../data/types.ts";
+import { CargoType, PlanetBiome, PlanetType } from "../../../data/types.ts";
 import type {
   CargoType as CargoTypeT,
   MarketState,
@@ -184,6 +184,11 @@ describe("industry chain boost", () => {
       x: 0,
       y: 0,
       population: 100000,
+      biome: PlanetBiome.ResearchCluster,
+      productionTags: [CargoType.Technology],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 500000,
     };
     const boosted = updateMarket(unboostedMarket, rng2, new Set(["tech-1"]), [
       techPlanet,
@@ -215,6 +220,11 @@ describe("industry chain boost", () => {
       x: 0,
       y: 0,
       population: 100000,
+      biome: PlanetBiome.ResearchCluster,
+      productionTags: [CargoType.Technology],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 500000,
     };
 
     const rng = new SeededRNG(42);
@@ -244,6 +254,11 @@ describe("industry chain boost", () => {
       x: 0,
       y: 0,
       population: 100000,
+      biome: PlanetBiome.ResearchCluster,
+      productionTags: [CargoType.Technology],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 500000,
     };
 
     const rng = new SeededRNG(42);

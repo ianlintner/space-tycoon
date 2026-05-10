@@ -19,11 +19,12 @@ const SHAPES: SimulationConfig["galaxyShape"][] = [
   "irregular",
 ];
 
-// Run full turn counts per preset to see endgame dynamics
+// Galaxy scale expansion (2026-05) made standard/epic galaxies 4-5x larger.
+// Keep turns small to avoid CI timeouts.
 const MAX_TURNS_BY_SIZE: Record<string, number> = {
   quick: 10,
-  standard: 16,
-  epic: 24,
+  standard: 5,
+  epic: 5,
 };
 
 function makeConfig(
@@ -576,7 +577,7 @@ describe("Batch AI Simulation Analysis", () => {
     const startLen = allRuns.length;
     for (const count of COMPANY_COUNTS) {
       for (const seed of SEEDS.slice(0, 2)) {
-        const config = makeConfig(seed, "standard", count, "spiral");
+        const config = makeConfig(seed, "quick", count, "spiral");
         const runner = new SimulationRunner();
         const result = runner.run(config);
         allRuns.push(extractRunSummary(result));

@@ -6,8 +6,8 @@ import type {
   PlanetType,
   CargoType as CargoTypeValue,
 } from "../data/types.ts";
-import { PLANET_CARGO_PROFILES } from "../data/constants.ts";
 import { getTheme } from "@spacebiz/ui";
+import KDBush from "kdbush";
 
 const PLANET_TYPE_COLORS: Record<PlanetType, number> = {
   agricultural: 0x68b45a,
@@ -54,7 +54,11 @@ interface PlanetHit {
   id: string;
   mx: number;
   my: number;
-  r: number;
+}
+
+interface StarHit {
+  mx: number;
+  my: number;
 }
 
 export class RoutePickerMap {
@@ -65,9 +69,13 @@ export class RoutePickerMap {
   private readonly height: number;
   private readonly depth: number;
   private readonly graphics: Phaser.GameObjects.Graphics;
+  private readonly flashGraphics: Phaser.GameObjects.Graphics;
   private readonly hitZone: Phaser.GameObjects.Zone;
   private hoverLabel: Phaser.GameObjects.Text;
   private planetHits: PlanetHit[] = [];
+  private barrenStarHits: StarHit[] = [];
+  private planetIndex: KDBush | null = null;
+  private barrenIndex: KDBush | null = null;
   private planetById = new Map<string, Planet>();
   private currentHover: string | null = null;
   private readonly onPlanetClick?: (planetId: string) => void;
@@ -85,6 +93,9 @@ export class RoutePickerMap {
 
     this.graphics = this.scene.add.graphics();
     this.graphics.setDepth(this.depth);
+
+    this.flashGraphics = this.scene.add.graphics();
+    this.flashGraphics.setDepth(this.depth + 3);
 
     const theme = getTheme();
     this.hoverLabel = this.scene.add.text(
@@ -113,7 +124,7 @@ export class RoutePickerMap {
     this.hitZone.setInteractive();
 
     this.hitZone.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      const planetId = this.findPlanetAt(pointer.worldX, pointer.worldY);
+      const planetId = this.findNearestPlanet(pointer.worldX, pointer.worldY);
       if (planetId !== this.currentHover) {
         this.currentHover = planetId;
         this.updateHoverLabel(planetId);
@@ -128,9 +139,13 @@ export class RoutePickerMap {
       }
     });
     this.hitZone.on("pointerup", (pointer: Phaser.Input.Pointer) => {
-      const planetId = this.findPlanetAt(pointer.worldX, pointer.worldY);
+      const planetId = this.findNearestPlanet(pointer.worldX, pointer.worldY);
       if (planetId) {
         this.onPlanetClick?.(planetId);
+      } else {
+        // Clicked near a barren star — flash red to communicate no trade destinations
+        const star = this.findNearestBarrenStar(pointer.worldX, pointer.worldY);
+        if (star) this.flashBarrenAt(star.mx, star.my);
       }
     });
 
@@ -139,13 +154,14 @@ export class RoutePickerMap {
 
   /**
    * Render the galaxy with all systems + their planets.
-   * Plants are clickable. If cargoType is set, planet halos scale with
+   * Planets are clickable. If cargoType is set, planet halos scale with
    * demand-match (or production-match) for that cargo.
    */
   draw(opts: RoutePickerDrawOptions): void {
     this.graphics.clear();
     this.drawBackground();
     this.planetHits = [];
+    this.barrenStarHits = [];
     this.planetById.clear();
     for (const p of opts.planets) this.planetById.set(p.id, p);
 
@@ -214,6 +230,14 @@ export class RoutePickerMap {
       }
     }
 
+    // Track barren stars (systems with no planets) for red-flash feedback
+    for (const sys of opts.systems) {
+      if (!planetsBySystem.has(sys.id)) {
+        const c = sysPos.get(sys.id)!;
+        this.barrenStarHits.push({ mx: c.mx, my: c.my });
+      }
+    }
+
     // Draw existing active routes as dim lines (planet → planet)
     this.graphics.lineStyle(1, theme.colors.accent, 0.12);
     for (const route of opts.activeRoutes) {
@@ -226,10 +250,11 @@ export class RoutePickerMap {
       this.graphics.strokePath();
     }
 
-    // Draw star centers (dim)
+    // Draw star centers — barren stars slightly dimmer
     for (const sys of opts.systems) {
       const p = sysPos.get(sys.id)!;
-      this.graphics.fillStyle(sys.starColor, 0.55);
+      const isBarren = !planetsBySystem.has(sys.id);
+      this.graphics.fillStyle(sys.starColor, isBarren ? 0.3 : 0.55);
       this.graphics.fillCircle(p.mx, p.my, 1.4);
     }
 
@@ -246,7 +271,7 @@ export class RoutePickerMap {
 
       // Demand halo when cargo selected
       if (opts.cargoType) {
-        const intensity = demandIntensity(planet.type, opts.cargoType);
+        const intensity = demandIntensity(planet, opts.cargoType);
         if (intensity > 0) {
           this.graphics.fillStyle(theme.colors.profit, 0.18 * intensity);
           this.graphics.fillCircle(pos.mx, pos.my, 5 + 2 * intensity);
@@ -269,7 +294,7 @@ export class RoutePickerMap {
       this.graphics.fillStyle(baseColor, isOrigin || isDest ? 1.0 : 0.85);
       this.graphics.fillCircle(pos.mx, pos.my, 2.3);
 
-      hits.push({ id: planet.id, mx: pos.mx, my: pos.my, r: 6 });
+      hits.push({ id: planet.id, mx: pos.mx, my: pos.my });
     }
 
     // Draw the proposed route line (origin → destination) if both set
@@ -290,33 +315,104 @@ export class RoutePickerMap {
     }
 
     this.planetHits = hits;
+
+    const pi = new KDBush(this.planetHits.length);
+    for (const h of this.planetHits) pi.add(h.mx, h.my);
+    pi.finish();
+    this.planetIndex = pi;
+
+    const bi = new KDBush(this.barrenStarHits.length);
+    for (const h of this.barrenStarHits) bi.add(h.mx, h.my);
+    bi.finish();
+    this.barrenIndex = bi;
+
     this.updateHoverLabel(this.currentHover);
   }
 
-  /** Find planet under a world-space point, or null. */
-  findPlanetAt(worldX: number, worldY: number): string | null {
+  /**
+   * Returns the nearest planet to (worldX, worldY), regardless of distance.
+   * The hitZone bounds valid clicks to the map area, so any click inside the
+   * map should resolve to the nearest planet rather than failing a fixed-radius
+   * test (which breaks with dense galaxies where stars are only a few px apart).
+   */
+  findNearestPlanet(worldX: number, worldY: number): string | null {
+    if (this.planetHits.length === 0 || !this.planetIndex) return null;
+    let r = 20;
+    let ids: number[] = [];
+    while (ids.length === 0 && r < 2000) {
+      ids = this.planetIndex.within(worldX, worldY, r);
+      r *= 2;
+    }
     let bestId: string | null = null;
     let bestDist = Infinity;
-    for (const hit of this.planetHits) {
-      const dx = hit.mx - worldX;
-      const dy = hit.my - worldY;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < hit.r && d < bestDist) {
+    for (const i of ids) {
+      const h = this.planetHits[i];
+      const dx = h.mx - worldX;
+      const dy = h.my - worldY;
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
         bestDist = d;
-        bestId = hit.id;
+        bestId = h.id;
       }
     }
     return bestId;
   }
 
+  /**
+   * Returns the nearest barren star position within BARREN_SNAP_PX pixels,
+   * or null if none is close enough. Used to trigger the red-flash feedback.
+   */
+  private findNearestBarrenStar(
+    worldX: number,
+    worldY: number,
+  ): StarHit | null {
+    if (this.barrenStarHits.length === 0 || !this.barrenIndex) return null;
+    const ids = this.barrenIndex.within(worldX, worldY, 20);
+    if (ids.length === 0) return null;
+    let best: StarHit | null = null;
+    let bestDist = Infinity;
+    for (const i of ids) {
+      const h = this.barrenStarHits[i];
+      const dx = h.mx - worldX;
+      const dy = h.my - worldY;
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
+        bestDist = d;
+        best = h;
+      }
+    }
+    return best;
+  }
+
+  /** Animate a brief red ring at (mx, my) to signal no planets here. */
+  private flashBarrenAt(mx: number, my: number): void {
+    this.flashGraphics.clear();
+    this.flashGraphics.setAlpha(1);
+    this.flashGraphics.lineStyle(2, 0xff3333, 0.9);
+    this.flashGraphics.strokeCircle(mx, my, 6);
+
+    this.scene.tweens.add({
+      targets: this.flashGraphics,
+      alpha: 0,
+      duration: 350,
+      ease: "Quad.easeOut",
+      onComplete: () => {
+        this.flashGraphics.clear();
+      },
+    });
+  }
+
   destroy(): void {
+    this.planetIndex = null;
+    this.barrenIndex = null;
     this.graphics.destroy();
+    this.flashGraphics.destroy();
     this.hitZone.destroy();
     this.hoverLabel.destroy();
   }
 
   getGameObjects(): Phaser.GameObjects.GameObject[] {
-    return [this.graphics, this.hoverLabel, this.hitZone];
+    return [this.graphics, this.flashGraphics, this.hoverLabel, this.hitZone];
   }
 
   private drawBackground(): void {
@@ -342,19 +438,14 @@ export class RoutePickerMap {
 }
 
 /**
- * Demand intensity (0..1) for a cargo type at a planet of the given type.
- * 1.0 = strong demand, 0.6 = strong production, 0 = no fit.
+ * Demand intensity (0..1) for a cargo type at a planet.
+ * 1.0 = strong demand (consumptionTags), 0.6 = strong production (productionTags), 0 = no fit.
  * For Passengers we treat all planets as moderate demand.
  */
-function demandIntensity(
-  planetType: PlanetType,
-  cargoType: CargoTypeValue,
-): number {
+function demandIntensity(planet: Planet, cargoType: CargoTypeValue): number {
   if (cargoType === "passengers") return 0.5;
-  const profile = PLANET_CARGO_PROFILES[planetType];
-  if (!profile) return 0;
-  if (profile.demands.includes(cargoType as never)) return 1.0;
-  if (profile.produces.includes(cargoType as never)) return 0.6;
+  if (planet.consumptionTags.includes(cargoType)) return 1.0;
+  if (planet.productionTags.includes(cargoType)) return 0.6;
   return 0;
 }
 

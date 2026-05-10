@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome, EmpireArchetype } from "../../../data/types.ts";
 import {
   CargoType,
   ShipClass,
@@ -76,6 +77,8 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           homeSystemId: "sys-1",
           leaderName: "Sol Leader",
           leaderPortrait: { portraitId: "leader-01", category: "human" },
+          archetype: EmpireArchetype.Balanced,
+          ownedSpecials: [],
         },
         {
           id: "emp-2",
@@ -86,6 +89,8 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           homeSystemId: "sys-2",
           leaderName: "Zeta Leader",
           leaderPortrait: { portraitId: "leader-02", category: "alien" },
+          archetype: EmpireArchetype.Balanced,
+          ownedSpecials: [],
         },
       ],
       systems: [
@@ -117,6 +122,11 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           x: 110,
           y: 110,
           population: 1000000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
         {
           id: "planet-b",
@@ -126,6 +136,11 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           x: 210,
           y: 210,
           population: 500000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
       ],
     },

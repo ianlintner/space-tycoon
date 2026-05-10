@@ -4,7 +4,6 @@ import { generateGalaxy } from "../GalaxyGenerator.ts";
 import { SeededRNG } from "../../utils/SeededRNG.ts";
 import { CargoType } from "../../data/types.ts";
 import type { CargoType as CargoTypeT } from "../../data/types.ts";
-import { PLANET_CARGO_PROFILES } from "../../data/constants.ts";
 
 const ALL_CARGO_TYPES: CargoTypeT[] = Object.values(CargoType);
 
@@ -32,9 +31,10 @@ describe("MarketInitializer", () => {
     const market = initializeMarkets(galaxy, rng);
 
     for (const planet of galaxy.planets) {
-      const profile = PLANET_CARGO_PROFILES[planet.type];
       const planetMarket = market.planetMarkets[planet.id];
-      for (const produced of profile.produces) {
+      for (const produced of planet.productionTags) {
+        // Skip passengers — handled separately by population-based logic
+        if (produced === CargoType.Passengers) continue;
         const entry = planetMarket[produced];
         expect(entry.baseSupply).toBeGreaterThan(entry.baseDemand);
       }
@@ -46,9 +46,13 @@ describe("MarketInitializer", () => {
     const market = initializeMarkets(galaxy, rng);
 
     for (const planet of galaxy.planets) {
-      const profile = PLANET_CARGO_PROFILES[planet.type];
       const planetMarket = market.planetMarkets[planet.id];
-      for (const demanded of profile.demands) {
+      const producedSet = new Set(planet.productionTags);
+      for (const demanded of planet.consumptionTags) {
+        // Skip passengers — handled separately by population-based logic
+        if (demanded === CargoType.Passengers) continue;
+        // Skip if the same cargo is also produced — producedSet takes priority
+        if (producedSet.has(demanded)) continue;
         const entry = planetMarket[demanded];
         expect(entry.baseDemand).toBeGreaterThan(entry.baseSupply);
       }
@@ -119,22 +123,28 @@ describe("MarketInitializer", () => {
     const rng = new SeededRNG(42);
     const market = initializeMarkets(galaxy, rng);
 
-    // Find a planet with both produced and demanded goods of same base price range
-    // Just verify the price ratio logic: produced goods = low demand/high supply = lower price
     for (const planet of galaxy.planets) {
-      const profile = PLANET_CARGO_PROFILES[planet.type];
       const planetMarket = market.planetMarkets[planet.id];
 
-      if (profile.produces.length > 0) {
-        const produced = profile.produces[0];
+      const producedSet = new Set(planet.productionTags);
+      const producedNonPax = planet.productionTags.filter(
+        (t) => t !== CargoType.Passengers,
+      );
+      // Only test demanded goods that aren't also produced (producedSet takes priority)
+      const demandedNonPax = planet.consumptionTags.filter(
+        (t) => t !== CargoType.Passengers && !producedSet.has(t),
+      );
+
+      if (producedNonPax.length > 0) {
+        const produced = producedNonPax[0];
         const entry = planetMarket[produced];
         // For produced goods: demand/supply ratio < 1, so price < base
         const ratio = entry.baseDemand / entry.baseSupply;
         expect(ratio).toBeLessThan(1);
       }
 
-      if (profile.demands.length > 0) {
-        const demanded = profile.demands[0];
+      if (demandedNonPax.length > 0) {
+        const demanded = demandedNonPax[0];
         const entry = planetMarket[demanded];
         // For demanded goods: demand/supply ratio > 1, so price > base
         const ratio = entry.baseDemand / entry.baseSupply;

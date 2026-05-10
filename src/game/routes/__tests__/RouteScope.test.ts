@@ -19,7 +19,7 @@ import type {
   StarSystem,
   Sector,
 } from "../../../data/types.ts";
-import { CargoType, RouteScope } from "../../../data/types.ts";
+import { CargoType, RouteScope, PlanetBiome } from "../../../data/types.ts";
 import {
   SCOPE_DEMAND_MULTIPLIERS,
   BASE_GALACTIC_ROUTE_SLOTS,
@@ -74,6 +74,11 @@ const planets: Planet[] = [
     x: 0,
     y: 0,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
   {
     id: "planet-a2",
@@ -83,6 +88,11 @@ const planets: Planet[] = [
     x: 5,
     y: 5,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
   {
     id: "planet-b",
@@ -92,6 +102,11 @@ const planets: Planet[] = [
     x: 100,
     y: 0,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
   {
     id: "planet-c",
@@ -101,6 +116,11 @@ const planets: Planet[] = [
     x: 200,
     y: 0,
     population: 100,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
   },
 ];
 

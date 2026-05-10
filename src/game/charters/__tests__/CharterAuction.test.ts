@@ -7,6 +7,7 @@ import type {
   GameState,
 } from "../../../data/types.ts";
 import { PLAYER_COMPANY_ID } from "../../../data/constants.ts";
+import { EmpireArchetype } from "../../../data/types.ts";
 import {
   aiAuctionBid,
   calculateMinBid,
@@ -46,6 +47,8 @@ function makeEmpire(
       domesticOpen: totals.d,
       foreignOpen: totals.f,
     },
+    archetype: EmpireArchetype.Balanced,
+    ownedSpecials: [],
   };
 }
 

@@ -18,7 +18,7 @@ import {
   scanAllRouteOpportunities,
 } from "../RouteManager.ts";
 import { createNewGame } from "../../NewGameSetup.ts";
-import { CargoType, PlanetType } from "../../../data/types.ts";
+import { CargoType, PlanetType, PlanetBiome } from "../../../data/types.ts";
 import type {
   Planet,
   StarSystem,
@@ -45,6 +45,11 @@ function makePlanet(overrides: Partial<Planet> = {}): Planet {
     x: 0,
     y: 0,
     population: 1000000,
+    biome: PlanetBiome.Colony,
+    productionTags: [],
+    consumptionTags: [],
+    productionScale: 1.0,
+    populationCap: 10,
     ...overrides,
   };
 }
@@ -760,7 +765,7 @@ describe("RouteManager", () => {
     it.each([1, 2, 3, 7, 42])(
       "produces opportunities for a fresh game (seed %i)",
       (seed) => {
-        const { state } = createNewGame(seed);
+        const { state } = createNewGame(seed, "Star Freight Corp", "quick");
         const opps = scanAllRouteOpportunities(
           state.galaxy.planets,
           state.galaxy.systems,
@@ -775,7 +780,7 @@ describe("RouteManager", () => {
     );
 
     it("surfaces at least one opportunity for every cargo type at game start (seed 1)", () => {
-      const { state } = createNewGame(1);
+      const { state } = createNewGame(1, "Star Freight Corp", "quick");
       const opps = scanAllRouteOpportunities(
         state.galaxy.planets,
         state.galaxy.systems,
@@ -798,7 +803,7 @@ describe("RouteManager", () => {
     it.each([1, 2, 3, 7, 42])(
       "surfaces at least one intra-empire opportunity at game start (seed %i)",
       (seed) => {
-        const { state } = createNewGame(seed);
+        const { state } = createNewGame(seed, "Star Freight Corp", "quick");
         const opps = scanAllRouteOpportunities(
           state.galaxy.planets,
           state.galaxy.systems,

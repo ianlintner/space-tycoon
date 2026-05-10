@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PlanetBiome } from "../../../data/types.ts";
 import { EVENT_TEMPLATES } from "../EventDefinitions.ts";
 import {
   resolveChoiceEvent,
@@ -86,6 +87,11 @@ function makeMinimalState(overrides: Partial<GameState> = {}): GameState {
       x: 0,
       y: 0,
       population: 1_000_000,
+      biome: PlanetBiome.Colony,
+      productionTags: [],
+      consumptionTags: [],
+      productionScale: 1.0,
+      populationCap: 10,
     },
   ];
 

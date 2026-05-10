@@ -4,7 +4,12 @@ import {
   getHighScores,
   saveHighScore,
 } from "../ScoreCalculator.ts";
-import { CargoType, ShipClass, PlanetType } from "../../../data/types.ts";
+import {
+  CargoType,
+  ShipClass,
+  PlanetType,
+  PlanetBiome,
+} from "../../../data/types.ts";
 import type {
   GameState,
   Ship,
@@ -158,6 +163,11 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           x: 110,
           y: 110,
           population: 1000000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
         {
           id: "planet-b",
@@ -167,6 +177,11 @@ function makeGameState(overrides: Partial<GameState> = {}): GameState {
           x: 150,
           y: 150,
           population: 200000,
+          biome: PlanetBiome.Colony,
+          productionTags: [],
+          consumptionTags: [],
+          productionScale: 1.0,
+          populationCap: 10,
         },
       ],
     },

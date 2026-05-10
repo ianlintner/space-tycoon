@@ -75,21 +75,20 @@ describe("NewGameSetup", () => {
     // 8 sectors (small map = 8 empires)
     expect(galaxy.sectors.length).toBe(8);
 
-    // 6-8 systems per sector
+    // Spiral pipeline: variable systems per sector, but every empire has >=1.
     for (const sector of galaxy.sectors) {
       const systemsInSector = galaxy.systems.filter(
         (s) => s.sectorId === sector.id,
       );
-      expect(systemsInSector.length).toBeGreaterThanOrEqual(6);
-      expect(systemsInSector.length).toBeLessThanOrEqual(8);
+      expect(systemsInSector.length).toBeGreaterThanOrEqual(1);
     }
 
-    // 1-3 planets per system
+    // 0-3 planets per system (barren transit nodes allowed)
     for (const system of galaxy.systems) {
       const planetsInSystem = galaxy.planets.filter(
         (p) => p.systemId === system.id,
       );
-      expect(planetsInSystem.length).toBeGreaterThanOrEqual(1);
+      expect(planetsInSystem.length).toBeGreaterThanOrEqual(0);
       expect(planetsInSystem.length).toBeLessThanOrEqual(3);
     }
 

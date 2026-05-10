@@ -54,6 +54,18 @@ function formatPopulation(pop: number): string {
   return String(pop);
 }
 
+function formatBiomeName(biome: string): string {
+  // camelCase → Title Case With Spaces.
+  return biome
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
+}
+
+function formatTag(tag: string): string {
+  return tag.charAt(0).toUpperCase() + tag.slice(1);
+}
+
 export class PlanetDetailScene extends Phaser.Scene {
   private planetId = "";
   private ui!: SceneUiDirector;
@@ -61,6 +73,7 @@ export class PlanetDetailScene extends Phaser.Scene {
   private portraitPanel!: PortraitPanel;
   private contentPanel!: Panel;
   private infoLabel!: Label;
+  private biomeLabel!: Label;
   private hintLabel!: Label;
   private chainStatusLabel?: Label;
   private tableFrame!: ScrollFrame;
@@ -127,6 +140,25 @@ export class PlanetDetailScene extends Phaser.Scene {
       style: "body",
     });
 
+    // Biome + production/consumption tags.
+    const biomeName = formatBiomeName(planet.biome);
+    const producesText =
+      planet.productionTags.length > 0
+        ? planet.productionTags.map(formatTag).join(", ")
+        : "—";
+    const consumesText =
+      planet.consumptionTags.length > 0
+        ? planet.consumptionTags.map(formatTag).join(", ")
+        : "—";
+    this.biomeLabel = new Label(this, {
+      x: 0,
+      y: 0,
+      text: `Biome: ${biomeName}  |  Produces: ${producesText}  |  Consumes: ${consumesText}`,
+      style: "caption",
+      color: theme.colors.text,
+      maxWidth: 700,
+    });
+
     this.hintLabel = new Label(this, {
       x: 0,
       y: 0,
@@ -137,8 +169,8 @@ export class PlanetDetailScene extends Phaser.Scene {
     });
 
     // Industry chain status (only for producer planets with an input requirement)
-    const inputCargo = getInputCargo(planet.type);
-    const outputCargo = getOutputCargo(planet.type);
+    const inputCargo = getInputCargo(planet);
+    const outputCargo = getOutputCargo(planet);
     if (inputCargo !== null && outputCargo !== null) {
       const allRoutes = [
         ...state.activeRoutes,
@@ -302,22 +334,28 @@ export class PlanetDetailScene extends Phaser.Scene {
       overlayY + contentArea.y,
     );
     this.infoLabel.setSize(contentArea.width, 20);
-    this.hintLabel.setPosition(
+    this.biomeLabel.setPosition(
       contentX + contentArea.x,
       overlayY + contentArea.y + 20,
+    );
+    this.biomeLabel.setSize(contentArea.width, 32);
+    this.hintLabel.setPosition(
+      contentX + contentArea.x,
+      overlayY + contentArea.y + 52,
     );
     this.hintLabel.setSize(contentArea.width, 36);
 
     if (this.chainStatusLabel) {
       this.chainStatusLabel.setPosition(
         contentX + contentArea.x,
-        overlayY + contentArea.y + 56,
+        overlayY + contentArea.y + 88,
       );
       this.chainStatusLabel.setSize(contentArea.width, 28);
     }
 
     // Market data table.
-    const tableY = overlayY + contentArea.y + (this.chainStatusLabel ? 84 : 54);
+    const tableY =
+      overlayY + contentArea.y + (this.chainStatusLabel ? 116 : 86);
     const tableWidth = contentArea.width;
     this.tableFrame.setPosition(contentX + contentArea.x, tableY);
     this.tableFrame.setSize(tableWidth, 320);

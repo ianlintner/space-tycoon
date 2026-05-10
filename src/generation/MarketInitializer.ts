@@ -7,13 +7,7 @@ import type {
   CargoMarketEntry,
   CargoType as CargoTypeT,
 } from "../data/types.ts";
-import {
-  PLANET_CARGO_PROFILES,
-  PLANET_PASSENGER_VOLUME,
-  PLANET_INDUSTRY_INPUT,
-  BASE_CARGO_PRICES,
-  BASE_FUEL_PRICE,
-} from "../data/constants.ts";
+import { BASE_CARGO_PRICES, BASE_FUEL_PRICE } from "../data/constants.ts";
 import type { GalaxyData } from "./GalaxyGenerator.ts";
 
 const ALL_CARGO_TYPES: CargoTypeT[] = Object.values(CargoType);
@@ -36,29 +30,28 @@ export function initializeMarkets(
 }
 
 function createPlanetMarket(planet: Planet, rng: SeededRNG): PlanetMarket {
-  const profile = PLANET_CARGO_PROFILES[planet.type];
-  const producedSet = new Set<CargoTypeT>(profile.produces);
-  const demandedSet = new Set<CargoTypeT>(profile.demands);
+  const producedSet = new Set<CargoTypeT>(planet.productionTags);
+  const demandedSet = new Set<CargoTypeT>(planet.consumptionTags);
 
-  // Passenger volume determines demand profile — high-volume planets
-  // attract passengers (high demand), low-volume planets are more like
-  // departure points (lower demand, moderate supply).
-  const paxVolume = PLANET_PASSENGER_VOLUME[planet.type]; // 15–100
+  // Derive passenger volume from population. Population is normalized
+  // 0–1 in generation, so scale it to a 15–100 range.
+  const paxVolume = 15 + planet.population * 85; // [15, 100]
 
   const entries: Partial<Record<CargoTypeT, CargoMarketEntry>> = {};
 
-  const inputCargo = PLANET_INDUSTRY_INPUT[planet.type];
+  // productionScale (0.4–1.8) amplifies supply quantities for producing planets.
+  const scale = planet.productionScale;
 
   for (const cargoType of ALL_CARGO_TYPES) {
     let baseSupply: number;
     let baseDemand: number;
 
     if (cargoType === CargoType.Passengers) {
-      // Use passenger volume to create meaningful demand differentials.
-      // High-volume worlds (CoreWorld 100, LuxuryWorld 60, Manufacturing 50) become demand
-      // hotspots; low-volume worlds (Research 15, Mining 20) have surplus.
+      // Passenger handling: population-based demand differential.
+      // High-population worlds (paxVolume ≥ 70) are demand hotspots;
+      // low-population worlds have surplus (more people want to leave).
       if (paxVolume >= 70) {
-        // High demand destination — many people want to go here
+        // High demand destination
         baseSupply = rng.nextFloat(15, 30);
         baseDemand = rng.nextFloat(paxVolume * 0.7, paxVolume);
       } else if (paxVolume >= 40) {
@@ -66,20 +59,20 @@ function createPlanetMarket(planet: Planet, rng: SeededRNG): PlanetMarket {
         baseSupply = rng.nextFloat(25, 45);
         baseDemand = rng.nextFloat(40, 65);
       } else {
-        // Low-volume — passenger surplus, people want to leave
+        // Low-volume — surplus, people want to leave
         baseSupply = rng.nextFloat(50, 80);
         baseDemand = rng.nextFloat(10, 25);
       }
-    } else if (inputCargo !== null && cargoType === inputCargo) {
-      // Input cargo at its own producer world is a catalyst, not a market good
-      baseSupply = rng.nextFloat(5, 15);
-      baseDemand = rng.nextFloat(1, 5);
     } else if (producedSet.has(cargoType)) {
-      // Planet produces this: high supply, low demand
-      baseSupply = rng.nextFloat(60, 100);
+      // Planet produces this cargo via its biome: high supply (scaled), low
+      // demand. Floor the scale at 0.6 for the supply calc only — biomes like
+      // Outpost (productionScale 0.5) with the −30% RNG tail otherwise dip
+      // below the demand range and break the producer-surplus invariant.
+      const supplyScale = Math.max(0.6, scale);
+      baseSupply = rng.nextFloat(60, 100) * supplyScale;
       baseDemand = rng.nextFloat(10, 30);
     } else if (demandedSet.has(cargoType)) {
-      // Planet demands this: low supply, high demand
+      // Planet consumes this cargo: low supply, high demand.
       baseSupply = rng.nextFloat(10, 30);
       baseDemand = rng.nextFloat(60, 100);
     } else {

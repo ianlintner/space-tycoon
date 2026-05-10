@@ -31,24 +31,25 @@ describe("GalaxyGenerator", () => {
     }
   });
 
-  it("generates 6-8 systems per sector (small map)", () => {
+  it("every empire has at least one system (spiral pipeline)", () => {
     const galaxy = generateGalaxy(42);
     for (const sector of galaxy.sectors) {
       const systemsInSector = galaxy.systems.filter(
         (s) => s.sectorId === sector.id,
       );
-      expect(systemsInSector.length).toBeGreaterThanOrEqual(6);
-      expect(systemsInSector.length).toBeLessThanOrEqual(8);
+      // Spiral k-means clustering produces variable cluster sizes — every
+      // empire/sector still gets at least one system after rebalancing.
+      expect(systemsInSector.length).toBeGreaterThanOrEqual(1);
     }
   });
 
-  it("generates 1-3 planets per system", () => {
+  it("generates 0-3 planets per system (barren systems allowed)", () => {
     const galaxy = generateGalaxy(42);
     for (const system of galaxy.systems) {
       const planetsInSystem = galaxy.planets.filter(
         (p) => p.systemId === system.id,
       );
-      expect(planetsInSystem.length).toBeGreaterThanOrEqual(1);
+      expect(planetsInSystem.length).toBeGreaterThanOrEqual(0);
       expect(planetsInSystem.length).toBeLessThanOrEqual(3);
     }
   });
@@ -60,21 +61,26 @@ describe("GalaxyGenerator", () => {
     }
   });
 
-  it("every system has at least 1 planet", () => {
+  it("most systems have at least 1 planet (some barren transit nodes allowed)", () => {
     const galaxy = generateGalaxy(42);
+    let inhabited = 0;
     for (const system of galaxy.systems) {
       const planetsInSystem = galaxy.planets.filter(
         (p) => p.systemId === system.id,
       );
-      expect(planetsInSystem.length).toBeGreaterThanOrEqual(1);
+      if (planetsInSystem.length > 0) inhabited++;
     }
+    // Weighted distribution targets ~70% inhabited systems.
+    expect(inhabited / galaxy.systems.length).toBeGreaterThan(0.5);
   });
 
-  it("total planets in expected range (48-192)", () => {
+  it("total planets in expected range (250-700)", () => {
+    // Standard preset: 8 empires × 30–40 systems × weighted 0–3 planets
+    // (avg ~1.6) gives ~380–510 planets typical, with seed variance.
     for (const seed of [1, 42, 100, 999, 7777]) {
       const galaxy = generateGalaxy(seed);
-      expect(galaxy.planets.length).toBeGreaterThanOrEqual(48);
-      expect(galaxy.planets.length).toBeLessThanOrEqual(192);
+      expect(galaxy.planets.length).toBeGreaterThanOrEqual(250);
+      expect(galaxy.planets.length).toBeLessThanOrEqual(700);
     }
   });
 
@@ -157,6 +163,47 @@ describe("GalaxyGenerator", () => {
     }
   });
 
+  it("hyperlane edges are planar (no crossing hyperlanes)", () => {
+    const galaxy = generateGalaxy(
+      42,
+      "standard",
+      GalaxyShape.Spiral,
+      HyperlaneDensity.Medium,
+    );
+    const sysById = new Map(galaxy.systems.map((s) => [s.id, s]));
+    const segs = galaxy.hyperlanes.map((hl) => ({
+      x1: sysById.get(hl.systemA)!.x,
+      y1: sysById.get(hl.systemA)!.y,
+      x2: sysById.get(hl.systemB)!.x,
+      y2: sysById.get(hl.systemB)!.y,
+    }));
+    for (let i = 0; i < segs.length; i++) {
+      for (let j = i + 1; j < segs.length; j++) {
+        const a = segs[i];
+        const b = segs[j];
+        // Skip adjacent segments (share an endpoint)
+        if (
+          (a.x1 === b.x1 && a.y1 === b.y1) ||
+          (a.x1 === b.x2 && a.y1 === b.y2) ||
+          (a.x2 === b.x1 && a.y2 === b.y1) ||
+          (a.x2 === b.x2 && a.y2 === b.y2)
+        )
+          continue;
+        function cross(ax: number, ay: number, bx: number, by: number) {
+          return ax * by - ay * bx;
+        }
+        const d1 = cross(b.x2 - b.x1, b.y2 - b.y1, a.x1 - b.x1, a.y1 - b.y1);
+        const d2 = cross(b.x2 - b.x1, b.y2 - b.y1, a.x2 - b.x1, a.y2 - b.y1);
+        const d3 = cross(a.x2 - a.x1, a.y2 - a.y1, b.x1 - a.x1, b.y1 - a.y1);
+        const d4 = cross(a.x2 - a.x1, a.y2 - a.y1, b.x2 - a.x1, b.y2 - a.y1);
+        const crosses =
+          ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+          ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+        expect(crosses).toBe(false);
+      }
+    }
+  });
+
   it("hyperlane network stays corridor-like instead of web-like", () => {
     for (const seed of [13, 42, 101, 500, 9001]) {
       const galaxy = generateGalaxy(
@@ -173,6 +220,62 @@ describe("GalaxyGenerator", () => {
       // Dense enough to navigate, sparse enough to feel like hyperlane corridors.
       expect(averageDegree).toBeGreaterThanOrEqual(2.0);
       expect(averageDegree).toBeLessThanOrEqual(3.8);
+    }
+  });
+
+  it("galaxy remains fully connected after chokepoint pruning", () => {
+    for (const seed of [1, 42, 100]) {
+      const galaxy = generateGalaxy(seed);
+      const adj = new Map<string, string[]>();
+      for (const hl of galaxy.hyperlanes) {
+        if (!adj.has(hl.systemA)) adj.set(hl.systemA, []);
+        if (!adj.has(hl.systemB)) adj.set(hl.systemB, []);
+        adj.get(hl.systemA)!.push(hl.systemB);
+        adj.get(hl.systemB)!.push(hl.systemA);
+      }
+      const start = galaxy.systems[0].id;
+      const visited = new Set([start]);
+      const queue = [start];
+      while (queue.length > 0) {
+        const cur = queue.shift()!;
+        for (const nb of adj.get(cur) ?? []) {
+          if (!visited.has(nb)) {
+            visited.add(nb);
+            queue.push(nb);
+          }
+        }
+      }
+      expect(visited.size).toBe(galaxy.systems.length);
+    }
+  });
+
+  it("empire border hyperlanes are limited to chokepoint max (Medium = 2), with connectivity repair", () => {
+    for (const seed of [1, 42, 100]) {
+      const galaxy = generateGalaxy(
+        seed,
+        "standard",
+        GalaxyShape.Spiral,
+        HyperlaneDensity.Medium,
+      );
+      const sysById = new Map(galaxy.systems.map((s) => [s.id, s]));
+      const crossCount = new Map<string, number>();
+      for (const hl of galaxy.hyperlanes) {
+        const empA = sysById.get(hl.systemA)!.empireId;
+        const empB = sysById.get(hl.systemB)!.empireId;
+        if (empA === empB) continue;
+        const key = empA < empB ? `${empA}|${empB}` : `${empB}|${empA}`;
+        crossCount.set(key, (crossCount.get(key) ?? 0) + 1);
+      }
+      // Most pairs must respect the chokepoint limit; a small number of pairs
+      // may have one extra lane restored by the connectivity repair pass.
+      const violators = [...crossCount.values()].filter((c) => c > 2);
+      // No pair should ever have more than maxPerPair + 1 lanes
+      for (const count of crossCount.values()) {
+        expect(count).toBeLessThanOrEqual(3);
+      }
+      // The vast majority of pairs must be at or under the chokepoint limit
+      const total = crossCount.size;
+      expect(violators.length).toBeLessThanOrEqual(Math.ceil(total * 0.1));
     }
   });
 });
