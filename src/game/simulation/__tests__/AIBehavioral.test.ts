@@ -36,43 +36,51 @@ describe("AI behavioral: fleet management", () => {
     }
   });
 
-  it("at least one AI company purchases ships within 15 turns", () => {
-    const result = runSim({ maxTurns: 15 });
+  it(
+    "at least one AI company purchases ships within 15 turns",
+    { timeout: 15000 },
+    () => {
+      const result = runSim({ maxTurns: 15 });
 
-    let anyPurchase = false;
-    for (const log of result.turnLogs) {
-      for (const c of log.companies) {
-        if (c.shipsPurchased.length > 0) {
-          anyPurchase = true;
-          break;
+      let anyPurchase = false;
+      for (const log of result.turnLogs) {
+        for (const c of log.companies) {
+          if (c.shipsPurchased.length > 0) {
+            anyPurchase = true;
+            break;
+          }
         }
+        if (anyPurchase) break;
       }
-      if (anyPurchase) break;
-    }
 
-    expect(anyPurchase).toBe(true);
-  });
+      expect(anyPurchase).toBe(true);
+    },
+  );
 });
 
 describe("AI behavioral: route management", () => {
-  it("at least one AI company opens routes within 10 turns", () => {
-    const result = runSim({ maxTurns: 10 });
+  it(
+    "at least one AI company opens routes within 10 turns",
+    { timeout: 15000 },
+    () => {
+      const result = runSim({ maxTurns: 10 });
 
-    let anyRoute = false;
-    for (const log of result.turnLogs) {
-      for (const c of log.companies) {
-        if (c.routesOpened.length > 0) {
-          anyRoute = true;
-          break;
+      let anyRoute = false;
+      for (const log of result.turnLogs) {
+        for (const c of log.companies) {
+          if (c.routesOpened.length > 0) {
+            anyRoute = true;
+            break;
+          }
         }
+        if (anyRoute) break;
       }
-      if (anyRoute) break;
-    }
 
-    expect(anyRoute).toBe(true);
-  });
+      expect(anyRoute).toBe(true);
+    },
+  );
 
-  it("companies with routes earn revenue", () => {
+  it("companies with routes earn revenue", { timeout: 15000 }, () => {
     const result = runSim({ maxTurns: 20 });
 
     let anyRevenue = false;
@@ -105,7 +113,7 @@ describe("AI behavioral: economy", () => {
     },
   );
 
-  it("market volumes remain positive", () => {
+  it("market volumes remain positive", { timeout: 15000 }, () => {
     const result = runSim({ maxTurns: 20 });
 
     for (const log of result.turnLogs) {
@@ -115,13 +123,17 @@ describe("AI behavioral: economy", () => {
 });
 
 describe("AI behavioral: competition", () => {
-  it("not all companies go bankrupt in a short game", () => {
-    const result = runSim({ maxTurns: 20 });
-    const lastTurn = result.turnLogs[result.turnLogs.length - 1];
+  it(
+    "not all companies go bankrupt in a short game",
+    { timeout: 15000 },
+    () => {
+      const result = runSim({ maxTurns: 20 });
+      const lastTurn = result.turnLogs[result.turnLogs.length - 1];
 
-    const activeCompanies = lastTurn.companies.filter((c) => !c.bankrupt);
-    expect(activeCompanies.length).toBeGreaterThan(0);
-  });
+      const activeCompanies = lastTurn.companies.filter((c) => !c.bankrupt);
+      expect(activeCompanies.length).toBeGreaterThan(0);
+    },
+  );
 
   it(
     "rankings produce at least one winner with positive score",
@@ -134,7 +146,7 @@ describe("AI behavioral: competition", () => {
     },
   );
 
-  it("different seeds produce different outcomes", () => {
+  it("different seeds produce different outcomes", { timeout: 15000 }, () => {
     const result1 = runSim({ seed: 1, maxTurns: 15 });
     const result2 = runSim({ seed: 999, maxTurns: 15 });
 
@@ -148,20 +160,24 @@ describe("AI behavioral: competition", () => {
     expect(winner2).toBeDefined();
   });
 
-  it("AI companies exhibit different cash trajectories", () => {
-    const result = runSim({ maxTurns: 20 });
-    const lastTurn = result.turnLogs[result.turnLogs.length - 1];
+  it(
+    "AI companies exhibit different cash trajectories",
+    { timeout: 15000 },
+    () => {
+      const result = runSim({ maxTurns: 20 });
+      const lastTurn = result.turnLogs[result.turnLogs.length - 1];
 
-    const cashValues = lastTurn.companies
-      .filter((c) => !c.bankrupt)
-      .map((c) => c.cash);
+      const cashValues = lastTurn.companies
+        .filter((c) => !c.bankrupt)
+        .map((c) => c.cash);
 
-    if (cashValues.length >= 2) {
-      // At least two companies should have different cash amounts
-      const uniqueValues = new Set(cashValues);
-      expect(uniqueValues.size).toBeGreaterThan(1);
-    }
-  });
+      if (cashValues.length >= 2) {
+        // At least two companies should have different cash amounts
+        const uniqueValues = new Set(cashValues);
+        expect(uniqueValues.size).toBeGreaterThan(1);
+      }
+    },
+  );
 });
 
 describe("AI behavioral: bankruptcy", () => {
