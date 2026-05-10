@@ -40,6 +40,7 @@
   "devDependencies": {
     "@napi-rs/canvas": "^0.1.56",
     "@playwright/test": "^1.59.1",
+    "@types/earcut": "^3.0.0",
     "@typescript-eslint/parser": "^8.59.0",
     "@typescript-eslint/rule-tester": "^8.59.0",
     "@typescript-eslint/utils": "^8.59.0",
@@ -58,7 +59,11 @@
   },
   "dependencies": {
     "@types/three": "^0.184.0",
+    "delaunator": "^5.1.0",
+    "earcut": "^3.0.2",
+    "kdbush": "^4.0.2",
     "phaser": "^4.0.0",
-    "three": "^0.184.0"
+    "three": "^0.184.0",
+    "tinyqueue": "^3.0.0"
   }
 }
