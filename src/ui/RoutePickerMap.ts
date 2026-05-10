@@ -7,6 +7,7 @@ import type {
   CargoType as CargoTypeValue,
 } from "../data/types.ts";
 import { getTheme } from "@spacebiz/ui";
+import KDBush from "kdbush";
 
 const PLANET_TYPE_COLORS: Record<PlanetType, number> = {
   agricultural: 0x68b45a,
@@ -73,6 +74,8 @@ export class RoutePickerMap {
   private hoverLabel: Phaser.GameObjects.Text;
   private planetHits: PlanetHit[] = [];
   private barrenStarHits: StarHit[] = [];
+  private planetIndex: KDBush | null = null;
+  private barrenIndex: KDBush | null = null;
   private planetById = new Map<string, Planet>();
   private currentHover: string | null = null;
   private readonly onPlanetClick?: (planetId: string) => void;
@@ -312,6 +315,17 @@ export class RoutePickerMap {
     }
 
     this.planetHits = hits;
+
+    const pi = new KDBush(this.planetHits.length);
+    for (const h of this.planetHits) pi.add(h.mx, h.my);
+    pi.finish();
+    this.planetIndex = pi;
+
+    const bi = new KDBush(this.barrenStarHits.length);
+    for (const h of this.barrenStarHits) bi.add(h.mx, h.my);
+    bi.finish();
+    this.barrenIndex = bi;
+
     this.updateHoverLabel(this.currentHover);
   }
 
@@ -322,15 +336,23 @@ export class RoutePickerMap {
    * test (which breaks with dense galaxies where stars are only a few px apart).
    */
   findNearestPlanet(worldX: number, worldY: number): string | null {
+    if (this.planetHits.length === 0 || !this.planetIndex) return null;
+    let r = 20;
+    let ids: number[] = [];
+    while (ids.length === 0 && r < 2000) {
+      ids = this.planetIndex.within(worldX, worldY, r);
+      r *= 2;
+    }
     let bestId: string | null = null;
     let bestDist = Infinity;
-    for (const hit of this.planetHits) {
-      const dx = hit.mx - worldX;
-      const dy = hit.my - worldY;
+    for (const i of ids) {
+      const h = this.planetHits[i];
+      const dx = h.mx - worldX;
+      const dy = h.my - worldY;
       const d = dx * dx + dy * dy;
       if (d < bestDist) {
         bestDist = d;
-        bestId = hit.id;
+        bestId = h.id;
       }
     }
     return bestId;
@@ -344,16 +366,19 @@ export class RoutePickerMap {
     worldX: number,
     worldY: number,
   ): StarHit | null {
-    const BARREN_SNAP_PX2 = 20 * 20;
+    if (this.barrenStarHits.length === 0 || !this.barrenIndex) return null;
+    const ids = this.barrenIndex.within(worldX, worldY, 20);
+    if (ids.length === 0) return null;
     let best: StarHit | null = null;
     let bestDist = Infinity;
-    for (const s of this.barrenStarHits) {
-      const dx = s.mx - worldX;
-      const dy = s.my - worldY;
+    for (const i of ids) {
+      const h = this.barrenStarHits[i];
+      const dx = h.mx - worldX;
+      const dy = h.my - worldY;
       const d = dx * dx + dy * dy;
-      if (d < BARREN_SNAP_PX2 && d < bestDist) {
+      if (d < bestDist) {
         bestDist = d;
-        best = s;
+        best = h;
       }
     }
     return best;
@@ -378,6 +403,8 @@ export class RoutePickerMap {
   }
 
   destroy(): void {
+    this.planetIndex = null;
+    this.barrenIndex = null;
     this.graphics.destroy();
     this.flashGraphics.destroy();
     this.hitZone.destroy();
