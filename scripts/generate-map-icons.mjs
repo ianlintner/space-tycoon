@@ -14,9 +14,10 @@ mkdirSync(OUT_DIR, { recursive: true });
 
 const prompts = JSON.parse(readFileSync(PROMPTS_FILE, "utf8"));
 
-for (const { id, prompt } of prompts) {
+for (let i = 0; i < prompts.length; i++) {
+  const { id, prompt } = prompts[i];
   const outPath = join(OUT_DIR, `${id}.png`);
-  console.log(`Generating ${id}…`);
+  console.log(`Generating ${i + 1} of ${prompts.length}: ${id}…`);
   execSync(
     `python3 "${GENERATOR}" --prompt "${prompt}" --size 32 --transparent-bg --palette db16 --output "${outPath}"`,
     { stdio: "inherit" },

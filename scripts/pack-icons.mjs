@@ -2,7 +2,7 @@
 import sharp from "sharp";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -24,6 +24,12 @@ for (let i = 0; i < ids.length; i++) {
   const row = Math.floor(i / COLS);
   const srcPath = join(SRC_DIR, `${ids[i]}.png`);
 
+  if (!existsSync(srcPath)) {
+    throw new Error(
+      `Missing source icon: ${srcPath}\nRun 'node scripts/generate-map-icons.mjs' first.`,
+    );
+  }
+
   // Resize to 24×24, then normalize to white-on-transparent for Phaser setTint().
   const { data, info } = await sharp(srcPath)
     .resize(CELL, CELL, {
@@ -34,7 +40,7 @@ for (let i = 0; i < ids.length; i++) {
     .raw()
     .toBuffer({ resolveWithObject: true });
 
-  // Convert every non-transparent pixel to white.
+  // Silhouette normalization: every visible pixel becomes white so Phaser setTint() applies cleanly.
   for (let px = 0; px < info.width * info.height; px++) {
     const off = px * 4;
     if (data[off + 3] > 0) {
