@@ -16,14 +16,17 @@ const DRAWER_WIDTH = 200;
 const DRAWER_ROW_HEIGHT = 36;
 const DRAWER_PADDING = 8;
 const ICON_SIZE = 24;
+const DRAWER_ICON_SIZE = 28;
 const BTN_DEPTH = 9000;
 const DRAWER_DEPTH = 9100;
+const TOOLTIP_DEPTH = 9500;
 
 interface GroupBtn {
   bg: Phaser.GameObjects.Rectangle;
   icon: Phaser.GameObjects.Image;
   hit: Phaser.GameObjects.Zone;
   group: LayerGroup;
+  label: string;
 }
 
 export class MapLayerToolbar {
@@ -37,6 +40,7 @@ export class MapLayerToolbar {
 
   private rightEdge = 0;
   private topY = 0;
+  private tooltip: Phaser.GameObjects.Text | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -72,8 +76,32 @@ export class MapLayerToolbar {
     this.buttons = [];
     this.drawer?.destroy();
     this.drawer = null;
+    this.tooltip?.destroy();
+    this.tooltip = null;
     this.escKey?.destroy();
     this.escKey = null;
+  }
+
+  private showTooltip(text: string, x: number, y: number): void {
+    const theme = getTheme();
+    if (!this.tooltip) {
+      this.tooltip = this.scene.add
+        .text(x, y, text, {
+          fontSize: "11px",
+          fontFamily: "monospace",
+          color: colorToString(theme.colors.text),
+          backgroundColor: colorToString(theme.colors.panelBg),
+          padding: { x: 6, y: 3 },
+        })
+        .setDepth(TOOLTIP_DEPTH)
+        .setOrigin(1, 0.5);
+    } else {
+      this.tooltip.setText(text).setPosition(x, y).setVisible(true);
+    }
+  }
+
+  private hideTooltip(): void {
+    this.tooltip?.setVisible(false);
   }
 
   private build(): void {
@@ -91,6 +119,8 @@ export class MapLayerToolbar {
       );
       this.escKey.on("down", () => this.closeDrawer());
     }
+
+    this.refreshButtons();
   }
 
   private buildGroupButton(idx: number, group: LayerGroup): void {
@@ -118,11 +148,16 @@ export class MapLayerToolbar {
       .setInteractive({ cursor: "pointer", useHandCursor: true })
       .setName(`btn-layer-group-${group}`);
 
-    hit.on("pointerover", () => bg.setStrokeStyle(1, theme.colors.accent, 0.9));
-    hit.on("pointerout", () =>
-      bg.setStrokeStyle(1, theme.colors.panelBorder, 0.7),
-    );
+    hit.on("pointerover", () => {
+      bg.setStrokeStyle(1, theme.colors.accent, 0.9);
+      this.showTooltip(GROUP_LABELS[group], btnX - 4, btnY + BTN_SIZE / 2);
+    });
+    hit.on("pointerout", () => {
+      bg.setStrokeStyle(1, theme.colors.panelBorder, 0.7);
+      this.hideTooltip();
+    });
     hit.on("pointerup", () => {
+      this.hideTooltip();
       if (this.openGroup === group) {
         this.closeDrawer();
       } else {
@@ -130,7 +165,7 @@ export class MapLayerToolbar {
       }
     });
 
-    this.buttons.push({ bg, icon, hit, group });
+    this.buttons.push({ bg, icon, hit, group, label: GROUP_LABELS[group] });
   }
 
   private openDrawer(group: LayerGroup): void {
@@ -155,20 +190,6 @@ export class MapLayerToolbar {
       .setStrokeStyle(1, theme.colors.panelBorder, 0.85)
       .setOrigin(0, 0);
     container.add(panelBg);
-
-    const titleText = this.scene.add
-      .text(
-        DRAWER_PADDING,
-        DRAWER_PADDING / 2,
-        GROUP_LABELS[group].toUpperCase(),
-        {
-          fontSize: "10px",
-          fontFamily: "monospace",
-          color: colorToString(theme.colors.textDim),
-        },
-      )
-      .setOrigin(0, 0);
-    container.add(titleText);
 
     for (let i = 0; i < layers.length; i++) {
       this.buildDrawerRow(container, layers[i].id, i);
@@ -199,17 +220,17 @@ export class MapLayerToolbar {
 
     const rowIcon = this.scene.add
       .image(
-        DRAWER_PADDING + ICON_SIZE / 2,
+        DRAWER_PADDING + DRAWER_ICON_SIZE / 2,
         rowY + DRAWER_ROW_HEIGHT / 2,
         "ui-icons",
       )
       .setFrame(layer.iconIndex)
-      .setDisplaySize(ICON_SIZE, ICON_SIZE)
+      .setDisplaySize(DRAWER_ICON_SIZE, DRAWER_ICON_SIZE)
       .setTint(on ? theme.colors.accent : theme.colors.textDim);
 
     const rowLabel = this.scene.add
       .text(
-        DRAWER_PADDING + ICON_SIZE + 8,
+        DRAWER_PADDING + DRAWER_ICON_SIZE + 8,
         rowY + DRAWER_ROW_HEIGHT / 2,
         layer.label.toUpperCase(),
         {
