@@ -1,4 +1,5 @@
 import * as Phaser from "phaser";
+import earcut from "earcut";
 import type {
   BorderPort,
   Empire,
@@ -194,10 +195,12 @@ export class GalaxyView2D {
   private readonly hqMarkerSystemIds: string[] = [];
 
   // Empire territory polygons (Voronoi cells) — translucent fills.
+  private fillTerritoryGfx: Phaser.GameObjects.Graphics | null = null;
   private territoryGfx: Phaser.GameObjects.Graphics | null = null;
   private territoryPolygons: Array<{
     color: number;
     worldVerts: Array<{ x: number; y: number; z: number }>;
+    triangleIndices: number[];
   }> = [];
 
   // Highlight (white) and route-origin (teal) rings, drawn via a single Graphics.
@@ -427,6 +430,14 @@ export class GalaxyView2D {
 
   private rebuildTerritoryPolygons(empires: Empire[]): void {
     this.territoryPolygons = [];
+
+    if (!this.fillTerritoryGfx) {
+      this.fillTerritoryGfx = this.scene.add.graphics();
+      this.fillTerritoryGfx.setDepth(TERRITORY_DEPTH - 1);
+      this.galaxyContainer.add(this.fillTerritoryGfx);
+    } else {
+      this.fillTerritoryGfx.clear();
+    }
     if (!this.territoryGfx) {
       this.territoryGfx = this.scene.add.graphics();
       this.territoryGfx.setDepth(TERRITORY_DEPTH);
@@ -434,18 +445,27 @@ export class GalaxyView2D {
     } else {
       this.territoryGfx.clear();
     }
+
     for (const emp of empires) {
       const poly = emp.territoryPolygon;
       if (!poly || poly.vertices.length < 3) continue;
-      // Polygon vertices live in the same (x, y) galaxy-coord space as
-      // StarSystem.x/y. Convert to world (3D) coords using the same transform
-      // worldPosFor() applies (scale + centroid offset, y on disc plane).
       const worldVerts = poly.vertices.map((v) => ({
         x: v.x * COORD_SCALE - this.centroidX,
-        y: -0.6, // sit just below the disc plane so stars render on top
+        y: -0.6,
         z: v.y * COORD_SCALE - this.centroidZ,
       }));
-      this.territoryPolygons.push({ color: emp.color, worldVerts });
+
+      const flatCoords: number[] = [];
+      for (const wv of worldVerts) {
+        flatCoords.push(wv.x, wv.z);
+      }
+      const triangleIndices = earcut(flatCoords);
+
+      this.territoryPolygons.push({
+        color: emp.color,
+        worldVerts,
+        triangleIndices,
+      });
     }
   }
 
@@ -625,6 +645,50 @@ export class GalaxyView2D {
       };
       drawRing(this.highlightSystemId, 0xffffff, 0.85);
       drawRing(this.originSystemId, 0x4dd0e1, 0.9);
+    }
+
+    // Empire territory fills — drawn as earcut triangles one depth below the border.
+    if (this.fillTerritoryGfx) {
+      this.fillTerritoryGfx.clear();
+      for (const poly of this.territoryPolygons) {
+        if (poly.worldVerts.length < 3 || poly.triangleIndices.length < 3)
+          continue;
+        // Project all verts once.
+        const screenPts: Array<{ x: number; y: number; visible: boolean }> = [];
+        for (const wv of poly.worldVerts) {
+          this.scratchNdcA.x = wv.x;
+          this.scratchNdcA.y = wv.y;
+          this.scratchNdcA.z = wv.z;
+          const proj = projectToScreenDesignInto(
+            this.scratchNdcB,
+            this.scratchNdcA,
+            viewProj,
+            this.viewport,
+          );
+          screenPts.push({ x: proj.x, y: proj.y, visible: proj.visible });
+        }
+        this.fillTerritoryGfx.fillStyle(poly.color, 0.08);
+        for (let t = 0; t < poly.triangleIndices.length; t += 3) {
+          const ia = poly.triangleIndices[t];
+          const ib = poly.triangleIndices[t + 1];
+          const ic = poly.triangleIndices[t + 2];
+          if (ia === undefined || ib === undefined || ic === undefined)
+            continue;
+          const pa = screenPts[ia];
+          const pb = screenPts[ib];
+          const pc = screenPts[ic];
+          if (!pa || !pb || !pc) continue;
+          if (!pa.visible && !pb.visible && !pc.visible) continue;
+          this.fillTerritoryGfx.fillTriangle(
+            pa.x,
+            pa.y,
+            pb.x,
+            pb.y,
+            pc.x,
+            pc.y,
+          );
+        }
+      }
     }
 
     // Empire territory borders — colored outline only, no fill. Verts whose
@@ -873,6 +937,11 @@ export class GalaxyView2D {
       this.hyperlanesGfx = null;
     }
     this.hyperlaneSegments = [];
+
+    if (this.fillTerritoryGfx) {
+      this.fillTerritoryGfx.destroy();
+      this.fillTerritoryGfx = null;
+    }
 
     if (this.territoryGfx) {
       this.territoryGfx.destroy();
