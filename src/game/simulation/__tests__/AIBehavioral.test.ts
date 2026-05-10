@@ -12,7 +12,7 @@ import type {
 function runSim(overrides: Partial<SimulationConfig> = {}): SimulationResult {
   const config: SimulationConfig = {
     seed: 99,
-    gameSize: "standard",
+    gameSize: "quick",
     galaxyShape: "spiral",
     companyCount: 4,
     maxTurns: 30,
