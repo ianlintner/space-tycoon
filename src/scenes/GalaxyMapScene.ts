@@ -13,6 +13,7 @@ import {
 } from "../ui/index.ts";
 import type { GalaxySidebarData } from "../ui/index.ts";
 import { openRouteBuilder } from "../ui/RouteBuilderPanel.ts";
+import { MapLayerToolbar } from "../ui/MapLayerToolbar.ts";
 import { generateEmpireFlags } from "@rogue-universe/shared";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { isEmpireAccessible } from "../game/empire/EmpireAccessManager.ts";
@@ -73,6 +74,7 @@ export class GalaxyMapScene extends Phaser.Scene {
   private companyFilterCycle: (string | null)[] = [null];
   private layerToggles: LayerToggleButton[] = [];
   private companyFilterButton: LayerToggleButton | null = null;
+  private toolbar: MapLayerToolbar | null = null;
   private sidebar: GalaxySidebarPanel | null = null;
 
   // ── Route-builder selection mode ──────────────────────────────────────────
@@ -174,6 +176,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     this.buildHud(state, theme, L);
     this.buildSidebar(state, L);
     this.buildLayerToggleRow(state, theme, L);
+    this.toolbar = new MapLayerToolbar(this);
 
     attachReflowHandler(this, () => this.relayout());
 
@@ -274,6 +277,8 @@ export class GalaxyMapScene extends Phaser.Scene {
       this.destroyInfoCard();
       this.navDropdown?.destroy();
       this.navDropdown = null;
+      this.toolbar?.destroy();
+      this.toolbar = null;
       this.mapTooltip?.destroy();
       this.mapTooltip = null;
       this.routeOriginSystemId = null;
@@ -494,6 +499,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     this.vizRect = this.computeVizRect(L);
     this.view3D?.setViewport(this.vizRect);
     this.view3D?.setSize(L.gameWidth, L.gameHeight);
+    this.toolbar?.reposition(L);
 
     // HUD overlay strip.
     const hudLabelTop = L.contentTop + 18;
