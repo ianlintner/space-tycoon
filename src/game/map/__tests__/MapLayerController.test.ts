@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { MapLayerController } from "../MapLayerController.ts";
+import {
+  MapLayerController,
+  STORAGE_KEY,
+  DEBOUNCE_MS,
+} from "../MapLayerController.ts";
 
 const makeLocalStorageMock = () => {
   const store: Record<string, string> = {};
@@ -72,15 +76,16 @@ describe("MapLayerController", () => {
   it("persists state to localStorage after debounce", () => {
     const ctrl = new MapLayerController();
     ctrl.toggle("ships");
-    vi.advanceTimersByTime(250);
-    const saved = JSON.parse(
-      lsMock._store["spacebiz.mapLayers.v1"] ?? "{}",
-    ) as Record<string, boolean>;
+    vi.advanceTimersByTime(DEBOUNCE_MS + 50);
+    const saved = JSON.parse(lsMock._store[STORAGE_KEY] ?? "{}") as Record<
+      string,
+      boolean
+    >;
     expect(saved["ships"]).toBe(false);
   });
 
   it("loads persisted state on construction", () => {
-    lsMock._store["spacebiz.mapLayers.v1"] = JSON.stringify({
+    lsMock._store[STORAGE_KEY] = JSON.stringify({
       ships: false,
       "empire-names": false,
     });
@@ -91,7 +96,7 @@ describe("MapLayerController", () => {
   });
 
   it("ignores unknown keys in localStorage without error", () => {
-    lsMock._store["spacebiz.mapLayers.v1"] = JSON.stringify({
+    lsMock._store[STORAGE_KEY] = JSON.stringify({
       "unknown-layer": true,
       "empire-names": false,
     });
@@ -101,7 +106,7 @@ describe("MapLayerController", () => {
   });
 
   it("ignores malformed localStorage data and falls back to defaults", () => {
-    lsMock._store["spacebiz.mapLayers.v1"] = "not-json{{{";
+    lsMock._store[STORAGE_KEY] = "not-json{{{";
     const ctrl = new MapLayerController();
     expect(ctrl.isVisible("empire-names")).toBe(true);
   });

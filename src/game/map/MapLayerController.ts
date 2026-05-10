@@ -2,8 +2,8 @@ import { GameEventEmitter } from "../../utils/EventEmitter.ts";
 import type { LayerGroup, LayerId, MapLayer } from "./MapLayerRegistry.ts";
 import { MAP_LAYERS } from "./MapLayerRegistry.ts";
 
-const STORAGE_KEY = "spacebiz.mapLayers.v1";
-const DEBOUNCE_MS = 200;
+export const STORAGE_KEY = "spacebiz.mapLayers.v1";
+export const DEBOUNCE_MS = 200;
 
 export class MapLayerController extends GameEventEmitter {
   private readonly visibility: Record<LayerId, boolean>;
@@ -30,7 +30,9 @@ export class MapLayerController extends GameEventEmitter {
   }
 
   getLayer(id: LayerId): MapLayer {
-    return MAP_LAYERS.find((l) => l.id === id)!;
+    const layer = MAP_LAYERS.find((l) => l.id === id);
+    if (!layer) throw new Error(`Unknown layer id: ${id}`);
+    return layer;
   }
 
   getLayersByGroup(group: LayerGroup): MapLayer[] {
