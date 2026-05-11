@@ -13,7 +13,11 @@ import {
   DEPTH_MODAL,
   SceneUiDirector,
 } from "../ui/index.ts";
-import { colorToString } from "@spacebiz/ui";
+import {
+  colorToString,
+  chamferedRectPoints,
+  makeChamferedMaskShape,
+} from "@spacebiz/ui";
 import { TutorialRunner } from "../game/adviser/TutorialRunner.ts";
 import { RdAdviser } from "../game/adviser/RdAdviser.ts";
 import { getRdChief } from "../game/adviser/RdChiefs.ts";
@@ -159,8 +163,8 @@ export class GameHUDScene extends Phaser.Scene {
   private tickerBorder!: Phaser.GameObjects.Rectangle;
   private tickerGradient!: Phaser.GameObjects.Graphics;
   private ceoPortraitImg!: Phaser.GameObjects.Image;
-  private ceoPortraitMask!: Phaser.GameObjects.Arc;
-  private ceoPortraitBorder!: Phaser.GameObjects.Arc;
+  private ceoPortraitMask!: Phaser.GameObjects.Polygon;
+  private ceoPortraitBorder!: Phaser.GameObjects.Graphics;
   /** Per-nav button containers (used by relayout to reposition the cluster). */
   private navContainers = new Map<string, Phaser.GameObjects.Container>();
   /** Order of nav scenes as built — needed to recompute Y on resize. */
@@ -304,17 +308,42 @@ export class GameHUDScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5);
     fitImageCover(portraitImg, portraitSize, portraitSize);
     this.ceoPortraitImg = portraitImg;
-    // Round mask (Phaser 4 Mask filter)
-    const hudMask = this.add
-      .circle(hudPortraitX, hudPortraitY, portraitSize / 2, 0xffffff)
-      .setVisible(false);
+    // Chamfered mask (Phaser 4 filter-based mask)
+    const c = getTheme().shape.portrait.chamfer;
+    const hudMask = makeChamferedMaskShape(
+      this,
+      hudPortraitX - portraitSize / 2,
+      hudPortraitY - portraitSize / 2,
+      portraitSize,
+      portraitSize,
+      c,
+      0xffffff,
+    );
     portraitImg.filters?.internal.addMask(hudMask);
     this.ceoPortraitMask = hudMask;
-    // Subtle border ring
-    this.ceoPortraitBorder = this.add
-      .circle(hudPortraitX, hudPortraitY, portraitSize / 2 + 1)
-      .setStrokeStyle(1, theme.colors.panelBorder)
-      .setFillStyle(0x000000, 0);
+    // Chamfered border ring (Graphics stroke)
+    const borderSize = portraitSize + 2;
+    const borderC = c + 1;
+    const borderPts = chamferedRectPoints(
+      0,
+      0,
+      borderSize,
+      borderSize,
+      borderC,
+    );
+    this.ceoPortraitBorder = this.add.graphics();
+    this.ceoPortraitBorder.setPosition(
+      hudPortraitX - borderSize / 2,
+      hudPortraitY - borderSize / 2,
+    );
+    this.ceoPortraitBorder.lineStyle(1, theme.colors.panelBorder, 1);
+    this.ceoPortraitBorder.beginPath();
+    this.ceoPortraitBorder.moveTo(borderPts[0], borderPts[1]);
+    for (let i = 2; i < borderPts.length; i += 2) {
+      this.ceoPortraitBorder.lineTo(borderPts[i], borderPts[i + 1]);
+    }
+    this.ceoPortraitBorder.closePath();
+    this.ceoPortraitBorder.strokePath();
 
     // Update the portrait image once the texture loads
     portraitLoadPromise
@@ -836,10 +865,39 @@ export class GameHUDScene extends Phaser.Scene {
     const hudPortraitY = L.hudTopBarHeight / 2;
     this.ceoPortraitImg.setPosition(hudPortraitX, hudPortraitY);
     fitImageCover(this.ceoPortraitImg, portraitSize, portraitSize);
-    this.ceoPortraitMask.setPosition(hudPortraitX, hudPortraitY);
-    this.ceoPortraitMask.setRadius(portraitSize / 2);
-    this.ceoPortraitBorder.setPosition(hudPortraitX, hudPortraitY);
-    this.ceoPortraitBorder.setRadius(portraitSize / 2 + 1);
+    // Reposition chamfered mask polygon (origin is top-left)
+    this.ceoPortraitMask.setPosition(
+      hudPortraitX - portraitSize / 2,
+      hudPortraitY - portraitSize / 2,
+    );
+    // Rebuild chamfered border ring at new size/position
+    const relayoutC = getTheme().shape.portrait.chamfer;
+    const relayoutBorderSize = portraitSize + 2;
+    const relayoutBorderC = relayoutC + 1;
+    const relayoutBorderPts = chamferedRectPoints(
+      0,
+      0,
+      relayoutBorderSize,
+      relayoutBorderSize,
+      relayoutBorderC,
+    );
+    const relayoutTheme = getTheme();
+    this.ceoPortraitBorder.setPosition(
+      hudPortraitX - relayoutBorderSize / 2,
+      hudPortraitY - relayoutBorderSize / 2,
+    );
+    this.ceoPortraitBorder.clear();
+    this.ceoPortraitBorder.lineStyle(1, relayoutTheme.colors.panelBorder, 1);
+    this.ceoPortraitBorder.beginPath();
+    this.ceoPortraitBorder.moveTo(relayoutBorderPts[0], relayoutBorderPts[1]);
+    for (let i = 2; i < relayoutBorderPts.length; i += 2) {
+      this.ceoPortraitBorder.lineTo(
+        relayoutBorderPts[i],
+        relayoutBorderPts[i + 1],
+      );
+    }
+    this.ceoPortraitBorder.closePath();
+    this.ceoPortraitBorder.strokePath();
 
     // Top-bar labels.
     const topMidY = L.hudTopBarHeight / 2;
