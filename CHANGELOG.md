@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-W20] — 2026-05-11
+
+- industry chain economy — planet specialization + route slot rule (#296)
+- correct fullscreen resize, adviser panel anchor drift, and new-game flash (#297)
+- use window dimensions in fullscreen and bust dedupe on toggle (#298)
+- replace procedural portraits with pixel-art sprites; fix panel mask bug (#299)
+- align group-tab strip with content area and seed initial contracts (#300)
+- fill viewport height, flush canvas edges, and fix contracts table (#301)
+- GNN ticker click → newscaster dialog with 13 alien anchors (#319)
+- living universe — roster, 6 ticker categories, story bodies, 29 dilemmas, 15 space hazards (#321)
+- Fix CI checkout failure caused by accidentally committed Claude worktree gitlink (#324)
+- roguelike graph-based tech tree with pan/zoom, queue, and repeatables (#325)
+- spiral generation, biomes, specials & population loop (#330)
+
 ## [2026-W19] — 2026-05-04
 
 - switch to streaming caretaker backend (v0.23.0) (#75)
