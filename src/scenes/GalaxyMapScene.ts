@@ -961,10 +961,13 @@ export class GalaxyMapScene extends Phaser.Scene {
     // LOD and toggle control there.
     this.view3D.updateSystemLabelLOD(camDist, halfExtent, this.showSystemNames);
 
-    // Cell size scales with the galaxy so a 160-unit galaxy (~halfExtent 80)
-    // gets ~68-unit cells — wider buckets = fewer labels shown at full zoom-out.
-    const cellSize = Math.max(56, Math.floor(halfExtent * 0.85));
-    const occupied = new Set<string>();
+    // Screen-space bounding box check to prevent overlapping labels.
+    // Instead of a rigid grid (which suffers from boundary straddling overlaps),
+    // we check against already-placed labels.
+    const placedBoxes: { l: number; r: number; t: number; b: number }[] = [];
+    const charWidth = 7;
+    const labelHeight = 24;
+
     type Project = { proj: ProjectedScreen; world: Vec3 } | null;
     const projects: Project[] = new Array(this.systemMarkers.length);
     for (let i = 0; i < this.systemMarkers.length; i++) {
@@ -987,13 +990,42 @@ export class GalaxyMapScene extends Phaser.Scene {
         if (pass === 0 && !m.accessible) continue;
         if (pass === 1 && m.accessible) continue;
         if (labelDecisions[i] !== undefined) continue;
-        const cellX = Math.floor(p.proj.x / cellSize);
-        const cellY = Math.floor((p.proj.y + 12) / cellSize);
-        const key = `${cellX},${cellY}`;
-        if (occupied.has(key)) {
+
+        // Approximate width of this label
+        const width = m.system.name.length * charWidth;
+        const height = labelHeight;
+
+        // 0.5, 1 origin means centered horizontally, bottom aligned vertically
+        // We'll use a generic top/bottom that usually covers the text safely.
+        // Label floats above the star. Average offset looks to be about 30px.
+        const offset = 30;
+
+        const l = p.proj.x - width / 2;
+        const r = p.proj.x + width / 2;
+        const b = p.proj.y - offset;
+        const t = b - height;
+
+        // Check overlap with padding
+        const PAD = 4;
+        let overlap = false;
+        for (const box of placedBoxes) {
+          if (
+            !(
+              r + PAD < box.l ||
+              l - PAD > box.r ||
+              b + PAD < box.t ||
+              t - PAD > box.b
+            )
+          ) {
+            overlap = true;
+            break;
+          }
+        }
+
+        if (overlap) {
           labelDecisions[i] = false;
         } else {
-          occupied.add(key);
+          placedBoxes.push({ l, r, t, b });
           labelDecisions[i] = true;
         }
       }

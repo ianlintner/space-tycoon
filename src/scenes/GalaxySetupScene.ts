@@ -464,14 +464,7 @@ export class GalaxySetupScene extends Phaser.Scene {
 
     if (this.portraitMask) {
       const c = getTheme().shape.portrait.chamfer;
-      const half = portraitSize / 2;
-      const pts = chamferedRectPoints(
-        -half,
-        -half,
-        portraitSize,
-        portraitSize,
-        c,
-      );
+      const pts = chamferedRectPoints(0, 0, portraitSize, portraitSize, c);
       this.portraitMask.clear();
       this.portraitMask.fillStyle(0xffffff);
       this.portraitMask.beginPath();
@@ -485,7 +478,10 @@ export class GalaxySetupScene extends Phaser.Scene {
       this.portraitMask.lineTo(pts[14], pts[15]);
       this.portraitMask.closePath();
       this.portraitMask.fillPath();
-      this.portraitMask.setPosition(portraitCenterX, portraitCenterY);
+      this.portraitMask.setPosition(
+        portraitCenterX - portraitSize / 2,
+        portraitCenterY - portraitSize / 2,
+      );
     }
 
     this.portraitBorder.setPosition(portraitCenterX, portraitCenterY);
