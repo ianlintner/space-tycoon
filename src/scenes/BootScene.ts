@@ -9,6 +9,7 @@ import {
   generateShipMapSprites,
   SHIP_CLASS_LIST,
 } from "../ui/index.ts";
+import { traceChamferedPath } from "@spacebiz/ui";
 import { getAudioDirector, type SfxKey } from "../audio/AudioDirector.ts";
 import {
   PLANET_PORTRAIT_TYPES,
@@ -277,27 +278,6 @@ export class BootScene extends Phaser.Scene {
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  /** Trace a chamfered rectangle path on a Canvas2D context. */
-  private traceChamferedRect(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    c: number,
-  ): void {
-    ctx.beginPath();
-    ctx.moveTo(x + c, y);
-    ctx.lineTo(x + w - c, y);
-    ctx.lineTo(x + w, y + c);
-    ctx.lineTo(x + w, y + h - c);
-    ctx.lineTo(x + w - c, y + h);
-    ctx.lineTo(x + c, y + h);
-    ctx.lineTo(x, y + h - c);
-    ctx.lineTo(x, y + c);
-    ctx.closePath();
-  }
-
   /**
    * panel-bg (64x64): Glass gradient with chamfered corners.
    * Vertical gradient from glass.topTint to glass.bottomTint,
@@ -305,7 +285,8 @@ export class BootScene extends Phaser.Scene {
    */
   private generatePanelBg(theme: ThemeConfig): void {
     const size = 64;
-    const { glass, chamfer, panel, colors } = theme;
+    const { glass, shape, panel, colors } = theme;
+    const c = shape.container.chamfer;
     const { tex, ctx } = this.makeCanvas("panel-bg", size, size);
 
     // Vertical gradient fill
@@ -318,7 +299,7 @@ export class BootScene extends Phaser.Scene {
     // Chamfered outer border
     ctx.lineWidth = panel.borderWidth;
     ctx.strokeStyle = this.rgba(colors.panelBorder, 0.8);
-    this.traceChamferedRect(ctx, 1, 1, size - 2, size - 2, chamfer.size);
+    traceChamferedPath(ctx, 1, 1, size - 2, size - 2, c);
     ctx.stroke();
 
     tex.refresh();
@@ -331,7 +312,8 @@ export class BootScene extends Phaser.Scene {
    */
   private generatePanelGlow(theme: ThemeConfig): void {
     const size = 72;
-    const { glow, chamfer, colors } = theme;
+    const { glow, shape, colors } = theme;
+    const c = shape.container.chamfer;
     const { tex, ctx } = this.makeCanvas("panel-glow", size, size);
 
     // Draw concentric glow rings fading outward (3 layers)
@@ -341,13 +323,13 @@ export class BootScene extends Phaser.Scene {
       const offset = i + 2;
       ctx.lineWidth = 2;
       ctx.strokeStyle = this.rgba(colors.accent, alpha);
-      this.traceChamferedRect(
+      traceChamferedPath(
         ctx,
         offset,
         offset,
         size - offset * 2,
         size - offset * 2,
-        chamfer.size + (layers - i),
+        c + (layers - i),
       );
       ctx.stroke();
     }
