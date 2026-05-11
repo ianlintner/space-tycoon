@@ -74,9 +74,9 @@ export class TechQueueRow extends Phaser.GameObjects.Container {
       // Tile background
       const bg = this.scene.add.graphics();
       bg.fillStyle(isActive ? 0x334466 : 0x222233, 0.9);
-      bg.fillRoundedRect(tileX, 0, TILE_SIZE, TILE_SIZE, 6);
+      bg.fillRect(tileX, 0, TILE_SIZE, TILE_SIZE);
       bg.lineStyle(1, isActive ? 0x6688cc : 0x445566, 1);
-      bg.strokeRoundedRect(tileX, 0, TILE_SIZE, TILE_SIZE, 6);
+      bg.strokeRect(tileX, 0, TILE_SIZE, TILE_SIZE);
 
       // Progress bar (first tile only)
       if (isActive && progress > 0) {
