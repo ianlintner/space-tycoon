@@ -451,11 +451,29 @@ export class AdviserPanel extends Phaser.GameObjects.Container {
     strokeColor: number,
     strokeAlpha: number,
   ): void {
+    const theme = getTheme();
+    const c = theme.shape.container.chamfer;
     gfx.clear();
     gfx.fillStyle(fillColor, fillAlpha);
-    gfx.fillRoundedRect(0, 0, TAB_WIDTH, h, { tl: 8, bl: 8, tr: 0, br: 0 });
+    gfx.beginPath();
+    gfx.moveTo(c, 0);
+    gfx.lineTo(TAB_WIDTH, 0);
+    gfx.lineTo(TAB_WIDTH, h);
+    gfx.lineTo(c, h);
+    gfx.lineTo(0, h - c);
+    gfx.lineTo(0, c);
+    gfx.closePath();
+    gfx.fillPath();
     gfx.lineStyle(1, strokeColor, strokeAlpha);
-    gfx.strokeRoundedRect(0, 0, TAB_WIDTH, h, { tl: 8, bl: 8, tr: 0, br: 0 });
+    gfx.beginPath();
+    gfx.moveTo(c, 0);
+    gfx.lineTo(TAB_WIDTH, 0);
+    gfx.lineTo(TAB_WIDTH, h);
+    gfx.lineTo(c, h);
+    gfx.lineTo(0, h - c);
+    gfx.lineTo(0, c);
+    gfx.closePath();
+    gfx.strokePath();
   }
 
   // ── Dismiss Button ─────────────────────────────
@@ -470,7 +488,8 @@ export class AdviserPanel extends Phaser.GameObjects.Container {
     );
 
     const bg = this.scene.add
-      .circle(0, 0, DISMISS_SIZE / 2, theme.colors.buttonBg, 0.6)
+      .rectangle(0, 0, DISMISS_SIZE, DISMISS_SIZE, theme.colors.buttonBg, 0.6)
+      .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
     const gfx = this.scene.add.graphics();
