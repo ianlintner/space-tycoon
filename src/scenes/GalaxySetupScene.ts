@@ -70,6 +70,7 @@ export class GalaxySetupScene extends Phaser.Scene {
   private startingOptions: StarSystem[] = [];
   private currentState!: GameState;
   private portraitImage: Phaser.GameObjects.Image | null = null;
+  private portraitContainer: Phaser.GameObjects.Container | null = null;
   private portraitLabel: Label | null = null;
   private portraitMask: Phaser.GameObjects.Graphics | null = null;
   private portraitBorder!: Phaser.GameObjects.Arc;
@@ -142,10 +143,14 @@ export class GalaxySetupScene extends Phaser.Scene {
     });
 
     // ── CEO Portrait (large, circular) ──
+    this.portraitContainer = this.add.container(0, 0);
+
     // Start with placeholder; swap when first portrait loads
     this.portraitImage = this.add
       .image(0, 0, PORTRAIT_PLACEHOLDER_KEY)
       .setOrigin(0.5, 0.5);
+    this.portraitContainer.add(this.portraitImage);
+
     // Load CEO portrait (restored or first) on-demand and swap in
     const initialPortraitId = CEO_PORTRAITS[this.portraitIndex].id;
     portraitLoader
@@ -153,16 +158,22 @@ export class GalaxySetupScene extends Phaser.Scene {
       .then((key) => {
         if (this.portraitImage) {
           this.portraitImage.setTexture(key);
-          this.fitPortraitInCircle(this.portraitImage, this.portraitDiameter);
+          if (this.portraitDiameter > 0) {
+            this.portraitImage.setDisplaySize(
+              this.portraitDiameter,
+              this.portraitDiameter,
+            );
+          }
         }
       })
       .catch(() => {
         /* leave placeholder */
       });
 
-    this.portraitMask = this.add.graphics();
-    this.portraitMask.setVisible(false);
-    applyClippingMask(this.portraitImage, this.portraitMask);
+    this.portraitMask = this.make.graphics({});
+    if (this.portraitContainer) {
+      applyClippingMask(this.portraitContainer, this.portraitMask);
+    }
 
     // Accent border ring
     this.portraitBorder = this.add
@@ -442,19 +453,20 @@ export class GalaxySetupScene extends Phaser.Scene {
     const portraitCenterX = panelX + pad + portraitSize / 2;
     const portraitCenterY = contentTop + portraitSize / 2;
 
+    if (this.portraitContainer) {
+      this.portraitContainer.setPosition(portraitCenterX, portraitCenterY);
+    }
+
     if (this.portraitImage) {
-      this.portraitImage.setPosition(portraitCenterX, portraitCenterY);
-      this.fitPortraitInCircle(this.portraitImage, portraitSize);
+      this.portraitImage.setPosition(0, 0);
+      this.portraitImage.setDisplaySize(portraitSize, portraitSize);
     }
 
     if (this.portraitMask) {
       this.portraitMask.clear();
       this.portraitMask.fillStyle(0xffffff);
-      this.portraitMask.fillCircle(
-        portraitCenterX,
-        portraitCenterY,
-        portraitSize / 2,
-      );
+      this.portraitMask.fillCircle(0, 0, portraitSize / 2);
+      this.portraitMask.setPosition(portraitCenterX, portraitCenterY);
     }
 
     this.portraitBorder.setPosition(portraitCenterX, portraitCenterY);
@@ -605,7 +617,10 @@ export class GalaxySetupScene extends Phaser.Scene {
       if (this.textures.exists(key)) {
         this.portraitImage.setTexture(key);
         if (this.portraitDiameter > 0) {
-          this.fitPortraitInCircle(this.portraitImage, this.portraitDiameter);
+          this.portraitImage.setDisplaySize(
+            this.portraitDiameter,
+            this.portraitDiameter,
+          );
         }
       } else {
         // Show placeholder while loading
@@ -620,8 +635,8 @@ export class GalaxySetupScene extends Phaser.Scene {
             ) {
               this.portraitImage.setTexture(loadedKey);
               if (this.portraitDiameter > 0) {
-                this.fitPortraitInCircle(
-                  this.portraitImage,
+                this.portraitImage.setDisplaySize(
+                  this.portraitDiameter,
                   this.portraitDiameter,
                 );
               }
@@ -632,17 +647,6 @@ export class GalaxySetupScene extends Phaser.Scene {
           });
       }
     }
-  }
-
-  private fitPortraitInCircle(
-    image: Phaser.GameObjects.Image,
-    diameter: number,
-  ): void {
-    const srcW = Math.max(1, image.width);
-    const srcH = Math.max(1, image.height);
-    // Cover fit for circular masks (fills the circle without distortion)
-    const scale = Math.max(diameter / srcW, diameter / srcH);
-    image.setDisplaySize(srcW * scale, srcH * scale);
   }
 
   private buildSystemCards(): void {
