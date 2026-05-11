@@ -340,6 +340,35 @@ class GameObjectFactoryStub {
       _h: number,
       _r: number,
     ) => g;
+    (g as any).strokeRect = (_x: number, _y: number, _w: number, _h: number) =>
+      g;
+    (g as any).beginPath = () => g;
+    (g as any).moveTo = (_x: number, _y: number) => g;
+    (g as any).lineTo = (_x: number, _y: number) => g;
+    (g as any).closePath = () => g;
+    (g as any).fillPath = () => g;
+    (g as any).strokePath = () => g;
+    return g;
+  }
+
+  polygon(
+    x: number,
+    y: number,
+    points: number[],
+    _color?: number,
+    _alpha?: number,
+  ): GameObjectStub {
+    const g = new GameObjectStub(this.scene);
+    g.x = x;
+    g.y = y;
+    let maxX = 0;
+    let maxY = 0;
+    for (let i = 0; i < points.length; i += 2) {
+      maxX = Math.max(maxX, points[i]);
+      maxY = Math.max(maxY, points[i + 1]);
+    }
+    g.width = maxX;
+    g.height = maxY;
     return g;
   }
 

@@ -106,3 +106,12 @@ export * from "./notifications/index.ts";
 // Focus management
 export { FocusManager } from "./foundation/FocusManager.ts";
 export type { Focusable } from "./foundation/FocusManager.ts";
+
+// Shape primitives
+export {
+  fillChamferedRect,
+  strokeChamferedRect,
+  traceChamferedPath,
+  makeChamferedMaskShape,
+  chamferedRectPoints,
+} from "./foundation/shapes.ts";
