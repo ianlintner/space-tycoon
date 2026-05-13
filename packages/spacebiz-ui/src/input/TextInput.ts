@@ -29,6 +29,7 @@ export class TextInput extends Phaser.GameObjects.Container {
   private domInput: HTMLInputElement | null = null;
   private readonly widthPx: number;
   private readonly heightPx: number;
+  private readonly baseFontSize: number;
   private readonly maxLength?: number;
   private readonly onChange?: (value: string) => void;
   private readonly onSubmit?: (value: string) => void;
@@ -43,6 +44,7 @@ export class TextInput extends Phaser.GameObjects.Container {
 
     this.widthPx = config.width;
     this.heightPx = config.height;
+    this.baseFontSize = theme.fonts.body.size;
     this.maxLength = config.maxLength;
     this.onChange = config.onChange;
     this.onSubmit = config.onSubmit;
@@ -156,11 +158,16 @@ export class TextInput extends Phaser.GameObjects.Container {
     const cssW = this.widthPx * scaleX;
     const cssH = this.heightPx * scaleY;
 
+    // Font size is set in CSS pixels, but the canvas is displayed at a
+    // potentially-different size than its internal resolution. Without
+    // scaling here, the input text floats far larger than its surrounding
+    // Phaser-rendered UI on any non-1:1 display scale.
     const style = this.domInput.style;
     style.left = `${cssLeft}px`;
     style.top = `${cssTop}px`;
     style.width = `${cssW}px`;
     style.height = `${cssH}px`;
+    style.fontSize = `${this.baseFontSize * Math.min(scaleX, scaleY)}px`;
     style.display = this.visible ? "block" : "none";
   }
 

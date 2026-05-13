@@ -33,6 +33,7 @@ import {
   Panel,
   DEPTH_MODAL,
   getTheme,
+  AutocompleteInput,
 } from "@spacebiz/ui";
 import type { SceneUiDirector, SceneUiLayer } from "@spacebiz/ui";
 import { RoutePickerMap } from "./RoutePickerMap.ts";
@@ -152,6 +153,7 @@ export class RouteBuilderPanel {
   private pickerMap: RoutePickerMap | null = null;
   private nextClickSlot: "origin" | "destination" = "origin";
   private hoveredPlanetId: string | null = null;
+  private planetSearch!: AutocompleteInput;
 
   constructor(
     scene: Phaser.Scene,
@@ -214,7 +216,28 @@ export class RouteBuilderPanel {
     this.titleValue.setDepth(DEPTH_MODAL);
     layer.track(this.titleValue);
 
-    let rowY = content.y + 44;
+    // Planet search — substring autocomplete that lets the player jump to
+    // any of the ~350 planets without arrow-cycling. Sets origin first; once
+    // origin is locked in, the next pick fills destination. Map click and
+    // arrow buttons still work — this is an additional fast path.
+    const searchY = content.y + 22;
+    this.planetSearch = new AutocompleteInput(scene, {
+      x: this.panelX + content.x,
+      y: this.panelY + searchY,
+      width: Math.min(360, this.pickerColumnLeft - content.x - 16),
+      height: 24,
+      placeholder: "Search planet…",
+      getSuggestions: () => {
+        return this.planets.map((p) => ({ id: p.id, label: p.name }));
+      },
+      onSelect: (item) => {
+        this.applySearchPick(item.id);
+      },
+    });
+    this.planetSearch.setDepth(DEPTH_MODAL);
+    layer.track(this.planetSearch);
+
+    let rowY = content.y + 56;
     this.createFieldRow("origin", "Origin", rowY, !options.lockOrigin);
     rowY += 38;
     this.createFieldRow("destination", "Destination", rowY, true);
@@ -802,6 +825,17 @@ export class RouteBuilderPanel {
       cargoType: this.getSelectedCargo(),
       hoveredPlanetId: this.hoveredPlanetId,
     });
+  }
+
+  /**
+   * Picking from the search bar uses the same origin → destination alternation
+   * as map clicks, so origin fills first, then destination on the next pick.
+   * Clearing the textbox keeps the bar ready for the next planet without
+   * forcing the player to manually delete the previous name.
+   */
+  private applySearchPick(planetId: string): void {
+    this.handlePlanetClick(planetId);
+    this.planetSearch.clear();
   }
 
   private handlePlanetClick(planetId: string): void {
