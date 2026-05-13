@@ -11,6 +11,7 @@ import {
   DataTable,
   ScrollFrame,
   Dropdown,
+  AutocompleteInput,
   MiniMap,
   Modal,
   ScrollableList,
@@ -114,6 +115,9 @@ export class RoutesScene extends Phaser.Scene {
   private finderDistanceBand: DistanceBand = null;
   private finderScopeBand: RouteScopeBand = null;
   private finderEmpireFilter: string | null = null;
+  /** Free-text system name filter. Empty string disables. Matched as a
+   *  case-insensitive substring against both endpoint system names. */
+  private finderSystemQuery = "";
 
   // ── Sidebar mini-map ──
   // MiniMap has no setSize() — it's destroyed and rebuilt in relayout().
@@ -351,6 +355,41 @@ export class RoutesScene extends Phaser.Scene {
     });
     finderContent.add(empireDropdown);
 
+    // System name search — substring-matches either endpoint's star system
+    // name and pairs nicely with the existing scope filter (e.g. "Helios"
+    // + "Intra System" surfaces every local route inside that system).
+    // The same suggestion list also offers click-to-jump for fast picking
+    // when the player remembers a name but not its empire.
+    const systemSearch = new AutocompleteInput(this, {
+      x: contentInnerX + 145 + dropGap + 160 + dropGap,
+      y: filterY + dropH + 4,
+      width: 180,
+      height: dropH,
+      placeholder: "System search…",
+      getSuggestions: (query) => {
+        const sys = gameStore.getState().galaxy.systems;
+        // Build candidate list lazily so it picks up galaxy regeneration
+        // on a new game without rebuilding the widget.
+        void query; // filtering happens inside the widget
+        return sys.map((s) => ({ id: s.id, label: s.name }));
+      },
+      onChange: (query) => {
+        this.finderSystemQuery = query;
+        this.refreshFinderTable();
+      },
+      onSelect: (item) => {
+        // Selecting a suggestion locks the query to that exact name so
+        // the table narrows to routes touching that one system.
+        this.finderSystemQuery = item.label;
+        this.refreshFinderTable();
+      },
+      onClear: () => {
+        this.finderSystemQuery = "";
+        this.refreshFinderTable();
+      },
+    });
+    finderContent.add(systemSearch);
+
     // Finder table starts just below the two filter rows.
     const finderTableTop = filterY + dropH + 4 + dropH + 8;
     const finderTableHeight =
@@ -377,6 +416,12 @@ export class RoutesScene extends Phaser.Scene {
       height: finderTableHeight,
     });
     finderContent.add(this.finderScrollFrame);
+
+    // The system-search dropdown opens downward over the route table area.
+    // Phaser containers paint children in sibling order — bringing the
+    // search widget to the top of `finderContent` after the table is added
+    // keeps its suggestion list above the table cells.
+    finderContent.bringToTop(systemSearch);
 
     this.finderTable = new DataTable(this, {
       x: 0,
@@ -850,7 +895,16 @@ export class RoutesScene extends Phaser.Scene {
     const freeEmpireSlots = getFreeRouteSlots(state);
     const freeGalacticSlots = getFreeGalacticRouteSlots(state);
 
-    // Apply cargo type + distance band + scope + empire filters
+    // system-id → lowercase name, for substring matching against the
+    // search-box query. Building it here (rather than each predicate
+    // call) keeps the filter O(N) instead of O(N × systemCount).
+    const systemNameLower = new Map<string, string>();
+    for (const s of state.galaxy.systems) {
+      systemNameLower.set(s.id, s.name.toLowerCase());
+    }
+    const systemQueryLower = this.finderSystemQuery.trim().toLowerCase();
+
+    // Apply cargo type + distance band + scope + empire + system filters
     const filtered = this.opportunities.filter((o) => {
       if (this.finderCargoFilter && o.bestCargoType !== this.finderCargoFilter)
         return false;
@@ -870,6 +924,16 @@ export class RoutesScene extends Phaser.Scene {
         dEmp !== this.finderEmpireFilter
       )
         return false;
+      if (systemQueryLower !== "") {
+        const oName = systemNameLower.get(oSys) ?? "";
+        const dName = systemNameLower.get(dSys) ?? "";
+        if (
+          !oName.includes(systemQueryLower) &&
+          !dName.includes(systemQueryLower)
+        ) {
+          return false;
+        }
+      }
       return true;
     });
 
@@ -898,6 +962,7 @@ export class RoutesScene extends Phaser.Scene {
       this.finderCargoFilter !== null ||
       this.finderDistanceBand !== null ||
       this.finderScopeBand !== null ||
+      this.finderSystemQuery.trim() !== "" ||
       this.finderEmpireFilter !== null;
     const displayLimit = hasActiveFilter ? 200 : 50;
     const displayed = filtered.slice(0, displayLimit);

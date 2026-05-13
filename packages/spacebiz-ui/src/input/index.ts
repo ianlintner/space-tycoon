@@ -30,5 +30,13 @@ export {
 export { TextInput } from "./TextInput.ts";
 export type { TextInputConfig, TextInputType } from "./TextInput.ts";
 
+export { AutocompleteInput } from "./AutocompleteInput.ts";
+export type { AutocompleteInputConfig } from "./AutocompleteInput.ts";
+export { filterAutocomplete, matchScore } from "./autocompleteMatch.ts";
+export type {
+  AutocompleteCandidate,
+  AutocompleteMatchOptions,
+} from "./autocompleteMatch.ts";
+
 export { ColorSwatch } from "./ColorSwatch.ts";
 export type { ColorSwatchConfig } from "./ColorSwatch.ts";

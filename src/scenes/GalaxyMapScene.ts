@@ -5,7 +5,7 @@ import {
   colorToString,
   Label,
   Tooltip,
-  Dropdown,
+  AutocompleteInput,
   getLayout,
   attachReflowHandler,
   GalaxySidebarPanel,
@@ -83,8 +83,10 @@ export class GalaxyMapScene extends Phaser.Scene {
   private panKeys: Phaser.Types.Input.Keyboard.CursorKeys | null = null;
   private panKeysWASD: Record<string, Phaser.Input.Keyboard.Key> | null = null;
 
-  // ── Navigation dropdown (top-strip, right side) ───────────────────────────
-  private navDropdown: Dropdown | null = null;
+  // ── Navigation autocomplete (top-strip, centred) ──────────────────────────
+  // Substring-matches system names so the player can jump to any one of
+  // ~280 systems without scrolling a giant dropdown.
+  private navDropdown: AutocompleteInput | null = null;
 
   // ── Scene-level tooltip (shared by system/empire markers) ─────────────────
   private mapTooltip: Tooltip | null = null;
@@ -618,24 +620,30 @@ export class GalaxyMapScene extends Phaser.Scene {
       .setAlpha(0.85)
       .setDepth(901);
 
-    // Navigation dropdown — alphabetically sorted system list, placed in the
-    // centre of the top HUD strip so it doesn't crowd left/right info panels.
+    // Navigation autocomplete — substring-matches the ~280 system names so
+    // the player can type a few characters to jump anywhere. The previous
+    // Dropdown rendered every system in one giant scroll list, which got
+    // unwieldy fast and offered no search affordance.
     const navDropdownWidth = 180;
     const navDropdownX = Math.floor(
       L.mainContentLeft + L.mainContentWidth / 2 - navDropdownWidth / 2,
     );
     const navDropdownY = hudLabelTop - 2;
-    const systems = [...state.galaxy.systems].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-    this.navDropdown = new Dropdown(this, {
+    this.navDropdown = new AutocompleteInput(this, {
       x: navDropdownX,
       y: navDropdownY,
       width: navDropdownWidth,
       height: 32,
-      options: systems.map((s) => ({ value: s.id, label: s.name })),
-      onChange: (value) => {
-        this.focusSystem(value);
+      placeholder: "Jump to system…",
+      getSuggestions: () => {
+        // Read the latest galaxy each keystroke so this widget keeps working
+        // across new-game / load events without rebuilding the HUD.
+        return gameStore
+          .getState()
+          .galaxy.systems.map((s) => ({ id: s.id, label: s.name }));
+      },
+      onSelect: (item) => {
+        this.focusSystem(item.id);
       },
     });
     this.navDropdown.setDepth(910);
