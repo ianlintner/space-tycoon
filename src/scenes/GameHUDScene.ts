@@ -1047,6 +1047,9 @@ export class GameHUDScene extends Phaser.Scene {
    */
   private async maybeDrainDialogueQueue(): Promise<void> {
     if (this.drainingDialogues) return;
+    // Dialogues only fire after the player closes the turn report.
+    // switchContentScene() re-calls this when navigating away from TurnReportScene.
+    if (this.activeContentScene === "TurnReportScene") return;
     const state = gameStore.getState();
     const hasDialogue =
       (state.pendingDialogues?.length ?? 0) > 0 ||
@@ -1097,6 +1100,8 @@ export class GameHUDScene extends Phaser.Scene {
   private openNewsDialogue(
     item: import("../generation/news/types.ts").TickerItem,
   ): void {
+    // Don't layer a flavor news item on top of a required dilemma drain.
+    if (this.drainingDialogues) return;
     const audio = getAudioDirector();
     const speaker = newsSpeakerFor(item.category, "standby");
     const request: DialogueRequest = {

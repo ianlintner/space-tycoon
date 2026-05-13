@@ -1,7 +1,7 @@
 import * as Phaser from "phaser";
 import { getTheme, colorToString } from "./Theme.ts";
 
-export type LabelStyle = "heading" | "body" | "caption" | "value";
+export type LabelStyle = "display" | "heading" | "body" | "caption" | "value";
 
 export interface LabelConfig {
   x: number;

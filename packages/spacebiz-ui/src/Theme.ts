@@ -108,6 +108,8 @@ export interface ThemeConfig {
     modalOverlay: number;
   };
   fonts: {
+    /** Hero/splash titles — use sparingly (main menu, game-over screens). */
+    display: { size: number; family: string };
     heading: { size: number; family: string };
     body: { size: number; family: string };
     caption: { size: number; family: string };
@@ -193,14 +195,15 @@ export interface ThemeConfig {
 
 const SHARED_TYPOGRAPHY = {
   fonts: {
+    display: { size: 42, family: "monospace" },
     heading: { size: 24, family: "monospace" },
     body: { size: 16, family: "monospace" },
-    caption: { size: 12, family: "monospace" },
+    caption: { size: 13, family: "monospace" },
     value: { size: 18, family: "monospace" },
   },
   spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
   panel: { borderWidth: 2, titleHeight: 36 },
-  button: { height: 40, minWidth: 120, borderWidth: 1, fontSize: 13 },
+  button: { height: 40, minWidth: 120, borderWidth: 1, fontSize: 14 },
   glow: {
     width: 6,
     alpha: 0.25,

@@ -134,12 +134,11 @@ export class MainMenuScene extends Phaser.Scene {
       x: 0,
       y: 0,
       text: "STAR FREIGHT TYCOON",
-      style: "heading",
+      style: "display",
       color: theme.colors.accent,
       glow: true,
     });
     this.titleLabel.setOrigin(0.5);
-    this.titleLabel.setFontSize(42);
     addFloatTween(this, this.titleLabel, {
       dx: 0,
       dy: -4,
