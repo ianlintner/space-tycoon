@@ -660,87 +660,108 @@ export class GalaxyView2D {
       drawRing(this.originSystemId, 0x4dd0e1, 0.9);
     }
 
-    // Empire territory fills — drawn as earcut triangles one depth below the border.
-    if (this.fillTerritoryGfx) {
-      this.fillTerritoryGfx.clear();
-      if (this.territoryVisible) {
-        for (const poly of this.territoryPolygons) {
-          if (poly.worldVerts.length < 3 || poly.triangleIndices.length < 3)
-            continue;
-          // Project all verts once.
-          const screenPts: Array<{ x: number; y: number; visible: boolean }> =
-            [];
-          for (const wv of poly.worldVerts) {
-            this.scratchNdcA.x = wv.x;
-            this.scratchNdcA.y = wv.y;
-            this.scratchNdcA.z = wv.z;
-            const proj = projectToScreenDesignInto(
-              this.scratchNdcB,
-              this.scratchNdcA,
-              viewProj,
-              this.viewport,
-            );
-            screenPts.push({ x: proj.x, y: proj.y, visible: proj.visible });
-          }
-          this.fillTerritoryGfx.fillStyle(poly.color, 0.08);
-          for (let t = 0; t < poly.triangleIndices.length; t += 3) {
-            const ia = poly.triangleIndices[t];
-            const ib = poly.triangleIndices[t + 1];
-            const ic = poly.triangleIndices[t + 2];
-            if (ia === undefined || ib === undefined || ic === undefined)
+    // Empire territory fills + borders.
+    //
+    // Project each polygon's vertices once, then render in multiple passes so
+    // the three-layer glow border composites correctly across all empires:
+    //   1. Outer glow  (wide, very soft) — drawn first / furthest back
+    //   2. Mid glow    (medium width, semi-transparent)
+    //   3. Core border (thin, opaque)   — drawn last / on top
+    //
+    // This creates a gradient fade at every edge (inner AND outer) without
+    // needing per-vertex alpha or render textures.
+
+    if (this.fillTerritoryGfx || this.territoryGfx) {
+      // Pre-project all polygons once to avoid triple projection per frame.
+      type ScreenPt = { x: number; y: number; visible: boolean };
+      const allScreenPts: ScreenPt[][] = [];
+      for (const poly of this.territoryPolygons) {
+        if (poly.worldVerts.length < 3) {
+          allScreenPts.push([]);
+          continue;
+        }
+        const pts: ScreenPt[] = [];
+        for (const wv of poly.worldVerts) {
+          this.scratchNdcA.x = wv.x;
+          this.scratchNdcA.y = wv.y;
+          this.scratchNdcA.z = wv.z;
+          const proj = projectToScreenDesignInto(
+            this.scratchNdcB,
+            this.scratchNdcA,
+            viewProj,
+            this.viewport,
+          );
+          pts.push({ x: proj.x, y: proj.y, visible: proj.visible });
+        }
+        allScreenPts.push(pts);
+      }
+
+      // ── Territory fills ───────────────────────────────────────────────
+      if (this.fillTerritoryGfx) {
+        this.fillTerritoryGfx.clear();
+        if (this.territoryVisible) {
+          for (let pi = 0; pi < this.territoryPolygons.length; pi++) {
+            const poly = this.territoryPolygons[pi];
+            const screenPts = allScreenPts[pi];
+            if (
+              !screenPts ||
+              screenPts.length < 3 ||
+              poly.triangleIndices.length < 3
+            )
               continue;
-            const pa = screenPts[ia];
-            const pb = screenPts[ib];
-            const pc = screenPts[ic];
-            if (!pa || !pb || !pc) continue;
-            if (!pa.visible && !pb.visible && !pc.visible) continue;
-            this.fillTerritoryGfx.fillTriangle(
-              pa.x,
-              pa.y,
-              pb.x,
-              pb.y,
-              pc.x,
-              pc.y,
-            );
+            this.fillTerritoryGfx.fillStyle(poly.color, 0.08);
+            for (let t = 0; t < poly.triangleIndices.length; t += 3) {
+              const ia = poly.triangleIndices[t];
+              const ib = poly.triangleIndices[t + 1];
+              const ic = poly.triangleIndices[t + 2];
+              if (ia === undefined || ib === undefined || ic === undefined)
+                continue;
+              const pa = screenPts[ia];
+              const pb = screenPts[ib];
+              const pc = screenPts[ic];
+              if (!pa || !pb || !pc) continue;
+              if (!pa.visible && !pb.visible && !pc.visible) continue;
+              this.fillTerritoryGfx.fillTriangle(
+                pa.x,
+                pa.y,
+                pb.x,
+                pb.y,
+                pc.x,
+                pc.y,
+              );
+            }
           }
         }
       }
-    }
 
-    // Empire territory borders — colored outline only, no fill. Verts whose
-    // projection is off-screen are kept (we still draw the stroke between
-    // visible neighbors) so a single off-screen vertex doesn't drop the
-    // whole polygon when you pan to a corner.
-    if (this.territoryGfx) {
-      this.territoryGfx.clear();
-      if (this.territoryVisible) {
-        for (const poly of this.territoryPolygons) {
-          if (poly.worldVerts.length < 3) continue;
-          const screenPts: Array<{ x: number; y: number; visible: boolean }> =
-            [];
-          for (const wv of poly.worldVerts) {
-            this.scratchNdcA.x = wv.x;
-            this.scratchNdcA.y = wv.y;
-            this.scratchNdcA.z = wv.z;
-            const proj = projectToScreenDesignInto(
-              this.scratchNdcB,
-              this.scratchNdcA,
-              viewProj,
-              this.viewport,
-            );
-            screenPts.push({ x: proj.x, y: proj.y, visible: proj.visible });
-          }
-          this.territoryGfx.lineStyle(
-            TERRITORY_STROKE_WIDTH,
-            poly.color,
-            TERRITORY_STROKE_ALPHA,
-          );
-          for (let i = 0; i < screenPts.length; i++) {
-            const a = screenPts[i];
-            const b = screenPts[(i + 1) % screenPts.length];
-            if (!a.visible || !b.visible) continue;
-            this.territoryGfx.lineBetween(a.x, a.y, b.x, b.y);
-          }
+      // ── Territory borders — three-layer glow ──────────────────────────
+      if (this.territoryGfx) {
+        this.territoryGfx.clear();
+        if (this.territoryVisible) {
+          const drawBorderPass = (width: number, alpha: number) => {
+            for (let pi = 0; pi < this.territoryPolygons.length; pi++) {
+              const poly = this.territoryPolygons[pi];
+              const screenPts = allScreenPts[pi];
+              if (!screenPts || screenPts.length < 3) continue;
+              this.territoryGfx!.lineStyle(width, poly.color, alpha);
+              for (let i = 0; i < screenPts.length; i++) {
+                const a = screenPts[i];
+                const b = screenPts[(i + 1) % screenPts.length];
+                if (!a || !b) continue;
+                // Draw the segment even if one endpoint is off-screen so a
+                // single clipped vertex doesn't break the whole polygon outline.
+                if (!a.visible && !b.visible) continue;
+                this.territoryGfx!.lineBetween(a.x, a.y, b.x, b.y);
+              }
+            }
+          };
+
+          // Outer glow — wide, very faint: creates the "soft fade" at edges.
+          drawBorderPass(10, 0.04);
+          // Mid glow — moderate width and opacity.
+          drawBorderPass(4, 0.18);
+          // Core border — crisp, on top of all glow layers.
+          drawBorderPass(TERRITORY_STROKE_WIDTH, TERRITORY_STROKE_ALPHA);
         }
       }
     }

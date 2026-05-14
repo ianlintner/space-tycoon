@@ -38,25 +38,25 @@ export function placeSpiralGalaxy(opts: {
     const curl = 0.4;
     const cx = r * Math.cos(angle + curl * Math.log(1 + (r / radius) * 5));
     const cy = r * Math.sin(angle + curl * Math.log(1 + (r / radius) * 5));
-    // Perpendicular (radial) jitter — the belt's half-thickness. 18% of
-    // radius at the core, up to 32% at the outer rim. Triangular distribution
-    // (sum of two uniforms) so most candidates sit closer to the centerline
-    // but the tails reach the full belt width — gives a soft Gaussian-like
-    // density falloff instead of a hard band.
-    const beltHalf = radius * (0.18 + 0.14 * t);
+    // Perpendicular (radial) jitter — the belt's half-thickness. 26% of
+    // radius at the core, up to 44% at the outer rim (wider than before so
+    // arms fan out naturally and look less like thin streaks). Triangular
+    // distribution gives a soft Gaussian-like density falloff.
+    const beltHalf = radius * (0.26 + 0.18 * t);
     const radialN = rng.nextFloat(0, 1) + rng.nextFloat(0, 1) - 1; // ~triangular [-1, 1]
     const radialMag = beltHalf * radialN;
     const jx = -Math.sin(angle) * radialMag;
     const jy = Math.cos(angle) * radialMag;
-    // Tangential jitter — modest, just enough to break up alignment.
-    const tangentMag = radius * 0.08 * (rng.nextFloat(0, 1) * 2 - 1);
+    // Tangential jitter — moderate, helps break up the arc regularity.
+    const tangentMag = radius * 0.1 * (rng.nextFloat(0, 1) * 2 - 1);
     const tx = Math.cos(angle) * tangentMag;
     const ty = Math.sin(angle) * tangentMag;
     candidates.push({ x: cx + jx + tx, y: cy + jy + ty });
   }
 
-  // 2) Poisson-disk cull until we hit systemCount
-  const minDist = radius * 0.018;
+  // 2) Poisson-disk cull until we hit systemCount — larger minimum distance
+  // than before so systems are spread out with more breathing room.
+  const minDist = radius * 0.026;
   const minDist2 = minDist * minDist;
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = rng.nextInt(0, i);
@@ -127,12 +127,13 @@ export function placeSpiralGalaxy(opts: {
 
   rebalanceEmptyEmpires(kept, assignments, centroids);
 
-  // 4) Voronoi territories — clipped to a tight galaxy disc so border cells
-  // curve around the rim instead of stretching out into empty space.
-  // Then each cell is intersected with a per-empire circle (members' max
-  // distance from centroid + small buffer) so the territory hugs the actual
-  // star cluster instead of fanning out to the disc bound.
-  const rawTerritories = buildBoundedVoronoi(centroids, radius * 0.95);
+  // 4) Voronoi territories — clipped to a disc slightly beyond the maximum
+  // possible star position so outer spiral-arm tips always fall inside their
+  // empire's cell. (Arm candidates reach up to ~1.05× radius after jitter, so
+  // 1.25 leaves clear headroom.) Each cell is then intersected with a
+  // per-empire circle so the territory hugs the actual star cluster rather than
+  // fanning to the disc edge.
+  const rawTerritories = buildBoundedVoronoi(centroids, radius * 1.25);
   const territories: Polygon[] = rawTerritories.map((poly, i) => {
     const members = kept.filter((_, k) => assignments[k] === i);
     if (members.length === 0) return poly;
@@ -141,7 +142,9 @@ export function placeSpiralGalaxy(opts: {
       const d = Math.hypot(m.x - centroids[i].x, m.y - centroids[i].y);
       if (d > maxDist) maxDist = d;
     }
-    const cellRadius = Math.max(radius * 0.08, maxDist + radius * 0.04);
+    // 6% padding ensures the border extends slightly past the outermost star
+    // so that star is visually inside the territory, not sitting on the edge.
+    const cellRadius = Math.max(radius * 0.1, maxDist + radius * 0.06);
     return { vertices: clipToCircle(poly.vertices, centroids[i], cellRadius) };
   });
 
