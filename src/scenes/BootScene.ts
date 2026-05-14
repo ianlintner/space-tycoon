@@ -75,7 +75,8 @@ export class BootScene extends Phaser.Scene {
       );
     }
 
-    // System portraits (6 star types) — shown in SystemMapScene sidebar
+    // System portraits (6 star types) — historically shown in the (removed)
+    // SystemMapScene sidebar; still kept loaded for any future system UI.
     for (const key of SYSTEM_PORTRAIT_KEYS) {
       this.load.image(key, getSystemPortraitAssetUrls(key));
     }

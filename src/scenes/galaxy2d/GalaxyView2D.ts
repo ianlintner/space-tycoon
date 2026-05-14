@@ -16,6 +16,8 @@ import {
 import { CAMERA_FOV_Y, Camera3D } from "./Camera3D.ts";
 import type { Mat4 } from "./Camera3D.ts";
 import { Background2D } from "./Background2D.ts";
+import { HyperGates2D } from "./HyperGates2D.ts";
+import { Planets2D } from "./Planets2D.ts";
 import { Routes2D } from "./Routes2D.ts";
 import { Ships2D } from "./Ships2D.ts";
 import { disposeAllGlowTextures, getStarGlowTexture } from "./GlowTextures.ts";
@@ -23,6 +25,7 @@ import {
   perspectiveScale,
   projectToScreenDesign,
   projectToScreenDesignInto,
+  softCapSize,
 } from "./projection.ts";
 import type { ProjectedScreen, Vec3, ViewportRect } from "./types.ts";
 
@@ -54,8 +57,12 @@ const HYPERLANE_LINE_WIDTH = 1.2;
 const HYPERLANE_LINE_ALPHA = 0.5;
 const HYPERLANE_DEPTH = 300;
 
-const STAR_HALO_WORLD_SIZE = 3.4;
+const STAR_HALO_WORLD_SIZE = 1.5;
 const STAR_ALPHA = 0.95;
+// Soft cap on rendered star halo size in pixels. Stars below this size scale
+// linearly with perspective; above this they grow logarithmically so the halo
+// never fills the viewport at close zoom.
+const STAR_DISPLAY_SOFT_CAP_PX = 220;
 const STAR_DEPTH_BASE = 800;
 const STAR_DEPTH_RANGE = -10;
 
@@ -70,13 +77,26 @@ const EMPIRE_LABEL_DEPTH = 700;
 // look comes from the additive empire halos in Background2D; this is just a
 // thin colored outline so each empire's region reads at a glance.
 const TERRITORY_DEPTH = 140; // above nebulae/halos so the border isn't lost
-const TERRITORY_STROKE_ALPHA = 0.55;
-const TERRITORY_STROKE_WIDTH = 1.6;
 
-// HQ markers — sprite above the home system.
+// Hysteresis thresholds for entering/leaving "system mode" (only the focused
+// star + its planets render; galaxy-scale chrome hides). Enter at 8 so the
+// default fly-to landing distance of 6 triggers system view reliably; exit
+// at 15 gives a wide sticky range so small zoom-outs don't flicker the LOD.
+const SYSTEM_MODE_ENTER_DISTANCE = 8;
+const SYSTEM_MODE_EXIT_DISTANCE = 15;
+
+// HQ markers — sprite above the home system. Hidden in system view.
 const HQ_MARKER_DEPTH = 880;
 const HQ_MARKER_Y_OFFSET_WORLD = 2.4;
 const HQ_MARKER_WORLD_SIZE = 2;
+
+// Station — player HQ orbiting body shown in system mode.
+const STATION_TEX_KEY = "galaxy2d:station";
+const STATION_DEPTH = 840;
+const STATION_ORBIT_DEPTH = 755; // just below planet orbit rings (760)
+const STATION_ORBIT_RADIUS = 0.55; // world units — inside innermost planet orbit
+const STATION_SIZE_PX_MIN = 12;
+const STATION_SIZE_PX_CAP = 34;
 
 // Highlight + origin rings — drawn under stars but above hyperlanes.
 const RING_DEPTH = 750;
@@ -118,6 +138,47 @@ function getOrCreateHQMarkerTexture(
 
   tex.refresh();
   return key;
+}
+
+function getOrCreateStationTexture(scene: Phaser.Scene): string {
+  if (scene.textures.exists(STATION_TEX_KEY)) return STATION_TEX_KEY;
+
+  const size = 64;
+  const tex = scene.textures.createCanvas(STATION_TEX_KEY, size, size);
+  if (!tex) return STATION_TEX_KEY;
+  const ctx = tex.getContext();
+  const c = size / 2; // 32
+
+  // Soft glow backing
+  const glow = ctx.createRadialGradient(c, c, 2, c, c, 24);
+  glow.addColorStop(0, "rgba(100,200,255,0.3)");
+  glow.addColorStop(1, "rgba(100,200,255,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, size, size);
+
+  // Horizontal and vertical booms — cross/plus shape
+  ctx.fillStyle = "rgba(140,215,255,0.85)";
+  ctx.fillRect(c - 22, c - 2, 44, 4); // horizontal
+  ctx.fillRect(c - 2, c - 22, 4, 44); // vertical
+
+  // Solar panels off the horizontal boom tips
+  ctx.fillStyle = "rgba(60,140,255,0.9)";
+  ctx.fillRect(c + 22, c - 10, 8, 7); // right top panel
+  ctx.fillRect(c + 22, c + 3, 8, 7); // right bottom panel
+  ctx.fillRect(c - 30, c - 10, 8, 7); // left top panel
+  ctx.fillRect(c - 30, c + 3, 8, 7); // left bottom panel
+
+  // Central hub
+  ctx.beginPath();
+  ctx.arc(c, c, 8, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(180,230,255,0.98)";
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(210,245,255,0.9)";
+  ctx.stroke();
+
+  tex.refresh();
+  return STATION_TEX_KEY;
 }
 
 export interface GalaxyView2DOptions {
@@ -192,7 +253,6 @@ export class GalaxyView2D {
   private readonly empireLabels = new Map<string, Phaser.GameObjects.Text>();
   private empireLabelsVisible = true;
   private hyperlanesVisible = true;
-  private territoryVisible = true;
   private systemsVisible = true;
 
   // HQ markers — small chevron sprites above home systems.
@@ -206,6 +266,10 @@ export class GalaxyView2D {
     color: number;
     worldVerts: Array<{ x: number; y: number; z: number }>;
     triangleIndices: number[];
+    // Pre-computed polygon centroid + max vertex radius for centroid-fade fills.
+    polyCx: number;
+    polyCz: number;
+    polyMaxR: number;
   }> = [];
 
   // Highlight (white) and route-origin (teal) rings, drawn via a single Graphics.
@@ -216,6 +280,23 @@ export class GalaxyView2D {
   private readonly routes: Routes2D;
   private readonly ships: Ships2D;
   private readonly background: Background2D;
+  private readonly planets: Planets2D;
+  private readonly gates: HyperGates2D;
+
+  // Station — the player's HQ orbits its home star in system view.
+  private playerHQSystemId: string | null = null;
+  private stationSprite: Phaser.GameObjects.Image | null = null;
+  private stationOrbitGfx: Phaser.GameObjects.Graphics | null = null;
+  private readonly scratchStationNdc: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly scratchStationWorld: Vec3 = { x: 0, y: 0, z: 0 };
+
+  // System view mode — set when camera zooms inside a star (distance crosses
+  // SYSTEM_MODE_ENTER_DISTANCE), released when it pulls back past
+  // SYSTEM_MODE_EXIT_DISTANCE. The hysteresis gap prevents flicker on small
+  // zoom-out movements inside a system. Only the focused star + its planets
+  // render when this is true.
+  private focusedSystemId: string | null = null;
+  private inSystemMode = false;
 
   // 3D-projected background star field — distant stars that parallax naturally
   // through perspective. Each star has a parallax factor (0..1): 0 means it
@@ -234,6 +315,7 @@ export class GalaxyView2D {
   private readonly scratchNdcB: Vec3 = { x: 0, y: 0, z: 0 };
 
   private destroyed = false;
+  private flyToTween: Phaser.Tweens.Tween | null = null;
 
   constructor(opts: GalaxyView2DOptions) {
     this.scene = opts.scene;
@@ -255,6 +337,8 @@ export class GalaxyView2D {
     this.ships = new Ships2D(this.scene, this.galaxyContainer, (id) =>
       this.routes.getCurve(id),
     );
+    this.planets = new Planets2D(this.scene, this.galaxyContainer);
+    this.gates = new HyperGates2D(this.scene, this.galaxyContainer);
   }
 
   private buildParallaxLayers(): void {
@@ -427,10 +511,13 @@ export class GalaxyView2D {
     this.generateBackgroundStars();
     this.background.buildNebulae(this.galaxyHalfExtent, 0, 0);
     this.background.buildEmpireHalos(systems, empires, this.systemPositions);
+    this.background.buildTerritoryGlows(systems, empires, this.systemPositions);
 
     this.computeEmpireCentroids(systems, empires);
     this.rebuildEmpireLabels(empires);
     this.rebuildTerritoryPolygons(empires);
+
+    this.gates.setData(hyperlanes, systems, this.systemPositions);
   }
 
   private rebuildTerritoryPolygons(empires: Empire[]): void {
@@ -466,10 +553,28 @@ export class GalaxyView2D {
       }
       const triangleIndices = earcut(flatCoords);
 
+      // Polygon centroid + max radius for centroid-based fill fade.
+      let sumCx = 0;
+      let sumCz = 0;
+      for (const wv of worldVerts) {
+        sumCx += wv.x;
+        sumCz += wv.z;
+      }
+      const polyCx = sumCx / worldVerts.length;
+      const polyCz = sumCz / worldVerts.length;
+      let polyMaxR = 0;
+      for (const wv of worldVerts) {
+        const d = Math.sqrt((wv.x - polyCx) ** 2 + (wv.z - polyCz) ** 2);
+        if (d > polyMaxR) polyMaxR = d;
+      }
+
       this.territoryPolygons.push({
         color: emp.color,
         worldVerts,
         triangleIndices,
+        polyCx,
+        polyCz,
+        polyMaxR,
       });
     }
   }
@@ -482,10 +587,37 @@ export class GalaxyView2D {
     const viewMat = this.camera.getView();
     const focalLength = this.viewport.h / (2 * Math.tan(CAMERA_FOV_Y / 2));
 
+    // System view LOD with hysteresis: enter when zoomed tight, exit only when
+    // pulled clearly back. Without the gap, small zoom-out wiggles inside a
+    // system would flicker the galaxy chrome back on every frame.
+    const hasFocus =
+      this.focusedSystemId !== null &&
+      this.systemPositions.has(this.focusedSystemId);
+    if (!hasFocus) {
+      this.inSystemMode = false;
+    } else if (
+      !this.inSystemMode &&
+      this.camera.distance < SYSTEM_MODE_ENTER_DISTANCE
+    ) {
+      this.inSystemMode = true;
+    } else if (
+      this.inSystemMode &&
+      this.camera.distance > SYSTEM_MODE_EXIT_DISTANCE
+    ) {
+      this.inSystemMode = false;
+    }
+    const systemMode = this.inSystemMode;
+
     // Stars — project + scale + depth-sort. Also projects co-located labels
     // (system name above star, HQ marker further above) using the same screen
     // anchor so they track perfectly.
     for (const [systemId, sprite] of this.starSprites) {
+      // In system mode, hide every star except the one being focused.
+      if (systemMode && systemId !== this.focusedSystemId) {
+        sprite.setVisible(false);
+        this.systemLabels.get(systemId)?.setVisible(false);
+        continue;
+      }
       const world = this.systemPositions.get(systemId);
       if (!world) {
         sprite.setVisible(false);
@@ -511,12 +643,21 @@ export class GalaxyView2D {
       }
       const starColor = this.systemColors.get(systemId) ?? 0xffffff;
       const sizeMultiplier = getStarSizeMultiplier(starColor);
-      const displaySize = STAR_HALO_WORLD_SIZE * sizeMultiplier * screenScale;
+      // Single continuous formula: perspective-scale, then soft-cap so the
+      // halo doesn't fill the viewport at close zoom. Planets + orbits use
+      // the same softCapSize pattern so their ratio to the star stays
+      // consistent at every zoom level.
+      const desiredSize = STAR_HALO_WORLD_SIZE * sizeMultiplier * screenScale;
+      const displaySize = softCapSize(desiredSize, STAR_DISPLAY_SOFT_CAP_PX);
       sprite.setPosition(proj.x, proj.y);
       sprite.setDisplaySize(displaySize, displaySize);
       sprite.setDepth(
         Math.floor(STAR_DEPTH_BASE + proj.depth * STAR_DEPTH_RANGE),
       );
+      // Smooth alpha taper: full bright at galactic distances, gently dimmed
+      // at close zoom so the halo doesn't blow out the system view.
+      const alphaTaper = clamp(this.camera.distance / 10, 0.7, 1.0);
+      sprite.setAlpha(STAR_ALPHA * alphaTaper);
       sprite.setVisible(this.systemsVisible);
 
       const label = this.systemLabels.get(systemId);
@@ -601,9 +742,14 @@ export class GalaxyView2D {
       label.setVisible(empireAlpha > 0.01);
     }
 
-    // HQ markers — projected above the home system.
+    // HQ markers — projected above the home system. Hidden in system view
+    // because the station orbit replaces them as the in-system indicator.
     for (let i = 0; i < this.hqMarkerSprites.length; i++) {
       const sprite = this.hqMarkerSprites[i];
+      if (systemMode) {
+        sprite.setVisible(false);
+        continue;
+      }
       const sysId = this.hqMarkerSystemIds[i];
       const world = this.systemPositions.get(sysId);
       if (!world) {
@@ -660,116 +806,18 @@ export class GalaxyView2D {
       drawRing(this.originSystemId, 0x4dd0e1, 0.9);
     }
 
-    // Empire territory fills + borders.
-    //
-    // Project each polygon's vertices once, then render in multiple passes so
-    // the three-layer glow border composites correctly across all empires:
-    //   1. Outer glow  (wide, very soft) — drawn first / furthest back
-    //   2. Mid glow    (medium width, semi-transparent)
-    //   3. Core border (thin, opaque)   — drawn last / on top
-    //
-    // This creates a gradient fade at every edge (inner AND outer) without
-    // needing per-vertex alpha or render textures.
+    // Empire territories are now rendered as per-star tinted glow sprites
+    // (Background2D.territoryGlows). The polygon-fill approach is gone because
+    // flat-shaded triangles can't avoid geometric edges. Per-star glows blend
+    // additively into organic clouds whose shape follows the actual star
+    // distribution — no polygon, no edges, no triangulation artifacts.
+    this.fillTerritoryGfx?.clear();
+    this.territoryGfx?.clear();
 
-    if (this.fillTerritoryGfx || this.territoryGfx) {
-      // Pre-project all polygons once to avoid triple projection per frame.
-      type ScreenPt = { x: number; y: number; visible: boolean };
-      const allScreenPts: ScreenPt[][] = [];
-      for (const poly of this.territoryPolygons) {
-        if (poly.worldVerts.length < 3) {
-          allScreenPts.push([]);
-          continue;
-        }
-        const pts: ScreenPt[] = [];
-        for (const wv of poly.worldVerts) {
-          this.scratchNdcA.x = wv.x;
-          this.scratchNdcA.y = wv.y;
-          this.scratchNdcA.z = wv.z;
-          const proj = projectToScreenDesignInto(
-            this.scratchNdcB,
-            this.scratchNdcA,
-            viewProj,
-            this.viewport,
-          );
-          pts.push({ x: proj.x, y: proj.y, visible: proj.visible });
-        }
-        allScreenPts.push(pts);
-      }
-
-      // ── Territory fills ───────────────────────────────────────────────
-      if (this.fillTerritoryGfx) {
-        this.fillTerritoryGfx.clear();
-        if (this.territoryVisible) {
-          for (let pi = 0; pi < this.territoryPolygons.length; pi++) {
-            const poly = this.territoryPolygons[pi];
-            const screenPts = allScreenPts[pi];
-            if (
-              !screenPts ||
-              screenPts.length < 3 ||
-              poly.triangleIndices.length < 3
-            )
-              continue;
-            this.fillTerritoryGfx.fillStyle(poly.color, 0.08);
-            for (let t = 0; t < poly.triangleIndices.length; t += 3) {
-              const ia = poly.triangleIndices[t];
-              const ib = poly.triangleIndices[t + 1];
-              const ic = poly.triangleIndices[t + 2];
-              if (ia === undefined || ib === undefined || ic === undefined)
-                continue;
-              const pa = screenPts[ia];
-              const pb = screenPts[ib];
-              const pc = screenPts[ic];
-              if (!pa || !pb || !pc) continue;
-              if (!pa.visible && !pb.visible && !pc.visible) continue;
-              this.fillTerritoryGfx.fillTriangle(
-                pa.x,
-                pa.y,
-                pb.x,
-                pb.y,
-                pc.x,
-                pc.y,
-              );
-            }
-          }
-        }
-      }
-
-      // ── Territory borders — three-layer glow ──────────────────────────
-      if (this.territoryGfx) {
-        this.territoryGfx.clear();
-        if (this.territoryVisible) {
-          const drawBorderPass = (width: number, alpha: number) => {
-            for (let pi = 0; pi < this.territoryPolygons.length; pi++) {
-              const poly = this.territoryPolygons[pi];
-              const screenPts = allScreenPts[pi];
-              if (!screenPts || screenPts.length < 3) continue;
-              this.territoryGfx!.lineStyle(width, poly.color, alpha);
-              for (let i = 0; i < screenPts.length; i++) {
-                const a = screenPts[i];
-                const b = screenPts[(i + 1) % screenPts.length];
-                if (!a || !b) continue;
-                // Draw the segment even if one endpoint is off-screen so a
-                // single clipped vertex doesn't break the whole polygon outline.
-                if (!a.visible && !b.visible) continue;
-                this.territoryGfx!.lineBetween(a.x, a.y, b.x, b.y);
-              }
-            }
-          };
-
-          // Outer glow — wide, very faint: creates the "soft fade" at edges.
-          drawBorderPass(10, 0.04);
-          // Mid glow — moderate width and opacity.
-          drawBorderPass(4, 0.18);
-          // Core border — crisp, on top of all glow layers.
-          drawBorderPass(TERRITORY_STROKE_WIDTH, TERRITORY_STROKE_ALPHA);
-        }
-      }
-    }
-
-    // Hyperlanes — redrawn per frame.
+    // Hyperlanes — redrawn per frame. Hidden entirely in system view.
     if (this.hyperlanesGfx) {
       this.hyperlanesGfx.clear();
-      if (this.hyperlanesVisible) {
+      if (this.hyperlanesVisible && !systemMode) {
         for (const seg of this.hyperlaneSegments) {
           this.scratchNdcA.x = seg.ax;
           this.scratchNdcA.y = seg.ay;
@@ -805,23 +853,55 @@ export class GalaxyView2D {
       }
     }
 
-    // Background (nebulae + empire halos) — projected 3D sprites.
+    // Background (nebulae + empire halos + territory glows). In system mode,
+    // tell Background2D to suppress galaxy-scale chrome; we want a clean
+    // single-system view.
+    this.background.setSystemMode(systemMode);
     this.background.update(viewProj, viewMat, focalLength, this.viewport);
 
-    // Parallax star layers.
+    // Parallax star layers — always visible (deep-space backdrop).
     this.renderBackgroundStars(viewProj);
 
-    // Routes and ships.
-    this.routes.render(viewProj, this.viewport);
-    this.ships.update(
-      dt,
+    // Routes + ships — galaxy-scale entities, hidden in system mode.
+    if (!systemMode) {
+      this.routes.render(viewProj, this.viewport);
+      this.ships.update(
+        dt,
+        viewProj,
+        viewMat,
+        focalLength,
+        this.viewport,
+        this.camera.distance,
+        this.galaxyHalfExtent,
+      );
+    } else {
+      this.routes.clear();
+      this.ships.setVisible(false);
+    }
+
+    // Planets — only the focused system's planets render, others stay hidden.
+    this.planets.setFocusedSystem(systemMode ? this.focusedSystemId : null);
+    this.planets.update(
+      0, // turn — visual-only; real-time drift carries the animation
+      this.scene.time.now / 1000,
       viewProj,
       viewMat,
       focalLength,
       this.viewport,
-      this.camera.distance,
-      this.galaxyHalfExtent,
     );
+
+    // Hyperlane gates — visible only in system mode, one per connected lane.
+    this.gates.setFocusedSystem(systemMode ? this.focusedSystemId : null);
+    this.gates.update(
+      viewProj,
+      viewMat,
+      focalLength,
+      this.viewport,
+      systemMode,
+    );
+
+    // Station orbit — player HQ system only, replaces the chevron in close view.
+    this.updateStationVisual(systemMode, viewProj, viewMat, focalLength);
   }
 
   private renderBackgroundStars(viewProj: Mat4): void {
@@ -853,6 +933,103 @@ export class GalaxyView2D {
 
       this.bgStarsGfx.fillStyle(this.bgStarColors[i], this.bgStarAlphas[i]);
       this.bgStarsGfx.fillCircle(proj.x, proj.y, this.bgStarRadii[i]);
+    }
+  }
+
+  private updateStationVisual(
+    systemMode: boolean,
+    viewProj: Mat4,
+    viewMat: Mat4,
+    focalLength: number,
+  ): void {
+    const show =
+      systemMode &&
+      this.focusedSystemId !== null &&
+      this.focusedSystemId === this.playerHQSystemId;
+
+    if (!show) {
+      this.stationSprite?.setVisible(false);
+      this.stationOrbitGfx?.clear();
+      return;
+    }
+
+    const systemPos = this.systemPositions.get(this.focusedSystemId!)!;
+
+    // Lazily create station objects on first system-view entry.
+    if (!this.stationSprite) {
+      const key = getOrCreateStationTexture(this.scene);
+      this.stationSprite = this.scene.add.image(0, 0, key);
+      this.stationSprite.setDepth(STATION_DEPTH);
+      this.stationSprite.setVisible(false);
+      this.galaxyContainer.add(this.stationSprite);
+    }
+    if (!this.stationOrbitGfx) {
+      this.stationOrbitGfx = this.scene.add.graphics();
+      this.stationOrbitGfx.setDepth(STATION_ORBIT_DEPTH);
+      this.galaxyContainer.add(this.stationOrbitGfx);
+    }
+
+    // Slow real-time orbit — one revolution per 80 s.
+    const t = this.scene.time.now / 1000;
+    const angle = (t / 80) * Math.PI * 2;
+    this.scratchStationWorld.x =
+      systemPos.x + Math.cos(angle) * STATION_ORBIT_RADIUS;
+    this.scratchStationWorld.y = systemPos.y;
+    this.scratchStationWorld.z =
+      systemPos.z + Math.sin(angle) * STATION_ORBIT_RADIUS;
+
+    const proj = projectToScreenDesignInto(
+      this.scratchStationNdc,
+      this.scratchStationWorld,
+      viewProj,
+      this.viewport,
+    );
+    const scale = perspectiveScale(
+      this.scratchStationWorld,
+      viewMat,
+      focalLength,
+    );
+
+    if (!proj.visible || scale <= 0) {
+      this.stationSprite.setVisible(false);
+      this.stationOrbitGfx.clear();
+      return;
+    }
+
+    const size = Math.max(
+      STATION_SIZE_PX_MIN,
+      softCapSize(STATION_ORBIT_RADIUS * 2 * scale, STATION_SIZE_PX_CAP),
+    );
+    this.stationSprite.setPosition(proj.x, proj.y);
+    this.stationSprite.setDisplaySize(size, size);
+    this.stationSprite.setVisible(true);
+
+    // Draw station orbit ring — lighter style than planet rings.
+    this.stationOrbitGfx.clear();
+    this.stationOrbitGfx.lineStyle(1, 0x88ccff, 0.28);
+    const SEGS = 64;
+    let prevX = 0;
+    let prevY = 0;
+    let prevVis = false;
+    for (let i = 0; i <= SEGS; i++) {
+      const a = (i / SEGS) * Math.PI * 2;
+      this.scratchStationWorld.x =
+        systemPos.x + Math.cos(a) * STATION_ORBIT_RADIUS;
+      this.scratchStationWorld.y = systemPos.y;
+      this.scratchStationWorld.z =
+        systemPos.z + Math.sin(a) * STATION_ORBIT_RADIUS;
+      const p = projectToScreenDesignInto(
+        this.scratchStationNdc,
+        this.scratchStationWorld,
+        viewProj,
+        this.viewport,
+      );
+      if (i > 0 && prevVis && p.visible) {
+        this.stationOrbitGfx.lineBetween(prevX, prevY, p.x, p.y);
+      }
+      prevX = p.x;
+      prevY = p.y;
+      prevVis = p.visible;
     }
   }
 
@@ -930,6 +1107,96 @@ export class GalaxyView2D {
     this.camera.recompute();
   }
 
+  /**
+   * Animate the camera to zoom into a specific star. Tweens targetX/targetZ
+   * onto the star and tweens distance down to "system scale" (~5 units) so
+   * the player sees the system's planets orbiting in place. Cancels any
+   * existing fly-to tween.
+   */
+  flyToSystem(
+    systemId: string,
+    opts: { distance?: number; durationMs?: number } = {},
+  ): void {
+    if (this.destroyed) return;
+    const pos = this.systemPositions.get(systemId);
+    if (!pos) return;
+    // Default lands well below SYSTEM_MODE_ENTER_DISTANCE (8) so the view
+    // is solidly in system mode with all planets + gates visible.
+    const targetDistance = clamp(
+      opts.distance ?? 6,
+      this.cameraDistanceMin,
+      this.cameraDistanceMax,
+    );
+    const duration = opts.durationMs ?? 700;
+
+    // Mark this system as focused so update() can switch into system-view LOD
+    // as the camera distance drops below the threshold.
+    this.focusedSystemId = systemId;
+
+    this.cancelFlyTo();
+    this.flyToTween = this.scene.tweens.add({
+      targets: {
+        x: this.camera.targetX,
+        y: this.camera.targetY,
+        z: this.camera.targetZ,
+        d: this.camera.distance,
+      },
+      x: pos.x,
+      // Star sits at its own y (the Y_WOBBLE offset) — track it so the camera
+      // looks dead-center on the system at close zoom instead of looking at
+      // y=0 with the star offset above/below frame.
+      y: pos.y,
+      z: pos.z,
+      d: targetDistance,
+      duration,
+      ease: "Cubic.easeInOut",
+      onUpdate: (
+        _tween,
+        target: { x: number; y: number; z: number; d: number },
+      ) => {
+        if (this.destroyed) return;
+        this.camera.targetX = target.x;
+        this.camera.targetY = target.y;
+        this.camera.targetZ = target.z;
+        this.camera.distance = target.d;
+        this.camera.recompute();
+      },
+      onComplete: () => {
+        this.flyToTween = null;
+      },
+    });
+  }
+
+  cancelFlyTo(): void {
+    if (this.flyToTween) {
+      this.flyToTween.stop();
+      this.flyToTween = null;
+    }
+  }
+
+  setPlanets(planets: import("../../data/types.ts").Planet[]): void {
+    if (this.destroyed) return;
+    this.planets.setPlanets(planets, this.systemPositions);
+  }
+
+  setPlanetHoverHandler(
+    handler: ((planetId: string | null) => void) | null,
+  ): void {
+    this.planets.setHoverHandler(handler);
+  }
+
+  setPlanetClickHandler(handler: ((planetId: string) => void) | null): void {
+    this.planets.setClickHandler(handler);
+  }
+
+  setHyperGateClickHandler(handler: ((systemId: string) => void) | null): void {
+    this.gates.setClickHandler(handler);
+  }
+
+  getFocusedSystemId(): string | null {
+    return this.focusedSystemId;
+  }
+
   focusOnRoute(_routeId: string): void {
     // No-op stub.
   }
@@ -1001,9 +1268,16 @@ export class GalaxyView2D {
     this.bgStarColors = [];
     this.bgStarParallax = [];
 
+    this.stationSprite?.destroy();
+    this.stationSprite = null;
+    this.stationOrbitGfx?.destroy();
+    this.stationOrbitGfx = null;
+
     this.routes.destroy();
     this.ships.destroy();
     this.background.destroy();
+    this.planets.destroy();
+    this.gates.destroy();
 
     this.galaxyContainer.destroy();
     disposeAllGlowTextures(this.scene);
@@ -1066,8 +1340,10 @@ export class GalaxyView2D {
     }
     this.hqMarkerSprites.length = 0;
     this.hqMarkerSystemIds.length = 0;
+    this.playerHQSystemId = null;
 
     for (const m of markers) {
+      if (m.isPlayer) this.playerHQSystemId = m.systemId;
       if (!this.systemPositions.has(m.systemId)) continue;
       const key = getOrCreateHQMarkerTexture(this.scene, m.isPlayer);
       const img = this.scene.add.image(0, 0, key);
@@ -1118,7 +1394,7 @@ export class GalaxyView2D {
 
   setTerritoryBordersVisible(on: boolean): void {
     if (this.destroyed) return;
-    this.territoryVisible = on;
+    this.background.setTerritoryGlowsVisible(on);
     if (!on) {
       this.fillTerritoryGfx?.clear();
       this.territoryGfx?.clear();
@@ -1198,7 +1474,10 @@ export class GalaxyView2D {
     const halfWidth = ((maxX - minX) / 2) * COORD_SCALE;
     const halfHeight = ((maxY - minY) / 2) * COORD_SCALE;
     this.galaxyHalfExtent = Math.max(20, Math.max(halfWidth, halfHeight));
-    this.cameraDistanceMin = Math.max(8, this.galaxyHalfExtent * 0.08);
+    // Min distance is now very small (2 units) so the player can zoom all the
+    // way INTO a system and see its planets orbiting the star. Planet orbit
+    // radii are 4–16 units, so distance ~3–6 frames a system nicely.
+    this.cameraDistanceMin = 2;
     this.cameraDistanceMax = this.galaxyHalfExtent * 8;
     this.camera.distance = clamp(
       this.galaxyHalfExtent * 1.8,

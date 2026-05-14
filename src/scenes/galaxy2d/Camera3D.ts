@@ -219,6 +219,7 @@ export class Camera3D {
 
   /** World-space target the camera orbits around. Translates with WASD. */
   targetX = 0;
+  targetY = 0;
   targetZ = 0;
 
   private readonly view: Mat4 = mat4Identity();
@@ -246,14 +247,14 @@ export class Camera3D {
     const orbitY = cosP * r;
     const orbitZ = cosY * sinP * r;
     this.position.x = orbitX + this.targetX;
-    this.position.y = orbitY;
+    this.position.y = orbitY + this.targetY;
     this.position.z = orbitZ + this.targetZ;
 
     makeViewMatrixLookAt(
       this.view,
       this.position,
       this.targetX,
-      0,
+      this.targetY,
       this.targetZ,
     );
     // Cache screen-aligned basis vectors in the world XZ plane for translate().

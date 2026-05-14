@@ -10,10 +10,11 @@ import { getStarGlowTexture } from "./GlowTextures.ts";
 import { perspectiveScale, projectToScreenDesignInto } from "./projection.ts";
 import type { Vec3, ViewportRect } from "./types.ts";
 
-// Depth ordering: starfield (50) → nebulae (100) → galactic core (120) → empire halos (150) → hyperlanes (300)
+// Depth ordering: starfield (50) → nebulae (100) → galactic core (120) → territory glows (130) → empire halos (150) → hyperlanes (300)
 const STARFIELD_DEPTH = 50;
 const NEBULA_DEPTH = 100;
 const GALACTIC_CORE_DEPTH = 120;
+const TERRITORY_GLOW_DEPTH = 130;
 const EMPIRE_HALO_DEPTH = 150;
 
 // Galactic core — bright glowing gas cloud at the galaxy center.
@@ -28,6 +29,15 @@ const GALACTIC_CORE_RADIUS_FACTOR = 0.35; // fraction of galaxy halfExtent
 // territory fill.
 const EMPIRE_HALO_OPACITY = 0.32;
 const EMPIRE_HALO_SCALE = 2.4;
+
+// Territory glows — one soft radial gradient per system, tinted with the
+// owning empire's color. They overlap with neighboring stars' glows to form
+// continuous organic blobs whose shape follows the actual star distribution.
+// No polygon geometry, no hard edges — just additive color where stars sit.
+// Opacity stays low because additive blending stacks 3-5 sprites in dense
+// cluster centres; higher values blow out to white.
+const TERRITORY_GLOW_OPACITY = 0.09;
+const TERRITORY_GLOW_WORLD_SIZE = 22; // diameter; overlap when stars are ~6–8 apart
 
 const STARFIELD_KEY = "galaxy2d:starfield";
 const NEBULA_TEX_PREFIX = "galaxy2d:nebula:";
@@ -75,6 +85,11 @@ interface EmpireHaloEntry {
   worldRadius: number;
 }
 
+interface TerritoryGlowEntry {
+  sprite: Phaser.GameObjects.Image;
+  worldPos: Vec3;
+}
+
 export class Background2D {
   private readonly scene: Phaser.Scene;
   private readonly container: Phaser.GameObjects.Container;
@@ -87,7 +102,12 @@ export class Background2D {
   private readonly nebulaTexKeys = new Set<string>();
 
   private readonly empireHalos = new Map<string, EmpireHaloEntry>();
+  private readonly territoryGlows: TerritoryGlowEntry[] = [];
   private halosVisible = true;
+  // When true, the view is zoomed into a single system — nebulae, empire
+  // halos, territory glows, and the galactic core are suppressed so only the
+  // focused system + its planets read on screen.
+  private systemMode = false;
 
   // Galactic core — bright glowing gas cloud sprite at galaxy center.
   private galacticCoreSprite: Phaser.GameObjects.Image | null = null;
@@ -351,6 +371,45 @@ export class Background2D {
   }
 
   /**
+   * Build one soft tinted-glow sprite per star, in the owning empire's color.
+   * Adjacent stars' glows overlap with additive blending, forming organic
+   * "territory clouds" whose shape directly follows the star distribution —
+   * no polygon geometry, no hard edges, sparse arms look sparse and dense
+   * clusters look dense.
+   */
+  buildTerritoryGlows(
+    systems: StarSystem[],
+    empires: Empire[],
+    systemPositions: Map<string, Vec3>,
+  ): void {
+    for (const g of this.territoryGlows) g.sprite.destroy();
+    this.territoryGlows.length = 0;
+
+    const empireColor = new Map<string, number>();
+    for (const emp of empires) empireColor.set(emp.id, emp.color);
+
+    for (const sys of systems) {
+      const pos = systemPositions.get(sys.id);
+      if (!pos) continue;
+      const color = empireColor.get(sys.empireId);
+      if (color === undefined) continue;
+
+      const texKey = getStarGlowTexture(this.scene, color);
+      const sprite = this.scene.add.image(0, 0, texKey);
+      sprite.setBlendMode(Phaser.BlendModes.ADD);
+      sprite.setAlpha(TERRITORY_GLOW_OPACITY);
+      sprite.setDepth(TERRITORY_GLOW_DEPTH);
+      sprite.setVisible(false);
+      this.container.add(sprite);
+
+      // The glow sits in the disc plane at the star's position. Y is slightly
+      // below the star (-0.4) so the actual star sprite renders on top.
+      const worldPos: Vec3 = { x: pos.x, y: -0.4, z: pos.z };
+      this.territoryGlows.push({ sprite, worldPos });
+    }
+  }
+
+  /**
    * Compute the screen-space rotation of the disc plane by projecting two
    * points along the world +X axis and measuring the angle between them.
    * Sprites attached to the disc rotate by this value so they appear to
@@ -384,6 +443,10 @@ export class Background2D {
     focalLength: number,
     viewport: ViewportRect,
   ): void {
+    // In system mode, every galaxy-scale element is force-hidden via
+    // setSystemMode(true); skip the per-frame projection work entirely.
+    if (this.systemMode) return;
+
     // Compute the disc's rotation in screen space by projecting the +X
     // world direction. Sprites attached to the disc plane rotate by this
     // angle so they appear "stuck" to the galaxy as the camera orbits.
@@ -462,8 +525,35 @@ export class Background2D {
       neb.sprite.setVisible(true);
     }
 
-    // Empire halos — projected each frame, only when visible.
     if (!this.halosVisible) return;
+
+    // Territory glows — one soft sprite per star, blended into organic clouds.
+    for (const glow of this.territoryGlows) {
+      this.scratchWorld.x = glow.worldPos.x;
+      this.scratchWorld.y = glow.worldPos.y;
+      this.scratchWorld.z = glow.worldPos.z;
+      const proj = projectToScreenDesignInto(
+        this.scratchNdc,
+        this.scratchWorld,
+        viewProj,
+        viewport,
+      );
+      if (!proj.visible) {
+        glow.sprite.setVisible(false);
+        continue;
+      }
+      const scale = perspectiveScale(this.scratchWorld, viewMat, focalLength);
+      if (scale <= 0) {
+        glow.sprite.setVisible(false);
+        continue;
+      }
+      const size = TERRITORY_GLOW_WORLD_SIZE * scale;
+      glow.sprite.setPosition(proj.x, proj.y);
+      glow.sprite.setDisplaySize(size, size);
+      glow.sprite.setVisible(true);
+    }
+
+    // Empire halos — projected each frame, only when visible.
     for (const halo of this.empireHalos.values()) {
       this.scratchWorld.x = halo.centroid.x;
       this.scratchWorld.y = halo.centroid.y;
@@ -490,12 +580,39 @@ export class Background2D {
     }
   }
 
+  /**
+   * Toggle galaxy-scale vs system-scale rendering. In system mode (zoomed
+   * tight into a star), nebulae / empire halos / territory glows / galactic
+   * core all hide — only deep-space backdrop remains so the focused star
+   * and its planets read cleanly.
+   */
+  setSystemMode(on: boolean): void {
+    if (this.systemMode === on) return;
+    this.systemMode = on;
+    if (on) {
+      this.galacticCoreSprite?.setVisible(false);
+      for (const neb of this.nebulae) neb.sprite.setVisible(false);
+      for (const halo of this.empireHalos.values())
+        halo.sprite.setVisible(false);
+      for (const glow of this.territoryGlows) glow.sprite.setVisible(false);
+    }
+  }
+
   setEmpireHalosVisible(v: boolean): void {
     this.halosVisible = v;
     if (!v) {
       for (const halo of this.empireHalos.values()) {
         halo.sprite.setVisible(false);
       }
+      for (const glow of this.territoryGlows) {
+        glow.sprite.setVisible(false);
+      }
+    }
+  }
+
+  setTerritoryGlowsVisible(v: boolean): void {
+    for (const glow of this.territoryGlows) {
+      glow.sprite.setVisible(v);
     }
   }
 
@@ -533,6 +650,11 @@ export class Background2D {
       halo.sprite.destroy();
     }
     this.empireHalos.clear();
+
+    for (const glow of this.territoryGlows) {
+      glow.sprite.destroy();
+    }
+    this.territoryGlows.length = 0;
   }
 
   private getOrCreateNebulaTex(color: number): string {

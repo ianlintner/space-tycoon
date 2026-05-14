@@ -8,8 +8,6 @@ import { MainMenuScene } from "./scenes/MainMenuScene.ts";
 import { GalaxySetupScene } from "./scenes/GalaxySetupScene.ts";
 import { GameHUDScene } from "./scenes/GameHUDScene.ts";
 import { GalaxyMapScene } from "./scenes/GalaxyMapScene.ts";
-import { SystemMapScene } from "./scenes/SystemMapScene.ts";
-import { PlanetDetailScene } from "./scenes/PlanetDetailScene.ts";
 import { FleetScene } from "./scenes/FleetScene.ts";
 import { RoutesScene } from "./scenes/RoutesScene.ts";
 import { FinanceScene } from "./scenes/FinanceScene.ts";
@@ -838,8 +836,6 @@ function mountGame(): void {
     GalaxySetupScene,
     GameHUDScene,
     GalaxyMapScene,
-    SystemMapScene,
-    PlanetDetailScene,
     FleetScene,
     RoutesScene,
     ContractsScene,

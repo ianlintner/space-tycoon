@@ -159,6 +159,16 @@ export class Routes2D {
     this.companyFilter = id;
   }
 
+  /**
+   * Clear all drawn route geometry without destroying the underlying
+   * Graphics objects. Used when entering system-view mode to hide all
+   * galaxy-scale routes; the next `render()` call repopulates them.
+   */
+  clear(): void {
+    this.routesFullGfx?.clear();
+    this.routesGhostGfx?.clear();
+  }
+
   getCurve(routeId: string): Curve3 | null {
     return this.routeCurves.get(routeId) ?? null;
   }

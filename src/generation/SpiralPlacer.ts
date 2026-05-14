@@ -22,9 +22,6 @@ export function placeSpiralGalaxy(opts: {
   const radius = opts.radius ?? 1000;
 
   // 1) Candidate generation along arms — wide swept belts, not thin lines.
-  // Each arm centerline is generated, then candidates are scattered into a
-  // thick belt around it (perpendicular radial jitter is much larger than
-  // the tangent jitter so empires fill 2D regions, not 1D streaks).
   const candidateMultiplier = 2.0;
   const candidates: Array<{ x: number; y: number }> = [];
   const numCandidates = Math.ceil(systemCount * candidateMultiplier);
@@ -38,25 +35,22 @@ export function placeSpiralGalaxy(opts: {
     const curl = 0.4;
     const cx = r * Math.cos(angle + curl * Math.log(1 + (r / radius) * 5));
     const cy = r * Math.sin(angle + curl * Math.log(1 + (r / radius) * 5));
-    // Perpendicular (radial) jitter — the belt's half-thickness. 26% of
-    // radius at the core, up to 44% at the outer rim (wider than before so
-    // arms fan out naturally and look less like thin streaks). Triangular
-    // distribution gives a soft Gaussian-like density falloff.
+    // Perpendicular jitter — wider belt so arms fan out naturally.
     const beltHalf = radius * (0.26 + 0.18 * t);
-    const radialN = rng.nextFloat(0, 1) + rng.nextFloat(0, 1) - 1; // ~triangular [-1, 1]
+    const radialN = rng.nextFloat(0, 1) + rng.nextFloat(0, 1) - 1;
     const radialMag = beltHalf * radialN;
     const jx = -Math.sin(angle) * radialMag;
     const jy = Math.cos(angle) * radialMag;
-    // Tangential jitter — moderate, helps break up the arc regularity.
     const tangentMag = radius * 0.1 * (rng.nextFloat(0, 1) * 2 - 1);
     const tx = Math.cos(angle) * tangentMag;
     const ty = Math.sin(angle) * tangentMag;
     candidates.push({ x: cx + jx + tx, y: cy + jy + ty });
   }
 
-  // 2) Poisson-disk cull until we hit systemCount — larger minimum distance
-  // than before so systems are spread out with more breathing room.
-  const minDist = radius * 0.026;
+  // 2) Poisson-disk cull. Min distance is large enough that adjacent stars'
+  // planet orbits (up to ~4 world units = ~18 game units) don't overlap, with
+  // clear empty space between systems for the zoom-in transition to read.
+  const minDist = radius * 0.035;
   const minDist2 = minDist * minDist;
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = rng.nextInt(0, i);
@@ -127,25 +121,14 @@ export function placeSpiralGalaxy(opts: {
 
   rebalanceEmptyEmpires(kept, assignments, centroids);
 
-  // 4) Voronoi territories — clipped to a disc slightly beyond the maximum
-  // possible star position so outer spiral-arm tips always fall inside their
-  // empire's cell. (Arm candidates reach up to ~1.05× radius after jitter, so
-  // 1.25 leaves clear headroom.) Each cell is then intersected with a
-  // per-empire circle so the territory hugs the actual star cluster rather than
-  // fanning to the disc edge.
-  const rawTerritories = buildBoundedVoronoi(centroids, radius * 1.25);
-  const territories: Polygon[] = rawTerritories.map((poly, i) => {
-    const members = kept.filter((_, k) => assignments[k] === i);
-    if (members.length === 0) return poly;
-    let maxDist = 0;
-    for (const m of members) {
-      const d = Math.hypot(m.x - centroids[i].x, m.y - centroids[i].y);
-      if (d > maxDist) maxDist = d;
-    }
-    // 6% padding ensures the border extends slightly past the outermost star
-    // so that star is visually inside the territory, not sitting on the edge.
-    const cellRadius = Math.max(radius * 0.1, maxDist + radius * 0.06);
-    return { vertices: clipToCircle(poly.vertices, centroids[i], cellRadius) };
+  // 4) Convex hull territories — each empire gets the convex hull of its member
+  // stars, expanded outward and Chaikin-smoothed into an organic blob shape.
+  // This directly follows the actual star distribution rather than Voronoi
+  // geometry, so territories look like natural clusters instead of hexagons.
+  const pad = radius * 0.08; // outward expansion so stars sit inside the blob
+  const territories: Polygon[] = centroids.map((_, i) => {
+    const members = kept.filter((__, k) => assignments[k] === i);
+    return buildEmpireBlob(members, pad);
   });
 
   return {
@@ -155,6 +138,134 @@ export function placeSpiralGalaxy(opts: {
     empireTerritories: territories,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Empire blob construction
+// ---------------------------------------------------------------------------
+
+function buildEmpireBlob(
+  members: Array<{ x: number; y: number }>,
+  pad: number,
+): Polygon {
+  // Centroid of actual member stars (not k-means centroid).
+  let cx = 0;
+  let cy = 0;
+  for (const m of members) {
+    cx += m.x;
+    cy += m.y;
+  }
+  cx /= Math.max(1, members.length);
+  cy /= Math.max(1, members.length);
+
+  if (members.length < 3) {
+    // Fallback: small circle for tiny empires.
+    return circlePolygon(cx, cy, pad * 1.5, 16);
+  }
+
+  const hull = convexHull(members);
+  if (hull.length < 3) {
+    return circlePolygon(cx, cy, pad * 1.5, 16);
+  }
+
+  // Expand each hull vertex outward from the star centroid so all member
+  // stars land clearly inside the blob, not on the boundary.
+  const expanded = hull.map((v) => {
+    const dx = v.x - cx;
+    const dy = v.y - cy;
+    const d = Math.hypot(dx, dy);
+    if (d < 1e-6) return { x: v.x + pad, y: v.y };
+    return { x: cx + (dx / d) * (d + pad), y: cy + (dy / d) * (d + pad) };
+  });
+
+  // Chaikin corner-cutting — 3 passes gives smooth organic curves.
+  const smoothed = chaikin(expanded, 3);
+
+  return { vertices: smoothed };
+}
+
+function circlePolygon(
+  cx: number,
+  cy: number,
+  r: number,
+  segments: number,
+): Polygon {
+  const verts: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < segments; i++) {
+    const a = (i / segments) * 2 * Math.PI;
+    verts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+  }
+  return { vertices: verts };
+}
+
+// ---------------------------------------------------------------------------
+// Convex hull — Andrew's monotone chain
+// ---------------------------------------------------------------------------
+
+function convexHull(
+  pts: Array<{ x: number; y: number }>,
+): Array<{ x: number; y: number }> {
+  const sorted = [...pts].sort((a, b) => (a.x !== b.x ? a.x - b.x : a.y - b.y));
+
+  const cross = (
+    o: { x: number; y: number },
+    a: { x: number; y: number },
+    b: { x: number; y: number },
+  ) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+
+  const lower: Array<{ x: number; y: number }> = [];
+  for (const p of sorted) {
+    while (
+      lower.length >= 2 &&
+      cross(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 0
+    )
+      lower.pop();
+    lower.push(p);
+  }
+
+  const upper: Array<{ x: number; y: number }> = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i]!;
+    while (
+      upper.length >= 2 &&
+      cross(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 0
+    )
+      upper.pop();
+    upper.push(p);
+  }
+
+  lower.pop();
+  upper.pop();
+  return [...lower, ...upper];
+}
+
+// ---------------------------------------------------------------------------
+// Chaikin corner-cutting — each pass replaces every edge with two new
+// vertices at the 1/4 and 3/4 positions, progressively rounding corners.
+// ---------------------------------------------------------------------------
+
+function chaikin(
+  poly: Array<{ x: number; y: number }>,
+  iterations: number,
+): Array<{ x: number; y: number }> {
+  let p = poly;
+  for (let iter = 0; iter < iterations; iter++) {
+    const next: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < p.length; i++) {
+      const a = p[i]!;
+      const b = p[(i + 1) % p.length]!;
+      next.push(
+        { x: 0.75 * a.x + 0.25 * b.x, y: 0.75 * a.y + 0.25 * b.y },
+        { x: 0.25 * a.x + 0.75 * b.x, y: 0.25 * a.y + 0.75 * b.y },
+      );
+    }
+    p = next;
+  }
+  return p;
+}
+
+// ---------------------------------------------------------------------------
+// k-means helper
+// ---------------------------------------------------------------------------
 
 function rebalanceEmptyEmpires(
   points: Array<{ x: number; y: number }>,
@@ -179,87 +290,4 @@ function rebalanceEmptyEmpires(
       centroids[c] = { ...points[stealIdx] };
     }
   }
-}
-
-function buildBoundedVoronoi(
-  sites: Array<{ x: number; y: number }>,
-  bound: number,
-): Polygon[] {
-  // Approximate a disc with a 48-gon so each Voronoi cell that touches the
-  // galactic rim follows a curve instead of a hard corner. Rendered as just
-  // a colored border, this gives empires "bubble" outlines at the edges.
-  const SEGMENTS = 48;
-  const disc: Array<{ x: number; y: number }> = [];
-  for (let i = 0; i < SEGMENTS; i++) {
-    const a = (i / SEGMENTS) * 2 * Math.PI;
-    disc.push({ x: Math.cos(a) * bound, y: Math.sin(a) * bound });
-  }
-  const result: Polygon[] = [];
-  for (let i = 0; i < sites.length; i++) {
-    let poly = disc.slice();
-    for (let j = 0; j < sites.length; j++) {
-      if (i === j) continue;
-      poly = clipHalfPlane(poly, sites[i], sites[j]);
-      if (poly.length === 0) break;
-    }
-    result.push({ vertices: poly });
-  }
-  return result;
-}
-
-/**
- * Clip a polygon against a circle, approximating the circle with N segments.
- * Each segment becomes a half-plane that we clip against, so the result is
- * a polygon that hugs the circle on whichever sides extend past it.
- */
-function clipToCircle(
-  vertices: Array<{ x: number; y: number }>,
-  center: { x: number; y: number },
-  radius: number,
-): Array<{ x: number; y: number }> {
-  if (vertices.length < 3) return vertices;
-  const SEGMENTS = 32;
-  let poly = vertices.slice();
-  for (let s = 0; s < SEGMENTS; s++) {
-    if (poly.length === 0) break;
-    const a = (s / SEGMENTS) * 2 * Math.PI;
-    // Half-plane along the tangent at angle `a`: inside = circle center,
-    // outside = a point 2× radius away in the radial direction. Their
-    // midpoint sits exactly on the circle so clipHalfPlane keeps everything
-    // inside the radius.
-    const outside = {
-      x: center.x + Math.cos(a) * radius * 2,
-      y: center.y + Math.sin(a) * radius * 2,
-    };
-    poly = clipHalfPlane(poly, center, outside);
-  }
-  return poly;
-}
-
-function clipHalfPlane(
-  poly: Array<{ x: number; y: number }>,
-  inside: { x: number; y: number },
-  outside: { x: number; y: number },
-): Array<{ x: number; y: number }> {
-  const mx = (inside.x + outside.x) / 2;
-  const my = (inside.y + outside.y) / 2;
-  const nx = inside.x - outside.x;
-  const ny = inside.y - outside.y;
-  const isInside = (p: { x: number; y: number }) =>
-    nx * (p.x - mx) + ny * (p.y - my) >= 0;
-  const out: Array<{ x: number; y: number }> = [];
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i];
-    const b = poly[(i + 1) % poly.length];
-    const ai = isInside(a);
-    const bi = isInside(b);
-    if (ai) out.push(a);
-    if (ai !== bi) {
-      const da = nx * (a.x - mx) + ny * (a.y - my);
-      const db = nx * (b.x - mx) + ny * (b.y - my);
-      const t = da / (da - db);
-      out.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
-    }
-  }
-  return out;
 }

@@ -96,6 +96,23 @@ export class Tooltip extends Phaser.GameObjects.Container {
     }
   }
 
+  /**
+   * Show the tooltip immediately at a screen position with given text.
+   * Bypasses the hover-attach delay system — use this for callers that own
+   * their own hover/click logic (e.g. canvas-projected hitboxes).
+   */
+  showAt(text: string, x: number, y: number): void {
+    this.showTooltip(text, x, y);
+  }
+
+  hide(): void {
+    if (this.delayTimer) {
+      this.delayTimer.destroy();
+      this.delayTimer = null;
+    }
+    this.setVisible(false);
+  }
+
   private showTooltip(text: string, x: number, y: number): void {
     const theme = getTheme();
     this.label.setText(text);

@@ -197,7 +197,7 @@ export class RoutePickerMap {
     const sysPos = new Map<string, { mx: number; my: number }>();
     for (const sys of opts.systems) sysPos.set(sys.id, mapSystem(sys.x, sys.y));
 
-    // Group planets by system, sort using same rule as MiniMap/SystemMapScene
+    // Group planets by system, sort using same rule as MiniMap
     const planetsBySystem = new Map<string, Planet[]>();
     for (const p of opts.planets) {
       const arr = planetsBySystem.get(p.systemId) ?? [];

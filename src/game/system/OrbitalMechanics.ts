@@ -22,7 +22,9 @@ export interface OrbitalParams {
 export function getOrbitalParams(planet: Planet): OrbitalParams {
   const seed = hashString(planet.id);
   return {
-    orbitRadius: planet.orbitRadius ?? 4 + (seed % 12),
+    // Default range 1.0–3.0 world units matches GalaxyGenerator so legacy
+    // save files render with tight system-view orbits.
+    orbitRadius: planet.orbitRadius ?? 1.0 + ((seed % 100) / 100) * 2.0,
     orbitPeriodQuarters: planet.orbitPeriodQuarters ?? 4 + ((seed >> 3) % 12),
     orbitPhase: planet.orbitPhase ?? ((seed % 1000) / 1000) * Math.PI * 2,
     orbitInclination:
@@ -39,8 +41,8 @@ export function getOrbitalParams(planet: Planet): OrbitalParams {
  * The X/Z radius is preserved at orbitRadius regardless of inclination —
  * a real inclined orbit would shorten the ecliptic projection by cos(i).
  * At the inclination range used (±0.15 rad) the geometric error is <2%,
- * and the orbit-ring visualization in SystemView3D uses the same formula
- * so the planet sits exactly on its drawn ring.
+ * and the orbit-ring visualization in Planets2D uses the same formula so
+ * the planet sits exactly on its drawn ring.
  */
 export function planetPositionAtTurn(planet: Planet, turn: number): Vec3 {
   const o = getOrbitalParams(planet);

@@ -1,7 +1,6 @@
-// Shared resize helper for the 3D view classes (GalaxyView3D, SystemView3D).
-// Both views own a WebGLRenderer + PerspectiveCamera pair that needs to stay
-// in sync with the host canvas dimensions. The resize math is identical
-// between them, so it lives here as a single tested function.
+// Shared resize helper for 3D view classes that own a WebGLRenderer +
+// PerspectiveCamera pair which needs to stay in sync with the host canvas
+// dimensions.
 //
 // The `updateStyle: false` flag on renderer.setSize is intentional — both
 // view classes mirror the Phaser canvas's CSS size via syncCanvasPosition,

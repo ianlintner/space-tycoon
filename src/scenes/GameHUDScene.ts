@@ -206,7 +206,6 @@ export class GameHUDScene extends Phaser.Scene {
 
   private readonly contentSceneKeys = [
     "GalaxyMapScene",
-    "SystemMapScene",
     "FleetScene",
     "RoutesScene",
     "ContractsScene",
@@ -220,7 +219,7 @@ export class GameHUDScene extends Phaser.Scene {
     "TurnReportScene",
   ];
 
-  private readonly overlaySceneKeys = ["PlanetDetailScene"];
+  private readonly overlaySceneKeys: string[] = [];
 
   /** True while the post-Review dialogue queue is being drained; freezes nav. */
   private drainingDialogues = false;

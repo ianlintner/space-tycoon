@@ -421,7 +421,10 @@ export function generateGalaxy(
         const planetY = system.y + Math.sin(angle) * dist;
         const population = generatePopulation(rng, planetType);
 
-        const orbitRadius = 4 + orbitalFraction * 12;
+        // Orbit radii kept tight (1.0–3.0 world units) so all planets fit
+        // inside the system-view camera frame (visible width ~3.7 at the
+        // entry distance of 4) and orbit rings never reach into neighbors.
+        const orbitRadius = 1.0 + orbitalFraction * 2.0;
         const orbitPeriodQuarters = 4 + pi * 2;
         const orbitPhase = rng.nextFloat(0, Math.PI * 2);
         const orbitInclination = (rng.nextFloat(0, 1) - 0.5) * 0.3;

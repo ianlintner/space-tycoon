@@ -73,6 +73,24 @@ export function projectToScreenDesignInto(
 }
 
 /**
+ * Soft-cap a perspective-scaled display size so close-up sprites don't blow up
+ * to fill the viewport. Below `cap` the size is unchanged (full perspective).
+ * Above `cap` the size grows logarithmically — it still feels like getting
+ * "closer" but bounded.
+ *
+ * Used for stars + planets so their rendered size never explodes at close
+ * zoom while preserving normal perspective scaling at galaxy-view distances.
+ */
+export function softCapSize(
+  desired: number,
+  cap: number,
+  growthRate = 0.3,
+): number {
+  if (desired <= cap) return desired;
+  return cap + Math.log(1 + (desired - cap) / cap) * cap * growthRate;
+}
+
+/**
  * Perspective scale factor for a billboard sprite at the given world point.
  * Mirrors what THREE.SpriteMaterial.sizeAttenuation = true does internally:
  * size shrinks with distance so closer stars look bigger.

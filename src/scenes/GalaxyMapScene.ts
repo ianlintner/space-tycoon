@@ -36,7 +36,6 @@ import { GalaxyView2D } from "./galaxy2d/GalaxyView2D.ts";
 import type { HQMarker3D } from "./galaxy2d/GalaxyView2D.ts";
 import type { ProjectedScreen, Vec3 } from "./galaxy2d/types.ts";
 
-import type { GameHUDScene } from "./GameHUDScene.ts";
 import type { Empire, GameState, StarSystem } from "../data/types.ts";
 
 interface SystemMarker {
@@ -140,9 +139,20 @@ export class GalaxyMapScene extends Phaser.Scene {
       state.borderPorts ?? [],
       empires,
     );
+    this.view3D.setPlanets(state.galaxy.planets);
     this.view3D.setAccessibleEmpireIds(
       empires.filter((e) => isEmpireAccessible(e.id, state)).map((e) => e.id),
     );
+
+    // Planet hover → tooltip, planet click → also fly there (deeper zoom).
+    this.view3D.setPlanetHoverHandler((planetId) =>
+      this.showPlanetTooltip(planetId),
+    );
+
+    // Hyperlane gate click → fast pan to the connected system at the same zoom.
+    this.view3D.setHyperGateClickHandler((connectedSystemId) => {
+      this.view3D?.flyToSystem(connectedSystemId, { durationMs: 350 });
+    });
     const initialVisuals = buildGalaxyRouteTrafficVisuals(state);
     this.view3D.setRoutes(initialVisuals);
     this.routeTrafficStateKey = buildGalaxyRouteTrafficStateKey(state);
@@ -899,8 +909,9 @@ export class GalaxyMapScene extends Phaser.Scene {
             this.openRouteBuilderFor(this.routeOriginSystemId, sys.id);
             return;
           }
-          const hud = this.scene.get("GameHUDScene") as GameHUDScene;
-          hud.switchContentScene("SystemMapScene", { systemId: sys.id });
+          // Zoom into the system in-place — planets fade in as the camera
+          // gets close. No separate system scene anymore.
+          this.view3D?.flyToSystem(sys.id);
           return;
         }
         // Locked empire — show info card instead of navigating.
@@ -933,6 +944,41 @@ export class GalaxyMapScene extends Phaser.Scene {
     for (const m of this.systemMarkers) m.hitbox.destroy();
     this.systemMarkers = [];
     this.buildSystemMarkers(state);
+  }
+
+  /**
+   * Show or hide the planet tooltip when the player hovers a planet in the
+   * zoomed-in system view. Planet lookup is done lazily off gameStore so we
+   * don't have to re-pass planet data on every state change.
+   */
+  private showPlanetTooltip(planetId: string | null): void {
+    if (!this.mapTooltip) return;
+    if (!planetId) {
+      this.mapTooltip.hide();
+      return;
+    }
+    const state = gameStore.getState();
+    const planet = state.galaxy.planets.find((p) => p.id === planetId);
+    if (!planet) {
+      this.mapTooltip.hide();
+      return;
+    }
+    const lines: string[] = [
+      `${planet.name}`,
+      `${planet.type} · ${planet.biome}`,
+      `Pop: ${Math.round(planet.population).toLocaleString()}`,
+    ];
+    if (planet.productionTags.length > 0) {
+      lines.push(`Makes: ${planet.productionTags.join(", ")}`);
+    }
+    if (planet.consumptionTags.length > 0) {
+      lines.push(`Needs: ${planet.consumptionTags.join(", ")}`);
+    }
+    if (planet.specialResource) {
+      lines.push(`★ ${planet.specialResource}`);
+    }
+    const ptr = this.input.activePointer;
+    this.mapTooltip.showAt(lines.join("\n"), ptr.x + 12, ptr.y + 12);
   }
 
   /**
