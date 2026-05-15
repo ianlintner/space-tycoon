@@ -49,6 +49,14 @@ const TRAFFIC_PAIR_DEPTH = 783;
 const TRAFFIC_PAIR_BASE_SCALE = 0.5;
 const TRAFFIC_PAIR_ALPHA = 0.7;
 
+// Gate ↔ gate traffic: only used in empty systems (no planets) so the system
+// still feels lived-in. Through-traffic between hyperlanes.
+const TRAFFIC_GATEPAIR_LIFESPAN_MS = 4500;
+const TRAFFIC_GATEPAIR_INTERVAL_MS = 1400;
+const TRAFFIC_GATEPAIR_DEPTH = 784;
+const TRAFFIC_GATEPAIR_BASE_SCALE = 0.5;
+const TRAFFIC_GATEPAIR_ALPHA = 0.75;
+
 // Pixel size targets for the spark sprite at any zoom level. Perspective scale
 // is clamped to this range so particles never become invisible or fill the
 // screen at extreme zooms.
@@ -150,6 +158,14 @@ interface PlanetPairStream {
   outboundNext: boolean;
 }
 
+interface GatePairStream {
+  gateWorldPosA: Vec3;
+  gateWorldPosB: Vec3;
+  nextSpawnAtMs: number;
+  intervalMs: number;
+  outboundNext: boolean;
+}
+
 export class Traffic2D {
   private readonly scene: Phaser.Scene;
   private readonly container: Phaser.GameObjects.Container;
@@ -163,6 +179,7 @@ export class Traffic2D {
   private systemStreams: SystemStream[] = [];
   private metroStreams: MetroStream[] = [];
   private planetPairStreams: PlanetPairStream[] = [];
+  private gatePairStreams: GatePairStream[] = [];
 
   private particles: Particle[] = [];
   private lastFocusedSystemId: string | null = null;
@@ -429,6 +446,7 @@ export class Traffic2D {
     this.systemStreams = [];
     this.metroStreams = [];
     this.planetPairStreams = [];
+    this.gatePairStreams = [];
     if (!focusedSystemId) return;
     const focusedPos = this.systemPositions.get(focusedSystemId);
     if (!focusedPos) return;
@@ -446,7 +464,8 @@ export class Traffic2D {
 
     const baseMs = this.scene.time.now;
 
-    // Gate ↔ planet streams (already existed).
+    // Compute world positions of every hypergate exiting this system.
+    const gateWorldPositions: Vec3[] = [];
     for (const hl of this.hyperlanes) {
       const isA = hl.systemA === focusedSystemId;
       const isB = hl.systemB === focusedSystemId;
@@ -458,11 +477,15 @@ export class Traffic2D {
       const dz = connectedPos.z - focusedPos.z;
       const len = Math.sqrt(dx * dx + dz * dz);
       if (len < 0.001) continue;
-      const gateWorldPos: Vec3 = {
+      gateWorldPositions.push({
         x: focusedPos.x + (dx / len) * GATE_RADIUS_WORLD,
         y: focusedPos.y,
         z: focusedPos.z + (dz / len) * GATE_RADIUS_WORLD,
-      };
+      });
+    }
+
+    // Gate ↔ planet streams — only meaningful when planets exist.
+    for (const gateWorldPos of gateWorldPositions) {
       for (const planetId of planetIds) {
         this.systemStreams.push({
           gateWorldPos: { ...gateWorldPos },
@@ -471,6 +494,23 @@ export class Traffic2D {
           intervalMs: perStreamFreqMs,
           outboundNext: Math.random() < 0.5,
         });
+      }
+    }
+
+    // Gate ↔ gate streams — fallback for empty systems (no planets) so the
+    // system still has visible through-traffic between hyperlanes.
+    if (planetCount === 0 && gateWorldPositions.length >= 2) {
+      for (let i = 0; i < gateWorldPositions.length; i++) {
+        for (let j = i + 1; j < gateWorldPositions.length; j++) {
+          this.gatePairStreams.push({
+            gateWorldPosA: { ...gateWorldPositions[i] },
+            gateWorldPosB: { ...gateWorldPositions[j] },
+            nextSpawnAtMs:
+              baseMs + Math.random() * TRAFFIC_GATEPAIR_INTERVAL_MS,
+            intervalMs: TRAFFIC_GATEPAIR_INTERVAL_MS,
+            outboundNext: Math.random() < 0.5,
+          });
+        }
       }
     }
 
@@ -568,6 +608,26 @@ export class Traffic2D {
         TRAFFIC_METRO_ALPHA,
         TRAFFIC_METRO_BASE_SCALE,
         TRAFFIC_METRO_DEPTH,
+      );
+      stream.nextSpawnAtMs = nowMs + jitteredInterval(stream.intervalMs);
+    }
+
+    // Gate ↔ gate — only present in empty systems. Bidirectional through-traffic.
+    for (const stream of this.gatePairStreams) {
+      if (nowMs < stream.nextSpawnAtMs) continue;
+      const outbound = stream.outboundNext;
+      stream.outboundNext = !outbound;
+      const source = outbound ? stream.gateWorldPosA : stream.gateWorldPosB;
+      const target = outbound ? stream.gateWorldPosB : stream.gateWorldPosA;
+      const p = this.acquireParticle();
+      this.launchParticle(
+        p,
+        source,
+        target,
+        jitteredLifespan(TRAFFIC_GATEPAIR_LIFESPAN_MS),
+        TRAFFIC_GATEPAIR_ALPHA,
+        TRAFFIC_GATEPAIR_BASE_SCALE,
+        TRAFFIC_GATEPAIR_DEPTH,
       );
       stream.nextSpawnAtMs = nowMs + jitteredInterval(stream.intervalMs);
     }
