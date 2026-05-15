@@ -206,6 +206,7 @@ export class Traffic2D {
   private lastFocusedSystemId: string | null = null;
   private lastPlanetIdsKey = "";
   private lastUpdateMs = 0;
+  private visible = true;
 
   private readonly scratchA: Vec3 = { x: 0, y: 0, z: 0 };
   private readonly scratchWorld: Vec3 = { x: 0, y: 0, z: 0 };
@@ -242,6 +243,20 @@ export class Traffic2D {
     this.lastPlanetIdsKey = "";
   }
 
+  setVisible(visible: boolean): void {
+    if (this.visible === visible) return;
+    this.visible = visible;
+    if (!visible) {
+      // Kill all in-flight particles so the layer goes dark immediately.
+      for (const p of this.particles) {
+        if (!p.active) continue;
+        p.active = false;
+        p.sprite.setActive(false);
+        p.sprite.setVisible(false);
+      }
+    }
+  }
+
   update(
     viewProj: Mat4,
     viewMat: Mat4,
@@ -254,6 +269,8 @@ export class Traffic2D {
     const nowMs = this.scene.time.now;
     const dtMs = this.lastUpdateMs === 0 ? 16 : nowMs - this.lastUpdateMs;
     this.lastUpdateMs = nowMs;
+
+    if (!this.visible) return;
 
     if (inSystemMode) {
       const planetIdsKey = sortedKeysJoined(focusedPlanetWorldPositions);

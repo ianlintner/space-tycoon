@@ -814,6 +814,7 @@ export class GalaxyMapScene extends Phaser.Scene {
       mapLayerController.isVisible("hyperlanes"),
     );
     this.view3D.setShipsVisible(mapLayerController.isVisible("ships"));
+    this.view3D.setTrafficVisible(mapLayerController.isVisible("traffic"));
 
     const onLayerChange = (id: unknown): void => {
       if (!this.view3D) return;
@@ -838,6 +839,9 @@ export class GalaxyMapScene extends Phaser.Scene {
           break;
         case "ships":
           this.view3D.setShipsVisible(on);
+          break;
+        case "traffic":
+          this.view3D.setTrafficVisible(on);
           break;
         default:
           break;
@@ -996,6 +1000,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     });
     // Apply current layer/filter state to newly spawned ships.
     view.setShipsVisible(mapLayerController.isVisible("ships"));
+    view.setTrafficVisible(mapLayerController.isVisible("traffic"));
     if (this.companyFilter !== null) {
       view.setRouteCompanyFilter(this.companyFilter);
     }

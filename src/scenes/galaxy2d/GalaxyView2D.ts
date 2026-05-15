@@ -1331,6 +1331,11 @@ export class GalaxyView2D {
     this.ships.setVisible(v);
   }
 
+  setTrafficVisible(v: boolean): void {
+    if (this.destroyed) return;
+    this.traffic.setVisible(v);
+  }
+
   setShipSpeedMultiplier(m: number): void {
     this.ships.setSpeedMultiplier(m);
   }

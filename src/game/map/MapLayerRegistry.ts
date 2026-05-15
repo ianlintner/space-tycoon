@@ -14,6 +14,7 @@ export type LayerId =
   | "hyperlanes"
   | "ships"
   | "navies"
+  | "traffic"
   | "import-goods"
   | "export-goods"
   | "space-events";
@@ -119,6 +120,16 @@ export const MAP_LAYERS: MapLayer[] = [
     iconIndex: 12,
     defaultOn: false,
     implemented: false,
+  },
+  // Reuses the ships icon (11) — the 4×4 spritesheet is already full and
+  // civilian traffic is semantically close enough to share the glyph.
+  {
+    id: "traffic",
+    group: "movement",
+    label: "Civilian Traffic",
+    iconIndex: 11,
+    defaultOn: true,
+    implemented: true,
   },
   // Economy (indices 13-14)
   {
