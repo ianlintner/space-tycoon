@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import type { Hyperlane } from "../../data/types.ts";
+import type { Hyperlane, Planet } from "../../data/types.ts";
 import type { Mat4 } from "./Camera3D.ts";
 import type { Vec3, ViewportRect } from "./types.ts";
 import { perspectiveScale, projectToScreenDesignInto } from "./projection.ts";
@@ -28,6 +28,26 @@ const TRAFFIC_SYSTEM_FREQ_DENSE_MS = 220;
 const TRAFFIC_SYSTEM_DEPTH = 785;
 const TRAFFIC_SYSTEM_BASE_SCALE = 0.55;
 const TRAFFIC_SYSTEM_ALPHA = 0.85;
+
+// Metro orbital traffic: tight swarm of ships around each populous planet.
+// Frequency scales with population between MIN and MAX. Below MIN, no swarm.
+const TRAFFIC_METRO_POP_MIN = 200_000;
+const TRAFFIC_METRO_POP_MAX = 2_000_000;
+const TRAFFIC_METRO_FREQ_SPARSE_MS = 700;
+const TRAFFIC_METRO_FREQ_DENSE_MS = 120;
+const TRAFFIC_METRO_LIFESPAN_MS = 1400;
+const TRAFFIC_METRO_RADIUS_WORLD = 0.45; // swarm radius around the planet
+const TRAFFIC_METRO_ARC_FRACTION = 0.6; // fraction of full orbit traced per particle
+const TRAFFIC_METRO_DEPTH = 790;
+const TRAFFIC_METRO_BASE_SCALE = 0.42;
+const TRAFFIC_METRO_ALPHA = 0.7;
+
+// Planet ↔ planet traffic: slower freight between worlds in the same system.
+const TRAFFIC_PAIR_LIFESPAN_MS = 5500;
+const TRAFFIC_PAIR_INTERVAL_MS = 1800;
+const TRAFFIC_PAIR_DEPTH = 783;
+const TRAFFIC_PAIR_BASE_SCALE = 0.5;
+const TRAFFIC_PAIR_ALPHA = 0.7;
 
 // Pixel size targets for the spark sprite at any zoom level. Perspective scale
 // is clamped to this range so particles never become invisible or fill the
@@ -116,6 +136,20 @@ interface SystemStream {
   outboundNext: boolean;
 }
 
+interface MetroStream {
+  planetId: string;
+  nextSpawnAtMs: number;
+  intervalMs: number;
+}
+
+interface PlanetPairStream {
+  planetIdA: string;
+  planetIdB: string;
+  nextSpawnAtMs: number;
+  intervalMs: number;
+  outboundNext: boolean;
+}
+
 export class Traffic2D {
   private readonly scene: Phaser.Scene;
   private readonly container: Phaser.GameObjects.Container;
@@ -123,9 +157,12 @@ export class Traffic2D {
   private hyperlanes: Hyperlane[] = [];
   private systemPositions = new Map<string, Vec3>();
   private planetCounts = new Map<string, number>();
+  private planetsById = new Map<string, Planet>();
 
   private galaxyStreams: GalaxyStream[] = [];
   private systemStreams: SystemStream[] = [];
+  private metroStreams: MetroStream[] = [];
+  private planetPairStreams: PlanetPairStream[] = [];
 
   private particles: Particle[] = [];
   private lastFocusedSystemId: string | null = null;
@@ -155,6 +192,16 @@ export class Traffic2D {
   setPlanetCounts(counts: Map<string, number>): void {
     this.planetCounts = counts;
     this.rebuildGalaxyStreams();
+  }
+
+  setPlanets(planets: readonly Planet[]): void {
+    this.planetsById.clear();
+    for (const p of planets) this.planetsById.set(p.id, p);
+    // Rebuild on next system-mode update; we don't know which system is
+    // focused right now, but lastFocusedSystemId stays the same and the
+    // planet-id key may not have changed, so force a rebuild by clearing.
+    this.lastFocusedSystemId = null;
+    this.lastPlanetIdsKey = "";
   }
 
   update(
@@ -380,6 +427,8 @@ export class Traffic2D {
     focusedPlanetWorldPositions: ReadonlyMap<string, Vec3>,
   ): void {
     this.systemStreams = [];
+    this.metroStreams = [];
+    this.planetPairStreams = [];
     if (!focusedSystemId) return;
     const focusedPos = this.systemPositions.get(focusedSystemId);
     if (!focusedPos) return;
@@ -396,6 +445,8 @@ export class Traffic2D {
     );
 
     const baseMs = this.scene.time.now;
+
+    // Gate ↔ planet streams (already existed).
     for (const hl of this.hyperlanes) {
       const isA = hl.systemA === focusedSystemId;
       const isB = hl.systemB === focusedSystemId;
@@ -422,12 +473,48 @@ export class Traffic2D {
         });
       }
     }
+
+    // Metro orbital swarms — one per populous planet, density by population.
+    for (const planetId of planetIds) {
+      const planet = this.planetsById.get(planetId);
+      if (!planet) continue;
+      const pop = planet.population;
+      if (pop < TRAFFIC_METRO_POP_MIN) continue;
+      const t = clamp(
+        (pop - TRAFFIC_METRO_POP_MIN) /
+          (TRAFFIC_METRO_POP_MAX - TRAFFIC_METRO_POP_MIN),
+        0,
+        1,
+      );
+      const intervalMs = Math.round(
+        lerp(TRAFFIC_METRO_FREQ_SPARSE_MS, TRAFFIC_METRO_FREQ_DENSE_MS, t),
+      );
+      this.metroStreams.push({
+        planetId,
+        nextSpawnAtMs: baseMs + Math.random() * intervalMs,
+        intervalMs,
+      });
+    }
+
+    // Planet ↔ planet streams — one per unordered pair, slower freight.
+    for (let i = 0; i < planetIds.length; i++) {
+      for (let j = i + 1; j < planetIds.length; j++) {
+        this.planetPairStreams.push({
+          planetIdA: planetIds[i],
+          planetIdB: planetIds[j],
+          nextSpawnAtMs: baseMs + Math.random() * TRAFFIC_PAIR_INTERVAL_MS,
+          intervalMs: TRAFFIC_PAIR_INTERVAL_MS,
+          outboundNext: Math.random() < 0.5,
+        });
+      }
+    }
   }
 
   private spawnSystemParticles(
     focusedPlanetWorldPositions: ReadonlyMap<string, Vec3>,
     nowMs: number,
   ): void {
+    // Gate ↔ planet
     for (const stream of this.systemStreams) {
       if (nowMs < stream.nextSpawnAtMs) continue;
       const planetWorld = focusedPlanetWorldPositions.get(stream.planetId);
@@ -448,6 +535,65 @@ export class Traffic2D {
         TRAFFIC_SYSTEM_ALPHA,
         TRAFFIC_SYSTEM_BASE_SCALE,
         TRAFFIC_SYSTEM_DEPTH,
+      );
+      stream.nextSpawnAtMs = nowMs + jitteredInterval(stream.intervalMs);
+    }
+
+    // Metro swarm — particles spawn on a small circle around the planet,
+    // velocity tangent to that circle, tracing a partial arc before fading.
+    for (const stream of this.metroStreams) {
+      if (nowMs < stream.nextSpawnAtMs) continue;
+      const planetWorld = focusedPlanetWorldPositions.get(stream.planetId);
+      if (!planetWorld) {
+        stream.nextSpawnAtMs = nowMs + jitteredInterval(stream.intervalMs);
+        continue;
+      }
+      const theta = Math.random() * Math.PI * 2;
+      const direction = Math.random() < 0.5 ? 1 : -1; // clockwise vs counter
+      const r = TRAFFIC_METRO_RADIUS_WORLD;
+      const sx = planetWorld.x + Math.cos(theta) * r;
+      const sz = planetWorld.z + Math.sin(theta) * r;
+      const sy = planetWorld.y;
+      // Tangent point: rotate theta by ±arc fraction of a full turn.
+      const dTheta = TRAFFIC_METRO_ARC_FRACTION * Math.PI * 2 * direction;
+      const tx = planetWorld.x + Math.cos(theta + dTheta) * r;
+      const tz = planetWorld.z + Math.sin(theta + dTheta) * r;
+      const ty = planetWorld.y;
+      const p = this.acquireParticle();
+      this.launchParticle(
+        p,
+        { x: sx, y: sy, z: sz },
+        { x: tx, y: ty, z: tz },
+        jitteredLifespan(TRAFFIC_METRO_LIFESPAN_MS),
+        TRAFFIC_METRO_ALPHA,
+        TRAFFIC_METRO_BASE_SCALE,
+        TRAFFIC_METRO_DEPTH,
+      );
+      stream.nextSpawnAtMs = nowMs + jitteredInterval(stream.intervalMs);
+    }
+
+    // Planet ↔ planet — slower freight, snapshot both endpoints at spawn.
+    for (const stream of this.planetPairStreams) {
+      if (nowMs < stream.nextSpawnAtMs) continue;
+      const a = focusedPlanetWorldPositions.get(stream.planetIdA);
+      const b = focusedPlanetWorldPositions.get(stream.planetIdB);
+      if (!a || !b) {
+        stream.nextSpawnAtMs = nowMs + jitteredInterval(stream.intervalMs);
+        continue;
+      }
+      const outbound = stream.outboundNext;
+      stream.outboundNext = !outbound;
+      const source = outbound ? a : b;
+      const target = outbound ? b : a;
+      const p = this.acquireParticle();
+      this.launchParticle(
+        p,
+        source,
+        target,
+        jitteredLifespan(TRAFFIC_PAIR_LIFESPAN_MS),
+        TRAFFIC_PAIR_ALPHA,
+        TRAFFIC_PAIR_BASE_SCALE,
+        TRAFFIC_PAIR_DEPTH,
       );
       stream.nextSpawnAtMs = nowMs + jitteredInterval(stream.intervalMs);
     }

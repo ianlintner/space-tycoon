@@ -1196,6 +1196,7 @@ export class GalaxyView2D {
       counts.set(planet.systemId, (counts.get(planet.systemId) ?? 0) + 1);
     }
     this.traffic.setPlanetCounts(counts);
+    this.traffic.setPlanets(planets);
   }
 
   setPlanetHoverHandler(
