@@ -145,9 +145,12 @@ export class GalaxyMapScene extends Phaser.Scene {
       empires.filter((e) => isEmpireAccessible(e.id, state)).map((e) => e.id),
     );
 
-    // Planet hover → tooltip, planet click → also fly there (deeper zoom).
+    // Planet hover → tooltip, planet click → open route builder for that planet.
     this.view3D.setPlanetHoverHandler((planetId) =>
       this.showPlanetTooltip(planetId),
+    );
+    this.view3D.setPlanetClickHandler((planetId) =>
+      this.openRouteBuilderForPlanet(planetId),
     );
     this.view3D.setStationHoverHandler((hovered) => {
       if (hovered) this.showStationTooltip();
@@ -444,6 +447,32 @@ export class GalaxyMapScene extends Phaser.Scene {
       onComplete: (_result) => {
         restoreOpacity();
         // Rebuild route traffic visuals so newly created route appears.
+        const fresh = gameStore.getState();
+        const visuals = buildGalaxyRouteTrafficVisuals(fresh);
+        this.view3D?.setRoutes(visuals);
+        this.rebuildTrafficShips(fresh, visuals);
+        this.routeTrafficStateKey = buildGalaxyRouteTrafficStateKey(fresh);
+      },
+      onCancel: () => {
+        restoreOpacity();
+      },
+    });
+  }
+
+  private openRouteBuilderForPlanet(planetId: string): void {
+    this.mapTooltip?.hide();
+    this.clearRouteSelection();
+    this.view3D?.setCanvasOpacity(0.15);
+    const restoreOpacity = (): void => {
+      this.view3D?.setCanvasOpacity(1);
+    };
+    openRouteBuilder(this, {
+      ui: this.ui,
+      title: "New Trade Route",
+      initialOriginPlanetId: planetId,
+      allowAutoBuy: true,
+      onComplete: (_result) => {
+        restoreOpacity();
         const fresh = gameStore.getState();
         const visuals = buildGalaxyRouteTrafficVisuals(fresh);
         this.view3D?.setRoutes(visuals);
