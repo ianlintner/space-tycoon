@@ -12,6 +12,15 @@ const TRAFFIC_GALAXY_LIFESPAN = 700; // ms
 const TRAFFIC_GALAXY_DEPTH = 350;
 const TRAFFIC_GALAXY_SPEED_BASE = 55; // px/s — updated per-frame but set at creation
 
+const TRAFFIC_SYSTEM_LIFESPAN = 800; // ms
+const TRAFFIC_SYSTEM_FREQ_SPARSE_MS = 300;
+const TRAFFIC_SYSTEM_FREQ_DENSE_MS = 60;
+const TRAFFIC_MAX_PLANETS = 6;
+const GATE_RADIUS_WORLD = 4.2; // must match HyperGates2D
+const TRAFFIC_SYSTEM_DEPTH = 785;
+const TRAFFIC_AMBIENT_DEPTH = 780;
+const TRAFFIC_SYSTEM_SPEED_BASE = 40; // px/s initial value, updated per-frame
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * Math.max(0, Math.min(1, t));
 }
@@ -269,8 +278,83 @@ export class Traffic2D {
 
   // ── Private: system ────────────────────────────────────────────────────
 
-  private rebuildSystemEmitters(_focusedSystemId: string | null): void {
+  private rebuildSystemEmitters(focusedSystemId: string | null): void {
     this.clearSystemEmitters();
+    if (!focusedSystemId) return;
+
+    const focusedPos = this._systemPositions.get(focusedSystemId);
+    if (!focusedPos) return;
+
+    const texKey = getOrCreateSparkTexture(this.scene);
+
+    const planetCount = this._planetCounts.get(focusedSystemId) ?? 0;
+    const densityT = Math.min(1, planetCount / TRAFFIC_MAX_PLANETS);
+    const gateFreqMs = Math.round(
+      lerp(
+        TRAFFIC_SYSTEM_FREQ_SPARSE_MS,
+        TRAFFIC_SYSTEM_FREQ_DENSE_MS,
+        densityT,
+      ),
+    );
+
+    // One directional emitter per connected hypergate.
+    for (const hl of this._hyperlanes) {
+      const isA = hl.systemA === focusedSystemId;
+      const isB = hl.systemB === focusedSystemId;
+      if (!isA && !isB) continue;
+
+      const connectedId = isA ? hl.systemB : hl.systemA;
+      const connectedPos = this._systemPositions.get(connectedId);
+      if (!connectedPos) continue;
+
+      const dx = connectedPos.x - focusedPos.x;
+      const dz = connectedPos.z - focusedPos.z;
+      const len = Math.sqrt(dx * dx + dz * dz);
+      if (len < 0.001) continue;
+
+      const gateWorldPos: Vec3 = {
+        x: focusedPos.x + (dx / len) * GATE_RADIUS_WORLD,
+        y: focusedPos.y,
+        z: focusedPos.z + (dz / len) * GATE_RADIUS_WORLD,
+      };
+
+      const emitter = this.scene.add.particles(0, 0, texKey, {
+        lifespan: TRAFFIC_SYSTEM_LIFESPAN,
+        speed: TRAFFIC_SYSTEM_SPEED_BASE,
+        scale: { start: 0.4, end: 0 },
+        alpha: { start: 0.65, end: 0 },
+        blendMode: "ADD",
+        frequency: gateFreqMs,
+        quantity: 1,
+        angle: 0,
+      });
+      emitter.setDepth(TRAFFIC_SYSTEM_DEPTH);
+      emitter.stop();
+      this.container.add(emitter);
+
+      this.systemGateEmitters.push({
+        emitter,
+        gateWorldPos,
+        running: false,
+      });
+    }
+
+    // Ambient emitter at the star — low-density omnidirectional traffic.
+    const ambientFreqMs = Math.round(lerp(400, 120, densityT));
+    const ambientEmitter = this.scene.add.particles(0, 0, texKey, {
+      lifespan: TRAFFIC_SYSTEM_LIFESPAN,
+      speed: { min: 15, max: 35 },
+      scale: { start: 0.25, end: 0 },
+      alpha: { start: 0.35, end: 0 },
+      blendMode: "ADD",
+      frequency: ambientFreqMs,
+      quantity: 1,
+      angle: { min: 0, max: 360 },
+    });
+    ambientEmitter.setDepth(TRAFFIC_AMBIENT_DEPTH);
+    ambientEmitter.stop();
+    this.container.add(ambientEmitter);
+    this.systemAmbientEmitter = ambientEmitter;
   }
 
   private updateSystemEmitters(
