@@ -29,6 +29,7 @@ import {
   getEventPortraitAssetUrls,
 } from "../data/systemPortraits.ts";
 import { generateAdviserSpritesheet } from "@rogue-universe/shared";
+import { PlanetBiome } from "../data/types.ts";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -107,6 +108,12 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`ship-map-${cls}`, `ships/map/${cls}.png`);
       this.load.image(`ship-portrait-${cls}`, `ships/portraits/${cls}.png`);
     }
+
+    // Planet biome sprites (21 PNGs) + ring overlay — authored pixel art, ~110KB total
+    for (const biome of Object.values(PlanetBiome)) {
+      this.load.image(`planet:${biome}`, `planets/${biome}.png`);
+    }
+    this.load.image("planet:ring", "planets/ring.png");
 
     // Dilemma banner illustrations (~10 × 480×240 PNG, ~1.2 MB total) — loaded
     // up front so the modal can display instantly when a dilemma fires.
