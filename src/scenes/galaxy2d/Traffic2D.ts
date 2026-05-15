@@ -2,46 +2,48 @@ import * as Phaser from "phaser";
 import type { Hyperlane } from "../../data/types.ts";
 import type { Mat4 } from "./Camera3D.ts";
 import type { Vec3, ViewportRect } from "./types.ts";
-import { projectToScreenDesignInto } from "./projection.ts";
+import { perspectiveScale, projectToScreenDesignInto } from "./projection.ts";
 
-// Custom particle/ship traffic system. We bypass Phaser's ParticleEmitter
-// because we need particles whose endpoints are projected screen positions
-// that move every frame (camera, orbiting planets), and that proved to be
-// fragile with the emitter's radial/angle/speed APIs. Each "ship" is a pooled
-// sprite with explicit per-frame state we control directly.
+// Custom particle/ship traffic system. Particles store world-space position
+// and velocity so they stay anchored to the map under any camera pan/zoom —
+// we re-project them to screen every frame for rendering. We bypass Phaser's
+// ParticleEmitter because the projected-endpoint use case fights its
+// radial/angle/speed model.
 
 const TRAFFIC_SPARK_TEX_KEY = "traffic2d:spark";
 const TRAFFIC_SPARK_SIZE = 24;
 
 // Galaxy traffic: ships drift between connected star systems along hyperlanes.
-const TRAFFIC_GALAXY_LIFESPAN_MS = 3500;
+const TRAFFIC_GALAXY_LIFESPAN_MS = 4000;
 const TRAFFIC_GALAXY_FREQ_SPARSE_MS = 900;
 const TRAFFIC_GALAXY_FREQ_DENSE_MS = 280;
 const TRAFFIC_GALAXY_DEPTH = 350;
-const TRAFFIC_GALAXY_SCALE = 0.55;
+const TRAFFIC_GALAXY_BASE_SCALE = 0.5;
 const TRAFFIC_GALAXY_ALPHA = 0.75;
 
 // System traffic: ships shuttle from each hypergate to each planet.
-const TRAFFIC_SYSTEM_LIFESPAN_MS = 2800;
+const TRAFFIC_SYSTEM_LIFESPAN_MS = 3200;
 const TRAFFIC_SYSTEM_FREQ_SPARSE_MS = 700;
-const TRAFFIC_SYSTEM_FREQ_DENSE_MS = 250;
+const TRAFFIC_SYSTEM_FREQ_DENSE_MS = 220;
 const TRAFFIC_SYSTEM_DEPTH = 785;
-const TRAFFIC_SYSTEM_SCALE = 0.6;
+const TRAFFIC_SYSTEM_BASE_SCALE = 0.55;
 const TRAFFIC_SYSTEM_ALPHA = 0.85;
 
-// Ambient star traffic: faint random sparks at the focused star.
-const TRAFFIC_AMBIENT_LIFESPAN_MS = 2200;
-const TRAFFIC_AMBIENT_FREQ_MS = 320;
-const TRAFFIC_AMBIENT_SPEED_PXS = 35;
-const TRAFFIC_AMBIENT_DEPTH = 780;
-const TRAFFIC_AMBIENT_SCALE = 0.32;
-const TRAFFIC_AMBIENT_ALPHA = 0.45;
+// Pixel size targets for the spark sprite at any zoom level. Perspective scale
+// is clamped to this range so particles never become invisible or fill the
+// screen at extreme zooms.
+const TRAFFIC_MIN_DISPLAY_PX = 3;
+const TRAFFIC_MAX_DISPLAY_PX = 14;
 
 const GATE_RADIUS_WORLD = 4.2; // must match HyperGates2D
 const POOL_INITIAL_SIZE = 64;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * Math.max(0, Math.min(1, t));
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
 }
 
 function getOrCreateSparkTexture(scene: Phaser.Scene): string {
@@ -67,11 +69,14 @@ interface Particle {
   active: boolean;
   ageMs: number;
   lifeMs: number;
-  // Position is in screen design coords (same space as projectToScreenDesignInto).
-  x: number;
-  y: number;
-  vx: number; // px / s
-  vy: number;
+  // World-space position and velocity. Re-projected to screen every frame so
+  // particles follow camera pan/zoom and stay anchored to the map.
+  wx: number;
+  wy: number;
+  wz: number;
+  vwx: number; // world units / sec
+  vwy: number;
+  vwz: number;
   baseAlpha: number;
   baseScale: number;
 }
@@ -92,12 +97,6 @@ interface SystemStream {
   intervalMs: number;
 }
 
-interface AmbientStream {
-  starWorldPos: Vec3;
-  nextSpawnAtMs: number;
-  intervalMs: number;
-}
-
 export class Traffic2D {
   private readonly scene: Phaser.Scene;
   private readonly container: Phaser.GameObjects.Container;
@@ -108,7 +107,6 @@ export class Traffic2D {
 
   private galaxyStreams: GalaxyStream[] = [];
   private systemStreams: SystemStream[] = [];
-  private ambient: AmbientStream | null = null;
 
   private particles: Particle[] = [];
   private lastFocusedSystemId: string | null = null;
@@ -116,7 +114,7 @@ export class Traffic2D {
   private lastUpdateMs = 0;
 
   private readonly scratchA: Vec3 = { x: 0, y: 0, z: 0 };
-  private readonly scratchB: Vec3 = { x: 0, y: 0, z: 0 };
+  private readonly scratchWorld: Vec3 = { x: 0, y: 0, z: 0 };
 
   constructor(scene: Phaser.Scene, container: Phaser.GameObjects.Container) {
     this.scene = scene;
@@ -142,6 +140,8 @@ export class Traffic2D {
 
   update(
     viewProj: Mat4,
+    viewMat: Mat4,
+    focalLength: number,
     viewport: ViewportRect,
     inSystemMode: boolean,
     focusedSystemId: string | null,
@@ -161,23 +161,17 @@ export class Traffic2D {
         this.lastFocusedSystemId = focusedSystemId;
         this.lastPlanetIdsKey = planetIdsKey;
       }
-      this.spawnSystemParticles(
-        viewProj,
-        viewport,
-        focusedPlanetWorldPositions,
-        nowMs,
-      );
+      this.spawnSystemParticles(focusedPlanetWorldPositions, nowMs);
     } else {
       if (this.lastFocusedSystemId !== null || this.systemStreams.length > 0) {
         this.systemStreams = [];
-        this.ambient = null;
         this.lastFocusedSystemId = null;
         this.lastPlanetIdsKey = "";
       }
-      this.spawnGalaxyParticles(viewProj, viewport, nowMs);
+      this.spawnGalaxyParticles(nowMs);
     }
 
-    this.advanceParticles(dtMs);
+    this.advanceParticles(dtMs, viewProj, viewMat, focalLength, viewport);
   }
 
   destroy(): void {
@@ -201,10 +195,12 @@ export class Traffic2D {
       active: false,
       ageMs: 0,
       lifeMs: 0,
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
+      wx: 0,
+      wy: 0,
+      wz: 0,
+      vwx: 0,
+      vwy: 0,
+      vwz: 0,
       baseAlpha: 1,
       baseScale: 1,
     };
@@ -219,33 +215,37 @@ export class Traffic2D {
 
   private launchParticle(
     p: Particle,
-    sx: number,
-    sy: number,
-    vx: number,
-    vy: number,
+    source: Vec3,
+    target: Vec3,
     lifeMs: number,
     baseAlpha: number,
     baseScale: number,
     depth: number,
   ): void {
+    const lifeSec = lifeMs / 1000;
     p.active = true;
     p.ageMs = 0;
     p.lifeMs = lifeMs;
-    p.x = sx;
-    p.y = sy;
-    p.vx = vx;
-    p.vy = vy;
+    p.wx = source.x;
+    p.wy = source.y;
+    p.wz = source.z;
+    p.vwx = (target.x - source.x) / lifeSec;
+    p.vwy = (target.y - source.y) / lifeSec;
+    p.vwz = (target.z - source.z) / lifeSec;
     p.baseAlpha = baseAlpha;
     p.baseScale = baseScale;
     p.sprite.setActive(true);
-    p.sprite.setPosition(sx, sy);
-    p.sprite.setAlpha(baseAlpha);
-    p.sprite.setScale(baseScale);
     p.sprite.setDepth(depth);
-    p.sprite.setVisible(true);
+    p.sprite.setVisible(false); // will be set true in advance once projected
   }
 
-  private advanceParticles(dtMs: number): void {
+  private advanceParticles(
+    dtMs: number,
+    viewProj: Mat4,
+    viewMat: Mat4,
+    focalLength: number,
+    viewport: ViewportRect,
+  ): void {
     const dtSec = dtMs / 1000;
     for (const p of this.particles) {
       if (!p.active) continue;
@@ -256,15 +256,45 @@ export class Traffic2D {
         p.sprite.setVisible(false);
         continue;
       }
-      p.x += p.vx * dtSec;
-      p.y += p.vy * dtSec;
+      p.wx += p.vwx * dtSec;
+      p.wy += p.vwy * dtSec;
+      p.wz += p.vwz * dtSec;
+
+      this.scratchWorld.x = p.wx;
+      this.scratchWorld.y = p.wy;
+      this.scratchWorld.z = p.wz;
+      const proj = projectToScreenDesignInto(
+        this.scratchA,
+        this.scratchWorld,
+        viewProj,
+        viewport,
+      );
+      if (!proj.visible) {
+        p.sprite.setVisible(false);
+        continue;
+      }
+
+      const persp = perspectiveScale(this.scratchWorld, viewMat, focalLength);
+      if (persp <= 0) {
+        p.sprite.setVisible(false);
+        continue;
+      }
+      // Convert "world-scale" sparkle size to a pixel size, clamped so it
+      // stays readable at galaxy zoom and doesn't blow up in system zoom.
+      const desiredPx = clamp(
+        p.baseScale * persp * 0.04,
+        TRAFFIC_MIN_DISPLAY_PX,
+        TRAFFIC_MAX_DISPLAY_PX,
+      );
 
       // Smooth fade-in over first 15% of life, fade-out across the rest.
       const t = p.ageMs / p.lifeMs;
       const fade = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
-      p.sprite.setPosition(p.x, p.y);
+
+      p.sprite.setPosition(proj.x, proj.y);
+      p.sprite.setDisplaySize(desiredPx, desiredPx);
       p.sprite.setAlpha(p.baseAlpha * fade);
-      p.sprite.setScale(p.baseScale);
+      p.sprite.setVisible(true);
     }
   }
 
@@ -303,53 +333,21 @@ export class Traffic2D {
     }
   }
 
-  private spawnGalaxyParticles(
-    viewProj: Mat4,
-    viewport: ViewportRect,
-    nowMs: number,
-  ): void {
+  private spawnGalaxyParticles(nowMs: number): void {
     for (const stream of this.galaxyStreams) {
       if (nowMs < stream.nextSpawnAtMs) continue;
-      const projA = projectToScreenDesignInto(
-        this.scratchA,
-        stream.worldA,
-        viewProj,
-        viewport,
-      );
-      const projB = projectToScreenDesignInto(
-        this.scratchB,
-        stream.worldB,
-        viewProj,
-        viewport,
-      );
-      if (!projA.visible || !projB.visible) {
-        stream.nextSpawnAtMs = nowMs + stream.intervalMs;
-        continue;
-      }
-      const dx = projB.x - projA.x;
-      const dy = projB.y - projA.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 4) {
-        stream.nextSpawnAtMs = nowMs + stream.intervalMs;
-        continue;
-      }
-      const lifeMs = TRAFFIC_GALAXY_LIFESPAN_MS;
       const fwd = stream.fwdNext;
       stream.fwdNext = !fwd;
-      const sx = fwd ? projA.x : projB.x;
-      const sy = fwd ? projA.y : projB.y;
-      const vx = (fwd ? dx : -dx) / (lifeMs / 1000);
-      const vy = (fwd ? dy : -dy) / (lifeMs / 1000);
+      const source = fwd ? stream.worldA : stream.worldB;
+      const target = fwd ? stream.worldB : stream.worldA;
       const p = this.acquireParticle();
       this.launchParticle(
         p,
-        sx,
-        sy,
-        vx,
-        vy,
-        lifeMs,
+        source,
+        target,
+        TRAFFIC_GALAXY_LIFESPAN_MS,
         TRAFFIC_GALAXY_ALPHA,
-        TRAFFIC_GALAXY_SCALE,
+        TRAFFIC_GALAXY_BASE_SCALE,
         TRAFFIC_GALAXY_DEPTH,
       );
       stream.nextSpawnAtMs = nowMs + stream.intervalMs;
@@ -363,7 +361,6 @@ export class Traffic2D {
     focusedPlanetWorldPositions: ReadonlyMap<string, Vec3>,
   ): void {
     this.systemStreams = [];
-    this.ambient = null;
     if (!focusedSystemId) return;
     const focusedPos = this.systemPositions.get(focusedSystemId);
     if (!focusedPos) return;
@@ -405,17 +402,9 @@ export class Traffic2D {
         });
       }
     }
-
-    this.ambient = {
-      starWorldPos: { x: focusedPos.x, y: focusedPos.y, z: focusedPos.z },
-      nextSpawnAtMs: baseMs,
-      intervalMs: TRAFFIC_AMBIENT_FREQ_MS,
-    };
   }
 
   private spawnSystemParticles(
-    viewProj: Mat4,
-    viewport: ViewportRect,
     focusedPlanetWorldPositions: ReadonlyMap<string, Vec3>,
     nowMs: number,
   ): void {
@@ -426,73 +415,17 @@ export class Traffic2D {
         stream.nextSpawnAtMs = nowMs + stream.intervalMs;
         continue;
       }
-      const gateProj = projectToScreenDesignInto(
-        this.scratchA,
-        stream.gateWorldPos,
-        viewProj,
-        viewport,
-      );
-      const planetProj = projectToScreenDesignInto(
-        this.scratchB,
-        planetWorld,
-        viewProj,
-        viewport,
-      );
-      if (!gateProj.visible || !planetProj.visible) {
-        stream.nextSpawnAtMs = nowMs + stream.intervalMs;
-        continue;
-      }
-      const dx = planetProj.x - gateProj.x;
-      const dy = planetProj.y - gateProj.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 4) {
-        stream.nextSpawnAtMs = nowMs + stream.intervalMs;
-        continue;
-      }
-      const lifeMs = TRAFFIC_SYSTEM_LIFESPAN_MS;
-      const vx = dx / (lifeMs / 1000);
-      const vy = dy / (lifeMs / 1000);
       const p = this.acquireParticle();
       this.launchParticle(
         p,
-        gateProj.x,
-        gateProj.y,
-        vx,
-        vy,
-        lifeMs,
+        stream.gateWorldPos,
+        planetWorld,
+        TRAFFIC_SYSTEM_LIFESPAN_MS,
         TRAFFIC_SYSTEM_ALPHA,
-        TRAFFIC_SYSTEM_SCALE,
+        TRAFFIC_SYSTEM_BASE_SCALE,
         TRAFFIC_SYSTEM_DEPTH,
       );
       stream.nextSpawnAtMs = nowMs + stream.intervalMs;
-    }
-
-    // Ambient at star — random radial sparks.
-    if (this.ambient && nowMs >= this.ambient.nextSpawnAtMs) {
-      const starProj = projectToScreenDesignInto(
-        this.scratchA,
-        this.ambient.starWorldPos,
-        viewProj,
-        viewport,
-      );
-      if (starProj.visible) {
-        const angle = Math.random() * Math.PI * 2;
-        const vx = Math.cos(angle) * TRAFFIC_AMBIENT_SPEED_PXS;
-        const vy = Math.sin(angle) * TRAFFIC_AMBIENT_SPEED_PXS;
-        const p = this.acquireParticle();
-        this.launchParticle(
-          p,
-          starProj.x,
-          starProj.y,
-          vx,
-          vy,
-          TRAFFIC_AMBIENT_LIFESPAN_MS,
-          TRAFFIC_AMBIENT_ALPHA,
-          TRAFFIC_AMBIENT_SCALE,
-          TRAFFIC_AMBIENT_DEPTH,
-        );
-      }
-      this.ambient.nextSpawnAtMs = nowMs + this.ambient.intervalMs;
     }
   }
 }

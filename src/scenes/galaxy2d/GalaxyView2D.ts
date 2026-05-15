@@ -906,6 +906,8 @@ export class GalaxyView2D {
 
     this.traffic.update(
       viewProj,
+      viewMat,
+      focalLength,
       this.viewport,
       systemMode,
       this.focusedSystemId,
