@@ -92,7 +92,6 @@ const HQ_MARKER_Y_OFFSET_WORLD = 2.4;
 const HQ_MARKER_WORLD_SIZE = 2;
 
 // Station — player HQ orbiting body shown in system mode.
-const STATION_TEX_KEY = "galaxy2d:station";
 const STATION_DEPTH = 840;
 const STATION_ORBIT_DEPTH = 755; // just below planet orbit rings (760)
 const STATION_ORBIT_RADIUS = 0.55; // world units — inside innermost planet orbit
@@ -139,47 +138,6 @@ function getOrCreateHQMarkerTexture(
 
   tex.refresh();
   return key;
-}
-
-function getOrCreateStationTexture(scene: Phaser.Scene): string {
-  if (scene.textures.exists(STATION_TEX_KEY)) return STATION_TEX_KEY;
-
-  const size = 64;
-  const tex = scene.textures.createCanvas(STATION_TEX_KEY, size, size);
-  if (!tex) return STATION_TEX_KEY;
-  const ctx = tex.getContext();
-  const c = size / 2; // 32
-
-  // Soft glow backing
-  const glow = ctx.createRadialGradient(c, c, 2, c, c, 24);
-  glow.addColorStop(0, "rgba(100,200,255,0.3)");
-  glow.addColorStop(1, "rgba(100,200,255,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, size, size);
-
-  // Horizontal and vertical booms — cross/plus shape
-  ctx.fillStyle = "rgba(140,215,255,0.85)";
-  ctx.fillRect(c - 22, c - 2, 44, 4); // horizontal
-  ctx.fillRect(c - 2, c - 22, 4, 44); // vertical
-
-  // Solar panels off the horizontal boom tips
-  ctx.fillStyle = "rgba(60,140,255,0.9)";
-  ctx.fillRect(c + 22, c - 10, 8, 7); // right top panel
-  ctx.fillRect(c + 22, c + 3, 8, 7); // right bottom panel
-  ctx.fillRect(c - 30, c - 10, 8, 7); // left top panel
-  ctx.fillRect(c - 30, c + 3, 8, 7); // left bottom panel
-
-  // Central hub
-  ctx.beginPath();
-  ctx.arc(c, c, 8, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(180,230,255,0.98)";
-  ctx.fill();
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = "rgba(210,245,255,0.9)";
-  ctx.stroke();
-
-  tex.refresh();
-  return STATION_TEX_KEY;
 }
 
 export interface GalaxyView2DOptions {
@@ -287,6 +245,7 @@ export class GalaxyView2D {
 
   // Station — the player's HQ orbits its home star in system view.
   private playerHQSystemId: string | null = null;
+  private hubLevel = 1;
   private stationSprite: Phaser.GameObjects.Image | null = null;
   private stationOrbitGfx: Phaser.GameObjects.Graphics | null = null;
   private readonly scratchStationNdc: Vec3 = { x: 0, y: 0, z: 0 };
@@ -970,12 +929,14 @@ export class GalaxyView2D {
     const systemPos = this.systemPositions.get(this.focusedSystemId!)!;
 
     // Lazily create station objects on first system-view entry.
+    const stationKey = `station:level${this.hubLevel}`;
     if (!this.stationSprite) {
-      const key = getOrCreateStationTexture(this.scene);
-      this.stationSprite = this.scene.add.image(0, 0, key);
+      this.stationSprite = this.scene.add.image(0, 0, stationKey);
       this.stationSprite.setDepth(STATION_DEPTH);
       this.stationSprite.setVisible(false);
       this.galaxyContainer.add(this.stationSprite);
+    } else {
+      this.stationSprite.setTexture(stationKey);
     }
     if (!this.stationOrbitGfx) {
       this.stationOrbitGfx = this.scene.add.graphics();
@@ -1358,6 +1319,10 @@ export class GalaxyView2D {
   }
 
   // ── Phase 4: HQ markers + selection rings + label LOD ──────────────────
+
+  setHubLevel(level: number): void {
+    this.hubLevel = Math.max(1, Math.min(4, level));
+  }
 
   setHQMarkers3D(markers: HQMarker3D[]): void {
     if (this.destroyed) return;

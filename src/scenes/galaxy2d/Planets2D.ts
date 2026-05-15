@@ -35,10 +35,45 @@ const ROTATION_SPEED = 0.35; // radians/sec — ~18s per cycle
 interface PlanetEntry {
   planet: Planet;
   baseSprite: Phaser.GameObjects.Image;
-  ringBackSprite: Phaser.GameObjects.Image | null;
-  ringFrontSprite: Phaser.GameObjects.Image | null;
+  ringBackGfx: Phaser.GameObjects.Graphics | null;
+  ringFrontGfx: Phaser.GameObjects.Graphics | null;
   hitbox: Phaser.GameObjects.Zone;
   variation: PlanetVariation;
+}
+
+// Draw one half of a ring ellipse (back = lower semicircle, front = upper).
+// Called every frame; uses clear() + stroke arcs at multiple radii for a soft band.
+function drawRingArc(
+  gfx: Phaser.GameObjects.Graphics,
+  rx: number,
+  ry: number,
+  isBack: boolean,
+  tintColor: number,
+): void {
+  gfx.clear();
+  const r = (tintColor >> 16) & 0xff;
+  const g = (tintColor >> 8) & 0xff;
+  const b = tintColor & 0xff;
+  const hex = (r << 16) | (g << 8) | b;
+  const startAngle = isBack ? 0 : Math.PI;
+  const endAngle = isBack ? Math.PI : Math.PI * 2;
+  const SEGS = 28;
+  const BANDS = 7;
+  for (let band = 0; band < BANDS; band++) {
+    const t = (band + 0.5) / BANDS;
+    const scale = 0.55 + t * 0.45; // inner 55% → outer 100%
+    const edgeFade = Math.sin(t * Math.PI);
+    gfx.lineStyle(1.5, hex, edgeFade * 0.78);
+    gfx.beginPath();
+    for (let j = 0; j <= SEGS; j++) {
+      const angle = startAngle + (j / SEGS) * (endAngle - startAngle);
+      const px = Math.cos(angle) * rx * scale;
+      const py = Math.sin(angle) * ry * scale;
+      if (j === 0) gfx.moveTo(px, py);
+      else gfx.lineTo(px, py);
+    }
+    gfx.strokePath();
+  }
 }
 
 /**
@@ -81,8 +116,8 @@ export class Planets2D {
     // Tear down old entries.
     for (const e of this.entries.values()) {
       e.baseSprite.destroy();
-      e.ringBackSprite?.destroy();
-      e.ringFrontSprite?.destroy();
+      e.ringBackGfx?.destroy();
+      e.ringFrontGfx?.destroy();
       e.hitbox.destroy();
     }
     this.entries.clear();
@@ -97,24 +132,18 @@ export class Planets2D {
       baseSprite.setTint(variation.baseTint);
       this.container.add(baseSprite);
 
-      let ringBackSprite: Phaser.GameObjects.Image | null = null;
-      let ringFrontSprite: Phaser.GameObjects.Image | null = null;
+      let ringBackGfx: Phaser.GameObjects.Graphics | null = null;
+      let ringFrontGfx: Phaser.GameObjects.Graphics | null = null;
       if (isRinged(planet.biome)) {
-        ringBackSprite = this.scene.add.image(0, 0, "planet:ring");
-        ringBackSprite.setDepth(PLANET_DEPTH - 5);
-        ringBackSprite.setVisible(false);
-        ringBackSprite.setCrop(0, 32, 128, 32); // bottom half of ring texture
-        ringBackSprite.setOrigin(0.5, 0.0); // top edge anchors at position
-        ringBackSprite.setTint(variation.ringTint);
-        this.container.add(ringBackSprite);
+        ringBackGfx = this.scene.add.graphics();
+        ringBackGfx.setDepth(PLANET_DEPTH - 5);
+        ringBackGfx.setVisible(false);
+        this.container.add(ringBackGfx);
 
-        ringFrontSprite = this.scene.add.image(0, 0, "planet:ring");
-        ringFrontSprite.setDepth(PLANET_DEPTH + 5);
-        ringFrontSprite.setVisible(false);
-        ringFrontSprite.setCrop(0, 0, 128, 32); // top half of ring texture
-        ringFrontSprite.setOrigin(0.5, 1.0); // bottom edge anchors at position
-        ringFrontSprite.setTint(variation.ringTint);
-        this.container.add(ringFrontSprite);
+        ringFrontGfx = this.scene.add.graphics();
+        ringFrontGfx.setDepth(PLANET_DEPTH + 5);
+        ringFrontGfx.setVisible(false);
+        this.container.add(ringFrontGfx);
       }
 
       const hitbox = this.scene.add.zone(0, 0, 24, 24);
@@ -128,8 +157,8 @@ export class Planets2D {
       this.entries.set(planet.id, {
         planet,
         baseSprite,
-        ringBackSprite,
-        ringFrontSprite,
+        ringBackGfx,
+        ringFrontGfx,
         hitbox,
         variation,
       });
@@ -143,8 +172,8 @@ export class Planets2D {
       // Leaving system view — hide everything and clear orbit rings.
       for (const e of this.entries.values()) {
         e.baseSprite.setVisible(false);
-        e.ringBackSprite?.setVisible(false);
-        e.ringFrontSprite?.setVisible(false);
+        e.ringBackGfx?.setVisible(false);
+        e.ringFrontGfx?.setVisible(false);
         e.hitbox.setVisible(false);
       }
       this.orbitGfx?.clear();
@@ -197,8 +226,8 @@ export class Planets2D {
     for (const e of this.entries.values()) {
       if (e.planet.systemId !== this.focusedSystemId) {
         e.baseSprite.setVisible(false);
-        e.ringBackSprite?.setVisible(false);
-        e.ringFrontSprite?.setVisible(false);
+        e.ringBackGfx?.setVisible(false);
+        e.ringFrontGfx?.setVisible(false);
         e.hitbox.setVisible(false);
         continue;
       }
@@ -228,16 +257,16 @@ export class Planets2D {
       );
       if (!proj.visible) {
         e.baseSprite.setVisible(false);
-        e.ringBackSprite?.setVisible(false);
-        e.ringFrontSprite?.setVisible(false);
+        e.ringBackGfx?.setVisible(false);
+        e.ringFrontGfx?.setVisible(false);
         e.hitbox.setVisible(false);
         continue;
       }
       const scale = perspectiveScale(this.scratchWorld, viewMat, focalLength);
       if (scale <= 0) {
         e.baseSprite.setVisible(false);
-        e.ringBackSprite?.setVisible(false);
-        e.ringFrontSprite?.setVisible(false);
+        e.ringBackGfx?.setVisible(false);
+        e.ringFrontGfx?.setVisible(false);
         e.hitbox.setVisible(false);
         continue;
       }
@@ -259,17 +288,17 @@ export class Planets2D {
       );
       e.baseSprite.setVisible(true);
 
-      if (e.ringBackSprite && e.ringFrontSprite) {
-        const ringW = size * 1.7;
-        const ringHalf = size * 0.425;
-        e.ringBackSprite.setPosition(proj.x, proj.y);
-        e.ringBackSprite.setDisplaySize(ringW, ringHalf);
-        e.ringBackSprite.setAngle(e.variation.ringTiltDeg);
-        e.ringBackSprite.setVisible(true);
-        e.ringFrontSprite.setPosition(proj.x, proj.y);
-        e.ringFrontSprite.setDisplaySize(ringW, ringHalf);
-        e.ringFrontSprite.setAngle(e.variation.ringTiltDeg);
-        e.ringFrontSprite.setVisible(true);
+      if (e.ringBackGfx && e.ringFrontGfx) {
+        const rx = size * 0.82;
+        const ry = size * 0.22;
+        e.ringBackGfx.setPosition(proj.x, proj.y);
+        e.ringBackGfx.setAngle(e.variation.ringTiltDeg);
+        drawRingArc(e.ringBackGfx, rx, ry, true, e.variation.ringTint);
+        e.ringBackGfx.setVisible(true);
+        e.ringFrontGfx.setPosition(proj.x, proj.y);
+        e.ringFrontGfx.setAngle(e.variation.ringTiltDeg);
+        drawRingArc(e.ringFrontGfx, rx, ry, false, e.variation.ringTint);
+        e.ringFrontGfx.setVisible(true);
       }
 
       e.hitbox.setPosition(proj.x, proj.y);
@@ -320,8 +349,8 @@ export class Planets2D {
   destroy(): void {
     for (const e of this.entries.values()) {
       e.baseSprite.destroy();
-      e.ringBackSprite?.destroy();
-      e.ringFrontSprite?.destroy();
+      e.ringBackGfx?.destroy();
+      e.ringFrontGfx?.destroy();
       e.hitbox.destroy();
     }
     this.entries.clear();

@@ -469,6 +469,7 @@ export class GalaxyMapScene extends Phaser.Scene {
     }
 
     this.view3D?.setHQMarkers3D(markers);
+    this.view3D?.setHubLevel(state.stationHub?.level ?? 1);
   }
 
   private computeVizRect(L: ReturnType<typeof getLayout>): {
