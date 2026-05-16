@@ -18,14 +18,68 @@ interface SaveEnvelope {
   state: GameState;
 }
 
-function writeSave(key: string, state: GameState): void {
-  const envelope: SaveEnvelope = {
+/**
+ * Per-key throttle for the "save trimmed" warning so a state.changed-driven
+ * draft write doesn't spam the console once we tip over the quota.
+ */
+const trimWarnedKeys = new Set<string>();
+
+function buildEnvelope(state: GameState): SaveEnvelope {
+  return {
     version: SAVE_VERSION,
     timestamp: Date.now(),
     turn: state.turn,
     state,
   };
-  localStorage.setItem(key, JSON.stringify(envelope));
+}
+
+/** Latest N TurnResult entries kept when full state exceeds localStorage quota. */
+const TRIMMED_HISTORY_TAIL = 20;
+
+function writeSave(key: string, state: GameState): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(buildEnvelope(state)));
+    return;
+  } catch (err) {
+    if (!isQuotaError(err)) throw err;
+  }
+
+  // Quota hit — drop bulky tail data (most history beyond the last 20 turns
+  // is rarely consulted) and try again. Display stays correct because all UI
+  // panels look at the recent few entries.
+  const trimmedState: GameState = {
+    ...state,
+    history: state.history.slice(-TRIMMED_HISTORY_TAIL),
+  };
+  try {
+    localStorage.setItem(key, JSON.stringify(buildEnvelope(trimmedState)));
+    if (!trimWarnedKeys.has(key)) {
+      trimWarnedKeys.add(key);
+      console.warn(
+        `[SaveManager] ${key} exceeded localStorage quota — trimmed history to last ${TRIMMED_HISTORY_TAIL} turns.`,
+      );
+    }
+    return;
+  } catch (err) {
+    if (!isQuotaError(err)) throw err;
+  }
+
+  // Even trimmed state didn't fit — give up gracefully rather than crashing
+  // the game. The session continues in memory; on refresh the player will
+  // lose unsaved progress (but the game won't be unplayable).
+  console.warn(
+    `[SaveManager] ${key} could not be persisted (quota exceeded even after trimming). Save skipped.`,
+  );
+}
+
+function isQuotaError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  // Modern DOM uses "QuotaExceededError"; older Firefox used code 22.
+  return (
+    err.name === "QuotaExceededError" ||
+    err.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    /quota/i.test(err.message)
+  );
 }
 
 function readSave(key: string): GameState | null {
