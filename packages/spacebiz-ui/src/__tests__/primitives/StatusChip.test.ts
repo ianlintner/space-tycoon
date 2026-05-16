@@ -69,7 +69,8 @@ describe("StatusChip.setLabel", () => {
       label: "Ships",
       value: "8",
     });
-    chip.setLabel("Fleet");
+    const result = chip.setLabel("Fleet");
+    expect(result).toBe(chip);
     const internal = chip as unknown as {
       labelText: { text: string } | null;
     };

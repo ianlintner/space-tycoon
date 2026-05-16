@@ -113,7 +113,10 @@ export class StatusChip extends Phaser.GameObjects.Container {
   }
 
   setLabel(text: string): this {
-    this.labelText?.setText(text);
+    if (this.labelText) {
+      this.labelText.setText(text);
+      this.valueText.setX(CHIP_PADDING_X + this.labelText.width + CHIP_GAP);
+    }
     return this;
   }
 
@@ -125,6 +128,7 @@ export class StatusChip extends Phaser.GameObjects.Container {
   }
 
   setSize(width: number, height: number): this {
+    super.setSize(width, height);
     this.chipWidth = width;
     this.chipHeight = height;
     this.chipBg.setSize(width, height);
