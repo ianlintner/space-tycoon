@@ -11,7 +11,8 @@ import {
   ScrollFrame,
   Modal,
   ScrollableList,
-  Panel,
+  GlassPanel,
+  StatusChip,
   PortraitPanel,
   SceneUiDirector,
   createStarfield,
@@ -48,7 +49,9 @@ export class FleetScene extends Phaser.Scene {
   private fleetTable!: DataTable;
   private fleetTableFrame!: ScrollFrame;
   private portrait!: PortraitPanel;
-  private contentPanel!: Panel;
+  private contentPanel!: GlassPanel;
+  private fleetCountChip!: StatusChip;
+  private idleCountChip!: StatusChip;
   private buyShipButton!: Button;
   private sellShipButton!: Button;
   private overhaulButton!: Button;
@@ -76,7 +79,7 @@ export class FleetScene extends Phaser.Scene {
     this.portrait.clear();
 
     // Content panel
-    this.contentPanel = new Panel(this, {
+    this.contentPanel = new GlassPanel(this, {
       x: L.mainContentLeft,
       y: L.contentTop,
       width: L.mainContentWidth,
@@ -87,20 +90,43 @@ export class FleetScene extends Phaser.Scene {
     const absX = L.mainContentLeft + content.x;
     const absY = L.contentTop + content.y;
 
+    // Fleet summary chips
+    const fleet = gameStore.getState().fleet;
+    const idleCount = fleet.filter((s) => !s.assignedRouteId).length;
+    const chipH = 26;
+    const chipY = absY + chipH / 2;
+    this.fleetCountChip = new StatusChip(this, {
+      x: absX,
+      y: chipY,
+      width: 110,
+      height: chipH,
+      label: "Ships",
+      value: String(fleet.length),
+    });
+    this.idleCountChip = new StatusChip(this, {
+      x: absX + 118,
+      y: chipY,
+      width: 100,
+      height: chipH,
+      label: "Idle",
+      value: String(idleCount),
+      variant: idleCount > 0 ? "warn" : "default",
+    });
+
     // Cash is already shown in the HUD top bar — no inline duplicate here.
 
     // Fleet table
     this.fleetTableFrame = new ScrollFrame(this, {
       x: absX,
-      y: absY + 28,
+      y: absY + 36,
       width: content.width,
-      height: content.height - 80,
+      height: content.height - 88,
     });
     this.fleetTable = new DataTable(this, {
       x: 0,
       y: 0,
       width: content.width,
-      height: content.height - 80,
+      height: content.height - 88,
       contentSized: true,
       columns: [
         // 'name' and 'route' flex so they absorb extra width on wide displays.
@@ -248,9 +274,9 @@ export class FleetScene extends Phaser.Scene {
     const absY = L.contentTop + content.y;
 
     // ScrollFrame + DataTable.
-    this.fleetTableFrame.setPosition(absX, absY + 28);
-    this.fleetTableFrame.setSize(content.width, content.height - 80);
-    this.fleetTable.setSize(content.width, content.height - 80);
+    this.fleetTableFrame.setPosition(absX, absY + 36);
+    this.fleetTableFrame.setSize(content.width, content.height - 88);
+    this.fleetTable.setSize(content.width, content.height - 88);
 
     // Bottom buttons.
     const buttonY = absY + content.height - 40;
@@ -290,6 +316,12 @@ export class FleetScene extends Phaser.Scene {
     }));
 
     this.fleetTable.setRows(rows);
+
+    // Update fleet summary chips
+    const idleCount = state.fleet.filter((s) => !s.assignedRouteId).length;
+    this.fleetCountChip.setValue(String(state.fleet.length));
+    this.idleCountChip.setValue(String(idleCount));
+    this.idleCountChip.setVariant(idleCount > 0 ? "warn" : "default");
   }
 
   private showBuyShipPanel(): void {
@@ -309,7 +341,7 @@ export class FleetScene extends Phaser.Scene {
     const panelY = (L.gameHeight - panelH) / 2;
 
     const buyPanel = layer.track(
-      new Panel(this, {
+      new GlassPanel(this, {
         x: panelX,
         y: panelY,
         width: panelW,
