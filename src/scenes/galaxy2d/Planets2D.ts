@@ -63,9 +63,13 @@ function drawRingArc(
   const endAngle = isBack ? Math.PI * 2 : Math.PI;
   const SEGS = 32;
   const BANDS = 8;
+  // Inner band must start OUTSIDE the planet's visible disc, otherwise the
+  // back arc shows through the planet at its soft alpha edge. Planet disc
+  // radius = size/2; ring rx = size * 0.85, so inner-band scale needs to be
+  // > 0.5 / 0.85 ≈ 0.59 to clear the planet. We use 0.66 for a small margin.
   for (let band = 0; band < BANDS; band++) {
     const t = (band + 0.5) / BANDS;
-    const scale = 0.52 + t * 0.48; // inner 52% → outer 100%
+    const scale = 0.66 + t * 0.34; // inner 66% → outer 100%
     const edgeFade = Math.sin(t * Math.PI);
     gfx.lineStyle(1.5, hex, edgeFade * 0.82);
     gfx.beginPath();
@@ -130,20 +134,26 @@ export class Planets2D {
     for (const planet of planets) {
       const variation = derivePlanetVariation(planet);
 
+      // INSERTION ORDER MATTERS — Phaser.GameObjects.Container renders its
+      // children in the order they were added, ignoring per-object `depth`.
+      // Add the back ring first (so it sits behind the planet), then the
+      // planet sprite, then the front ring (so it draws over the planet).
+      let ringBackGfx: Phaser.GameObjects.Graphics | null = null;
+      let ringFrontGfx: Phaser.GameObjects.Graphics | null = null;
+      if (isRinged(planet.biome)) {
+        ringBackGfx = this.scene.add.graphics();
+        ringBackGfx.setDepth(PLANET_DEPTH - 5); // for any non-container readers
+        ringBackGfx.setVisible(false);
+        this.container.add(ringBackGfx);
+      }
+
       const baseSprite = this.scene.add.image(0, 0, `planet:${planet.biome}`);
       baseSprite.setDepth(PLANET_DEPTH);
       baseSprite.setVisible(false);
       baseSprite.setTint(variation.baseTint);
       this.container.add(baseSprite);
 
-      let ringBackGfx: Phaser.GameObjects.Graphics | null = null;
-      let ringFrontGfx: Phaser.GameObjects.Graphics | null = null;
       if (isRinged(planet.biome)) {
-        ringBackGfx = this.scene.add.graphics();
-        ringBackGfx.setDepth(PLANET_DEPTH - 5);
-        ringBackGfx.setVisible(false);
-        this.container.add(ringBackGfx);
-
         ringFrontGfx = this.scene.add.graphics();
         ringFrontGfx.setDepth(PLANET_DEPTH + 5);
         ringFrontGfx.setVisible(false);
