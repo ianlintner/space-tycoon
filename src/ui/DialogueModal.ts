@@ -707,6 +707,7 @@ class DialogueModalRenderer {
       delay: 20,
       repeat: text.length - 1,
       callback: () => {
+        if (this.resolved) return;
         this.bodyCharIndex++;
         this.bodyText?.setText(text.slice(0, this.bodyCharIndex));
         if (this.bodyCharIndex >= text.length) {
@@ -720,10 +721,14 @@ class DialogueModalRenderer {
     // independently of scene time.
     const safetyMs = Math.min(10_000, text.length * 20 + 2_000);
     this.safetyTimeoutId = window.setTimeout(() => {
-      if (!this.typewriterDone) {
-        this.bodyText?.setText(text);
-        this.revealAfterTypewriter();
+      this.safetyTimeoutId = null;
+      if (this.resolved || this.typewriterDone) return;
+      // bodyText may be destroyed if the scene shut down during the timeout
+      // window — guard with optional chaining + a scene-existence check.
+      if (this.bodyText?.scene) {
+        this.bodyText.setText(text);
       }
+      this.revealAfterTypewriter();
     }, safetyMs);
   }
 
@@ -736,7 +741,13 @@ class DialogueModalRenderer {
   }
 
   private revealAfterTypewriter(): void {
-    if (this.typewriterDone) return;
+    // Don't try to reveal anything if the modal has already been dismissed.
+    // Without this, the safety timeout (or a late typewriter tick) can fire
+    // after layer.destroy() and call setVisible(true) on already-destroyed
+    // Buttons — which re-arms their hitZone's input plugin entry while the
+    // underlying Rectangle is gone, producing the
+    // "input.hitAreaCallback is not a function" hit-test crash.
+    if (this.typewriterDone || this.resolved) return;
     this.typewriterDone = true;
     if (this.safetyTimeoutId !== null) {
       window.clearTimeout(this.safetyTimeoutId);

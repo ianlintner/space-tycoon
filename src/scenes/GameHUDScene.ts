@@ -354,16 +354,26 @@ export class GameHUDScene extends Phaser.Scene {
     this.ceoPortraitBorder.closePath();
     this.ceoPortraitBorder.strokePath();
 
-    // Update the portrait image once the texture loads
+    // Update the portrait image once the texture loads. We only need to skip
+    // if the image has been destroyed outright (scene shut down) — being
+    // non-`active` is OK and shouldn't block the texture swap.
     portraitLoadPromise
       .then((key) => {
-        if (portraitImg.active && this.textures.exists(key)) {
-          portraitImg.setTexture(key);
-          fitImageCover(portraitImg, portraitSize, portraitSize);
+        if (!portraitImg.scene) return; // image destroyed (scene shutdown)
+        if (!this.textures.exists(key)) {
+          console.warn(
+            `[GameHUDScene] CEO portrait "${key}" resolved but missing from TextureManager`,
+          );
+          return;
         }
+        portraitImg.setTexture(key);
+        fitImageCover(portraitImg, portraitSize, portraitSize);
       })
-      .catch(() => {
-        /* leave placeholder if load fails */
+      .catch((err) => {
+        console.warn(
+          `[GameHUDScene] CEO portrait load failed for "${state.ceoPortrait.portraitId}":`,
+          err,
+        );
       });
 
     // Company name (left-aligned, shifted right for portrait)
@@ -1049,6 +1059,39 @@ export class GameHUDScene extends Phaser.Scene {
    * re-entrant calls early-exit while a drain is already in progress.
    * Resolves when the queue is empty.
    */
+  /**
+   * Schedule the R&D chief intro modal. Retries on a 400ms cadence while any
+   * dialogue/communication modal is already open (or a dialogue drain is in
+   * flight) so the intro never layers on top of a dilemma or ambassador
+   * greeting. Bails after ~20 retries to avoid a runaway loop if a modal hangs.
+   */
+  private scheduleRdIntro(
+    chief: import("../game/adviser/RdChiefs.ts").RdChief,
+    attempt = 0,
+  ): void {
+    if (attempt > 20) return; // ~8s of waiting; give up rather than spam
+    const busy =
+      this.drainingDialogues ||
+      this.sceneUi.hasAnyLayer() ||
+      this.ambassadorGreetingShowing ||
+      this.rivalMessageShowing;
+    const delay = attempt === 0 ? 600 : 400;
+    this.time.delayedCall(delay, () => {
+      if (busy && this.sceneUi.hasAnyLayer()) {
+        this.scheduleRdIntro(chief, attempt + 1);
+        return;
+      }
+      // Re-check right before opening — another modal could have appeared
+      // during the delay window.
+      if (this.sceneUi.hasAnyLayer()) {
+        this.scheduleRdIntro(chief, attempt + 1);
+        return;
+      }
+      const adviser = new RdAdviser(this, this.sceneUi, chief);
+      adviser.introduce(() => this.switchContentScene("TechTreeScene"));
+    });
+  }
+
   private async maybeDrainDialogueQueue(): Promise<void> {
     if (this.drainingDialogues) return;
     const state = gameStore.getState();
@@ -1445,9 +1488,16 @@ export class GameHUDScene extends Phaser.Scene {
       gameStore.update({ phase: "planning" });
       audio.setMusicState("report");
       audio.sfx("ui_confirm");
-      // Drain queued dialogues — they appear as modals over the turn report.
-      void this.maybeDrainDialogueQueue();
+      // Dialogue drain is intentionally NOT triggered here. The player should
+      // get a clean turn-summary view first; queued dialogues (dilemmas, news)
+      // fire only after they leave the TurnReportScene (see below).
     } else {
+      // Player is leaving TurnReportScene for another planning scene — this
+      // is the "review complete" signal. Drain any pending turn-end dialogues
+      // (dilemmas, news beats) over the new content scene.
+      if (this.activeContentScene === "TurnReportScene") {
+        void this.maybeDrainDialogueQueue();
+      }
       audio.setMusicState("planning");
       switch (sceneName) {
         case "GalaxyMapScene":
@@ -2032,10 +2082,7 @@ export class GameHUDScene extends Phaser.Scene {
     if (newlyUnlocked.includes("research") && !state.adviser?.rdIntroComplete) {
       const chief = getRdChief(state.adviser?.rdChiefId ?? "");
       if (chief) {
-        this.time.delayedCall(600, () => {
-          const adviser = new RdAdviser(this, this.sceneUi, chief);
-          adviser.introduce(() => this.switchContentScene("TechTreeScene"));
-        });
+        this.scheduleRdIntro(chief);
       }
     }
 

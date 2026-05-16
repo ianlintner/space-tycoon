@@ -3,6 +3,7 @@ import type { GameState, TechState } from "../data/types.ts";
 import { EMPTY_DIPLOMACY_STATE } from "../data/types.ts";
 import { SAVE_VERSION } from "../data/constants.ts";
 import { initAdviserState } from "./adviser/AdviserEngine.ts";
+import { readItem, writeItem, removeItem } from "./storage/saveStorage.ts";
 
 const SAVE_KEY = "sft_save";
 const AUTOSAVE_KEY = "sft_autosave";
@@ -18,72 +19,19 @@ interface SaveEnvelope {
   state: GameState;
 }
 
-/**
- * Per-key throttle for the "save trimmed" warning so a state.changed-driven
- * draft write doesn't spam the console once we tip over the quota.
- */
-const trimWarnedKeys = new Set<string>();
-
-function buildEnvelope(state: GameState): SaveEnvelope {
-  return {
+function writeSave(key: string, state: GameState): void {
+  const envelope: SaveEnvelope = {
     version: SAVE_VERSION,
     timestamp: Date.now(),
     turn: state.turn,
     state,
   };
-}
-
-/** Latest N TurnResult entries kept when full state exceeds localStorage quota. */
-const TRIMMED_HISTORY_TAIL = 20;
-
-function writeSave(key: string, state: GameState): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(buildEnvelope(state)));
-    return;
-  } catch (err) {
-    if (!isQuotaError(err)) throw err;
-  }
-
-  // Quota hit — drop bulky tail data (most history beyond the last 20 turns
-  // is rarely consulted) and try again. Display stays correct because all UI
-  // panels look at the recent few entries.
-  const trimmedState: GameState = {
-    ...state,
-    history: state.history.slice(-TRIMMED_HISTORY_TAIL),
-  };
-  try {
-    localStorage.setItem(key, JSON.stringify(buildEnvelope(trimmedState)));
-    if (!trimWarnedKeys.has(key)) {
-      trimWarnedKeys.add(key);
-      console.warn(
-        `[SaveManager] ${key} exceeded localStorage quota — trimmed history to last ${TRIMMED_HISTORY_TAIL} turns.`,
-      );
-    }
-    return;
-  } catch (err) {
-    if (!isQuotaError(err)) throw err;
-  }
-
-  // Even trimmed state didn't fit — give up gracefully rather than crashing
-  // the game. The session continues in memory; on refresh the player will
-  // lose unsaved progress (but the game won't be unplayable).
-  console.warn(
-    `[SaveManager] ${key} could not be persisted (quota exceeded even after trimming). Save skipped.`,
-  );
-}
-
-function isQuotaError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  // Modern DOM uses "QuotaExceededError"; older Firefox used code 22.
-  return (
-    err.name === "QuotaExceededError" ||
-    err.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
-    /quota/i.test(err.message)
-  );
+  // Backed by IndexedDB (see saveStorage.ts) — GB-scale quota, no trimming.
+  writeItem(key, JSON.stringify(envelope));
 }
 
 function readSave(key: string): GameState | null {
-  const raw = localStorage.getItem(key);
+  const raw = readItem(key);
   if (raw === null) return null;
   try {
     const envelope = JSON.parse(raw) as SaveEnvelope;
@@ -165,7 +113,7 @@ export function hasSaveGame(): boolean {
 
 /** Remove the manual save from localStorage. */
 export function deleteSave(): void {
-  localStorage.removeItem(SAVE_KEY);
+  removeItem(SAVE_KEY);
 }
 
 /** Serialize state to localStorage under the auto-save key (called after each turn). */
@@ -181,7 +129,7 @@ export function loadAutoSave(): GameState | null {
 
 /** Remove the auto-save from localStorage. */
 export function deleteAutoSave(): void {
-  localStorage.removeItem(AUTOSAVE_KEY);
+  removeItem(AUTOSAVE_KEY);
 }
 
 /** Returns true when an auto-save envelope exists (and is parseable). */
@@ -198,7 +146,7 @@ export interface SaveMeta {
 }
 
 function readSaveMeta(key: string): SaveMeta | null {
-  const raw = localStorage.getItem(key);
+  const raw = readItem(key);
   if (raw === null) return null;
   try {
     const envelope = JSON.parse(raw) as SaveEnvelope;
@@ -271,7 +219,7 @@ export function loadDraftIntoStore(): boolean {
 
 /** Remove the draft slot (call after successful resume or new game). */
 export function deleteDraft(): void {
-  localStorage.removeItem(DRAFT_KEY);
+  removeItem(DRAFT_KEY);
 }
 
 /** Returns metadata for the draft, or null if none exists. */

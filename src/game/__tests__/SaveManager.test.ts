@@ -19,6 +19,11 @@ import { gameStore } from "../../data/GameStore.ts";
 import type { GameState } from "../../data/types.ts";
 import { initAdviserState } from "../adviser/AdviserEngine.ts";
 import { SAVE_VERSION } from "../../data/constants.ts";
+import {
+  __resetForTests as resetSaveStorage,
+  readItem,
+  writeItem,
+} from "../storage/saveStorage.ts";
 
 /** Minimal but complete GameState for testing purposes. */
 function createTestState(overrides: Partial<GameState> = {}): GameState {
@@ -115,6 +120,10 @@ beforeEach(() => {
   storage = {};
   vi.stubGlobal("localStorage", localStorageMock);
   vi.clearAllMocks();
+  // SaveManager now reads/writes through an in-memory cache (saveStorage.ts)
+  // backed by IndexedDB at runtime. Reset that cache between tests so state
+  // doesn't leak across cases.
+  resetSaveStorage();
 });
 
 // ---------------------------------------------------------------------------
@@ -200,8 +209,9 @@ describe("SaveManager", () => {
       const state = createTestState({ turn: 5 });
       saveGame(state);
 
-      const raw = storage["sft_save"];
-      const envelope = JSON.parse(raw);
+      const raw = readItem("sft_save");
+      expect(raw).not.toBeNull();
+      const envelope = JSON.parse(raw!);
 
       expect(envelope.version).toBe(SAVE_VERSION);
       expect(envelope.turn).toBe(5);
@@ -236,30 +246,36 @@ describe("SaveManager", () => {
   // -------------------------------------------------------------------------
   describe("loadGame with corrupted data", () => {
     it("returns null for invalid JSON", () => {
-      storage["sft_save"] = "not-json{{{";
+      writeItem("sft_save", "not-json{{{");
       expect(loadGame()).toBeNull();
     });
 
     it("throws on valid JSON but wrong structure (no version)", () => {
-      storage["sft_save"] = JSON.stringify({ foo: "bar" });
+      writeItem("sft_save", JSON.stringify({ foo: "bar" }));
       expect(() => loadGame()).toThrow(/Incompatible save/);
     });
 
     it("throws on missing version field (treated as version mismatch)", () => {
-      storage["sft_save"] = JSON.stringify({
-        timestamp: Date.now(),
-        turn: 1,
-        state: createTestState(),
-      });
+      writeItem(
+        "sft_save",
+        JSON.stringify({
+          timestamp: Date.now(),
+          turn: 1,
+          state: createTestState(),
+        }),
+      );
       expect(() => loadGame()).toThrow(/Incompatible save/);
     });
 
     it("throws on wrong version even when state is missing", () => {
-      storage["sft_save"] = JSON.stringify({
-        version: 1,
-        timestamp: Date.now(),
-        turn: 1,
-      });
+      writeItem(
+        "sft_save",
+        JSON.stringify({
+          version: 1,
+          timestamp: Date.now(),
+          turn: 1,
+        }),
+      );
       expect(() => loadGame()).toThrow(/Incompatible save/);
     });
 
@@ -272,12 +288,12 @@ describe("SaveManager", () => {
   // deleteSave
   // -------------------------------------------------------------------------
   describe("deleteSave", () => {
-    it("removes the save data from localStorage", () => {
+    it("removes the save data from storage", () => {
       saveGame(createTestState());
-      expect(storage["sft_save"]).toBeDefined();
+      expect(readItem("sft_save")).not.toBeNull();
 
       deleteSave();
-      expect(storage["sft_save"]).toBeUndefined();
+      expect(readItem("sft_save")).toBeNull();
     });
 
     it("is safe to call when no save exists", () => {
@@ -453,12 +469,15 @@ describe("SaveManager", () => {
       >;
       delete legacy.adviser;
       delete legacy.stationHub;
-      storage["sft_autosave"] = JSON.stringify({
-        version: SAVE_VERSION,
-        timestamp: Date.now(),
-        turn: legacy.turn,
-        state: legacy,
-      });
+      writeItem(
+        "sft_autosave",
+        JSON.stringify({
+          version: SAVE_VERSION,
+          timestamp: Date.now(),
+          turn: legacy.turn,
+          state: legacy,
+        }),
+      );
 
       expect(loadAutoSaveIntoStore()).toBe(true);
       const restored = gameStore.getState();
@@ -504,8 +523,8 @@ describe("SaveManager", () => {
     });
 
     it("returns null when the envelope is malformed", () => {
-      storage["sft_save"] = "not-json";
-      storage["sft_autosave"] = JSON.stringify({ wrong: "shape" });
+      writeItem("sft_save", "not-json");
+      writeItem("sft_autosave", JSON.stringify({ wrong: "shape" }));
 
       expect(getSaveMeta()).toBeNull();
       expect(getAutoSaveMeta()).toBeNull();
@@ -517,12 +536,15 @@ describe("SaveManager", () => {
   // -------------------------------------------------------------------------
   describe("save-version compatibility", () => {
     it("rejects saves older than current SAVE_VERSION with a friendly message", () => {
-      storage["sft_save"] = JSON.stringify({
-        version: SAVE_VERSION - 1,
-        timestamp: Date.now(),
-        turn: 1,
-        state: createTestState(),
-      });
+      writeItem(
+        "sft_save",
+        JSON.stringify({
+          version: SAVE_VERSION - 1,
+          timestamp: Date.now(),
+          turn: 1,
+          state: createTestState(),
+        }),
+      );
       expect(() => loadGame()).toThrow(/Incompatible save/);
     });
   });

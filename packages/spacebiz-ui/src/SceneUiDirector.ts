@@ -38,6 +38,20 @@ export class SceneUiDirector {
     return layer;
   }
 
+  /**
+   * Returns true if a layer with the given key is currently open. Use this to
+   * coordinate between independent modal-opening systems (e.g. block a flavor
+   * adviser intro from layering on top of a turn-end dialogue drain).
+   */
+  hasLayer(key: string): boolean {
+    return this.keyedLayers.has(key);
+  }
+
+  /** Returns true if any keyed or anonymous layer is currently open. */
+  hasAnyLayer(): boolean {
+    return this.keyedLayers.size > 0 || this.anonymousLayers.size > 0;
+  }
+
   closeAll(): void {
     const layers = [
       ...this.keyedLayers.values(),

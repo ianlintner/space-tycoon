@@ -5,6 +5,7 @@ import { createGameConfig, calculateGameSize } from "./game/config.ts";
 import { updateLayout } from "@spacebiz/ui";
 import { BootScene } from "./scenes/BootScene.ts";
 import { VideoBackdropScene } from "./scenes/VideoBackdropScene.ts";
+import { initSaveStorage } from "./game/storage/saveStorage.ts";
 import { MainMenuScene } from "./scenes/MainMenuScene.ts";
 import { GalaxySetupScene } from "./scenes/GalaxySetupScene.ts";
 import { GameHUDScene } from "./scenes/GameHUDScene.ts";
@@ -970,9 +971,15 @@ setupNavigation();
 setupSectionObserver();
 setupAccordions();
 updateFooterYear();
-mountGame();
-setupFullscreenControl();
-setupDraftSave();
+// Initialize save storage (IndexedDB + in-memory cache) before mounting the
+// game so MainMenuScene's hasSaveGame()/hasFreshDraft() reads see the
+// hydrated cache. BootScene's 2.5s minimum display gives this plenty of
+// headroom even on slow disks.
+void initSaveStorage().then(() => {
+  mountGame();
+  setupFullscreenControl();
+  setupDraftSave();
+});
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
