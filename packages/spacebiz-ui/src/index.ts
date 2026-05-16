@@ -26,6 +26,12 @@ export type { UiSoundHandler } from "./UiSound.ts";
 export { Panel } from "./Panel.ts";
 export type { PanelConfig } from "./Panel.ts";
 
+export { GlassPanel } from "./GlassPanel.ts";
+export type { GlassPanelConfig } from "./GlassPanel.ts";
+
+export { StatusChip } from "./StatusChip.ts";
+export type { StatusChipConfig, ChipVariant } from "./StatusChip.ts";
+
 export { Button } from "./Button.ts";
 export type { ButtonConfig } from "./Button.ts";
 
