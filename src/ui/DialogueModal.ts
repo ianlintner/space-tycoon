@@ -269,6 +269,7 @@ class DialogueModalRenderer {
   private bodyCharIndex = 0;
   private typewriterEvent: Phaser.Time.TimerEvent | null = null;
   private typewriterDone = false;
+  private safetyTimeoutId: number | null = null;
   private revealables: Phaser.GameObjects.GameObject[] = [];
   private skipZone?: Phaser.GameObjects.Rectangle;
   private resolved = false;
@@ -289,6 +290,10 @@ class DialogueModalRenderer {
     this.layer.onDestroy(() => {
       this.typewriterEvent?.remove(false);
       this.typewriterEvent = null;
+      if (this.safetyTimeoutId !== null) {
+        window.clearTimeout(this.safetyTimeoutId);
+        this.safetyTimeoutId = null;
+      }
       if (!this.resolved) {
         // Layer was destroyed externally (scene shutdown) — resolve with a
         // sentinel so awaiting callers don't hang forever.
@@ -689,12 +694,15 @@ class DialogueModalRenderer {
   }
 
   private startTypewriter(): void {
-    if (!this.bodyText) return;
-    const text = this.fullBodyText;
-    if (text.length === 0) {
+    // If the body text couldn't be created OR there's nothing to type, reveal
+    // the Continue button immediately so the modal can always be dismissed.
+    // (Previously a missing bodyText silently froze the modal — no Continue,
+    // no escape.)
+    if (!this.bodyText || this.fullBodyText.length === 0) {
       this.revealAfterTypewriter();
       return;
     }
+    const text = this.fullBodyText;
     this.typewriterEvent = this.scene.time.addEvent({
       delay: 20,
       repeat: text.length - 1,
@@ -706,6 +714,17 @@ class DialogueModalRenderer {
         }
       },
     });
+    // Wall-clock safety: if the scene's time clock is paused/scaled and the
+    // typewriter callback never runs, force-reveal Continue after a generous
+    // upper bound (20ms per char + 2s slack, capped at 10s). setTimeout runs
+    // independently of scene time.
+    const safetyMs = Math.min(10_000, text.length * 20 + 2_000);
+    this.safetyTimeoutId = window.setTimeout(() => {
+      if (!this.typewriterDone) {
+        this.bodyText?.setText(text);
+        this.revealAfterTypewriter();
+      }
+    }, safetyMs);
   }
 
   private skipTypewriter(): void {
@@ -717,7 +736,12 @@ class DialogueModalRenderer {
   }
 
   private revealAfterTypewriter(): void {
+    if (this.typewriterDone) return;
     this.typewriterDone = true;
+    if (this.safetyTimeoutId !== null) {
+      window.clearTimeout(this.safetyTimeoutId);
+      this.safetyTimeoutId = null;
+    }
     // Remove the click-to-skip zone so it no longer intercepts pointer
     // events destined for the choice card buttons (which live at DEPTH_MODAL+2,
     // below the skipZone's DEPTH_MODAL+4).

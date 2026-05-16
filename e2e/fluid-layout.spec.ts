@@ -75,22 +75,9 @@ const IN_GAME_SCENES: InGameSceneSpec[] = [
   { key: "DiplomacyScene" },
   { key: "GalaxyMapScene" },
   { key: "StationBuilderScene" },
-  {
-    key: "PlanetDetailScene",
-    dataScript: `(() => {
-      const state = window.__sft.state();
-      const planet = state.galaxy.planets[0];
-      return planet ? { planetId: planet.id } : {};
-    })()`,
-  },
-  {
-    key: "SystemMapScene",
-    dataScript: `(() => {
-      const state = window.__sft.state();
-      const system = state.galaxy.systems[0];
-      return system ? { systemId: system.id } : {};
-    })()`,
-  },
+  // PlanetDetailScene + SystemMapScene removed in the galaxy refactor — planet
+  // detail is now a panel on GalaxyMapScene, system view is a modal. No
+  // standalone scene to capture.
   {
     key: "AISandboxScene",
     dataScript: `({
@@ -292,35 +279,9 @@ test.describe("Fluid layout visual QA", () => {
     console.log(`✅ Fluid-layout pre-game screenshots saved → ${OUT_DIR}`);
   });
 
-  test("captures DilemmaScene at every HD resolution", async ({
-    page,
-    sft,
-  }) => {
-    test.setTimeout(240_000);
-
-    const gameContainer = await bootstrapStartedGame(page, sft);
-
-    for (const res of RESOLUTIONS) {
-      await page.setViewportSize({ width: res.width, height: res.height });
-      await settleResize(page);
-
-      // Synthesise a deterministic dilemma and open the modal.
-      await sft.actions.triggerDilemma();
-      await page.waitForTimeout(500);
-
-      const sceneNow = await sft.currentScene();
-      expect(
-        sceneNow.active.includes("DilemmaScene"),
-        `expected DilemmaScene active at ${res.label}`,
-      ).toBe(true);
-
-      await gameContainer.screenshot({
-        path: screenshotPath(res.label, "DilemmaScene"),
-      });
-    }
-
-    console.log(`✅ Fluid-layout DilemmaScene screenshots saved → ${OUT_DIR}`);
-  });
+  // DilemmaScene was unified into the in-scene DialogueModal layer in
+  // #337. There's no longer a standalone scene to assert "active" against;
+  // dilemmas open as a modal on top of GameHUDScene's active content scene.
 
   test("captures GameOverScene at every HD resolution", async ({
     page,
