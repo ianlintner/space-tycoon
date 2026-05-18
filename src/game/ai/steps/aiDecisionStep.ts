@@ -1,4 +1,4 @@
-import { CargoType, AIPersonality, ShipClass } from "../../../data/types.ts";
+import { CargoType, AIPersonality } from "../../../data/types.ts";
 import type {
   AICompany,
   GameState,
@@ -6,28 +6,29 @@ import type {
   ActiveRoute,
   Planet,
   MarketState,
+  RouteScope,
 } from "../../../data/types.ts";
 import {
-  SHIP_TEMPLATES,
-  AI_BUY_THRESHOLD_MULTIPLIER,
   AI_MAX_ROUTES,
-  AI_MAX_FLEET,
-  AI_MAX_PURCHASES_PER_TURN,
   AI_PERSONALITY_SLOTS,
   AI_SLOT_GROWTH_INTERVAL,
-  OVERHAUL_COST_RATIO,
-  OVERHAUL_RESTORE_CONDITION,
-  AI_OVERHAUL_CONDITION,
-  AI_MAX_SHIP_SPEND_RATIO,
+  ROUTE_OPENING_COST_BY_SCOPE,
+  BASE_FREIGHT_CAPACITY,
+  BASE_PASSENGER_CAPACITY,
 } from "../../../data/constants.ts";
 import {
   calculateDistance,
   calculateTripsPerTurn,
   calculateLicenseFee,
   hasDuplicateSystemPairCargo,
+  getRouteScope,
 } from "../../routes/RouteManager.ts";
 import { calculatePrice } from "../../economy/PriceCalculator.ts";
-import { calculateShipValue } from "../../fleet/FleetManager.ts";
+import { getCapacityCostForScope } from "../../fleet/CapacityManager.ts";
+import {
+  getTotalFreightCapacity,
+  getTotalPassengerCapacity,
+} from "../../tech/TechEffects.ts";
 import type { SeededRNG } from "../../../utils/SeededRNG.ts";
 
 // ---------------------------------------------------------------------------
@@ -44,6 +45,62 @@ export function getAISlotLimit(
   };
   const growth = Math.floor(turn / AI_SLOT_GROWTH_INTERVAL);
   return Math.min(config.baseSlots + growth, config.maxSlots);
+}
+
+// ---------------------------------------------------------------------------
+// Capacity helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the total freight capacity for an AI company.
+ * Uses tech state if available, otherwise falls back to base capacity.
+ */
+function getAIFreightCapacity(company: AICompany): number {
+  if (company.techState) {
+    return getTotalFreightCapacity(company.techState);
+  }
+  return BASE_FREIGHT_CAPACITY;
+}
+
+/**
+ * Get the total passenger capacity for an AI company.
+ * Uses tech state if available, otherwise falls back to base capacity.
+ */
+function getAIPassengerCapacity(company: AICompany): number {
+  if (company.techState) {
+    return getTotalPassengerCapacity(company.techState);
+  }
+  return BASE_PASSENGER_CAPACITY;
+}
+
+/**
+ * Compute freight capacity units currently consumed by the company's active routes.
+ */
+function getUsedFreightCapacity(
+  routes: ActiveRoute[],
+  state: GameState,
+): number {
+  return routes
+    .filter((r) => !r.paused && r.cargoType !== CargoType.Passengers)
+    .reduce((sum, r) => {
+      const scope = getRouteScope(r, state);
+      return sum + getCapacityCostForScope(scope);
+    }, 0);
+}
+
+/**
+ * Compute passenger capacity units currently consumed by the company's active routes.
+ */
+function getUsedPassengerCapacity(
+  routes: ActiveRoute[],
+  state: GameState,
+): number {
+  return routes
+    .filter((r) => !r.paused && r.cargoType === CargoType.Passengers)
+    .reduce((sum, r) => {
+      const scope = getRouteScope(r, state);
+      return sum + getCapacityCostForScope(scope);
+    }, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -65,102 +122,50 @@ export function makeAIDecisions(
   market: MarketState,
   rng: SeededRNG,
 ): DecisionResult {
-  let currentFleet = fleet;
   let currentRoutes = routes;
   let currentCash = cash;
 
-  // ── Overhaul worn-out ships before they break down ──
-  currentFleet = currentFleet.map((ship) => {
-    if (ship.condition >= AI_OVERHAUL_CONDITION) return ship;
-    const cost = ship.purchaseCost * OVERHAUL_COST_RATIO;
-    if (currentCash >= cost) {
-      currentCash -= cost;
-      return { ...ship, condition: OVERHAUL_RESTORE_CONDITION };
-    }
-    return ship;
-  });
+  // ── Abandon routes that no longer have capacity headroom ──
+  // (This can happen if tech is downgraded or routes were inherited from
+  //  a replaced bankrupt company with a smaller capacity pool.)
+  // We keep as many routes as our capacity allows, dropping lowest-profit first.
+  const totalFC = getAIFreightCapacity(company);
+  const totalPC = getAIPassengerCapacity(company);
 
-  // ── Abandon unprofitable routes ──
-  // Estimate per-route profit; drop routes that are losing money
-  currentRoutes = currentRoutes.filter((route) => {
-    if (!route.cargoType) return true; // keep even if no cargo assignment
-    const assignedShips = currentFleet.filter(
-      (s) => s.assignedRouteId === route.id,
-    );
-    if (assignedShips.length === 0) return true; // no ships to evaluate
-
-    let routeProfit = 0;
-    for (const ship of assignedShips) {
-      const trips = calculateTripsPerTurn(route.distance, ship.speed);
-      const destMarket = market.planetMarkets[route.destinationPlanetId];
-      if (!destMarket) continue;
-      const destEntry = destMarket[route.cargoType];
-      const price = calculatePrice(destEntry, route.cargoType);
-      const isPassengers = route.cargoType === CargoType.Passengers;
-      const capacity = isPassengers
-        ? ship.passengerCapacity
-        : ship.cargoCapacity;
-      const revenue = price * capacity * trips;
-      const fuelCost =
-        route.distance * 2 * ship.fuelEfficiency * market.fuelPrice * trips;
-      routeProfit += revenue - fuelCost;
-    }
-
-    if (routeProfit < 0) {
-      // Unassign ships from this route
-      currentFleet = currentFleet.map((s) =>
-        s.assignedRouteId === route.id ? { ...s, assignedRouteId: null } : s,
-      );
-      return false; // drop the route
-    }
-    return true;
-  });
-
-  // Find cheapest ship cost for buy threshold
-  const cheapestShipCost = Math.min(
-    ...Object.values(SHIP_TEMPLATES).map((t) => t.purchaseCost),
+  // Sort routes: keep higher-profit (longer-distance) ones — drop cheap ones first
+  const freightRoutes = currentRoutes.filter(
+    (r) => r.cargoType !== CargoType.Passengers,
+  );
+  const passengerRoutes = currentRoutes.filter(
+    (r) => r.cargoType === CargoType.Passengers,
   );
 
-  // ── Buy ships (may buy multiple per turn) ──
-  const buyThreshold = cheapestShipCost * AI_BUY_THRESHOLD_MULTIPLIER;
-  let purchasesMade = 0;
-
-  while (
-    currentCash > buyThreshold &&
-    purchasesMade < AI_MAX_PURCHASES_PER_TURN &&
-    currentFleet.filter((s) => !s.assignedRouteId).length < 2 &&
-    currentFleet.length < AI_MAX_FLEET
-  ) {
-    // Pick a ship class based on personality
-    const shipClass = pickShipClassForPersonality(
-      company.personality,
-      currentCash,
-      rng,
-    );
-    if (!shipClass) break;
-
-    const template = SHIP_TEMPLATES[shipClass];
-    if (template.purchaseCost > currentCash) break;
-
-    const newShip: Ship = {
-      id: `${company.id}-ship-${currentFleet.length}`,
-      name: template.name,
-      class: template.class,
-      cargoCapacity: template.cargoCapacity,
-      passengerCapacity: template.passengerCapacity,
-      speed: template.speed,
-      fuelEfficiency: template.fuelEfficiency,
-      reliability: template.baseReliability,
-      age: 0,
-      condition: 100,
-      purchaseCost: template.purchaseCost,
-      maintenanceCost: template.baseMaintenance,
-      assignedRouteId: null,
-    };
-    currentFleet = [...currentFleet, newShip];
-    currentCash -= template.purchaseCost;
-    purchasesMade++;
+  // Trim freight routes to capacity
+  let usedFC = 0;
+  const keptFreight: ActiveRoute[] = [];
+  for (const r of freightRoutes.sort((a, b) => b.distance - a.distance)) {
+    const scope = getRouteScope(r, state);
+    const cost = getCapacityCostForScope(scope);
+    if (usedFC + cost <= totalFC * 1.5) {
+      // Allow up to 150% for existing routes (only cap new additions strictly)
+      keptFreight.push(r);
+      usedFC += cost;
+    }
   }
+
+  // Trim passenger routes to capacity
+  let usedPC = 0;
+  const keptPassenger: ActiveRoute[] = [];
+  for (const r of passengerRoutes.sort((a, b) => b.distance - a.distance)) {
+    const scope = getRouteScope(r, state);
+    const cost = getCapacityCostForScope(scope);
+    if (usedPC + cost <= totalPC * 1.5) {
+      keptPassenger.push(r);
+      usedPC += cost;
+    }
+  }
+
+  currentRoutes = [...keptFreight, ...keptPassenger];
 
   // ── Open routes (may open multiple per turn) ──
   const aiSlotLimit = getAISlotLimit(company.personality, state.turn);
@@ -170,108 +175,22 @@ export function makeAIDecisions(
     currentRoutes.length < aiSlotLimit &&
     routeAttempts < maxRouteAttempts
   ) {
-    const newIdleShips = currentFleet.filter((s) => !s.assignedRouteId);
-    if (newIdleShips.length === 0) break;
-
     const routeResult = openAIRoute(
       company,
-      newIdleShips,
-      currentFleet,
       currentRoutes,
       state,
       market,
+      currentCash,
       rng,
     );
     if (!routeResult) break;
 
-    // Deduct license fee for the new route
-    const newRoute = routeResult.routes[routeResult.routes.length - 1];
-    const licenseFee = calculateLicenseFee(
-      newRoute.distance,
-      currentRoutes.length,
-    );
-    if (currentCash >= licenseFee) {
-      currentRoutes = routeResult.routes;
-      currentFleet = routeResult.fleet;
-      currentCash -= licenseFee;
-    } else {
-      break;
-    }
+    currentRoutes = routeResult.routes;
+    currentCash -= routeResult.openingCost;
     routeAttempts++;
   }
 
-  // ── Sell idle ships when cash is critically low ──
-  if (currentCash < 0) {
-    const idleToSell = currentFleet
-      .filter((s) => !s.assignedRouteId)
-      .sort((a, b) => calculateShipValue(b) - calculateShipValue(a));
-    for (const ship of idleToSell) {
-      if (currentCash >= 0) break;
-      const salePrice = calculateShipValue(ship);
-      currentFleet = currentFleet.filter((s) => s.id !== ship.id);
-      currentCash += salePrice;
-    }
-  }
-
-  return { fleet: currentFleet, routes: currentRoutes, cash: currentCash };
-}
-
-export function pickShipClassForPersonality(
-  personality: (typeof AIPersonality)[keyof typeof AIPersonality],
-  cash: number,
-  rng: SeededRNG,
-): ShipClass | null {
-  const affordable = (Object.keys(SHIP_TEMPLATES) as ShipClass[]).filter(
-    (sc) => SHIP_TEMPLATES[sc].purchaseCost <= cash,
-  );
-  if (affordable.length === 0) return null;
-
-  switch (personality) {
-    case AIPersonality.AggressiveExpander:
-      // Buy upper-mid range ship — aggressive but not reckless
-      affordable.sort(
-        (a, b) =>
-          SHIP_TEMPLATES[b].purchaseCost - SHIP_TEMPLATES[a].purchaseCost,
-      );
-      // Pick from upper third, not always the most expensive
-      return affordable[
-        Math.min(Math.floor(affordable.length / 3), affordable.length - 1)
-      ];
-
-    case AIPersonality.SteadyHauler: {
-      // Limit spend to AI_MAX_SHIP_SPEND_RATIO of current cash — avoid going broke on one ship
-      const maxSpend = cash * AI_MAX_SHIP_SPEND_RATIO;
-      const prudent = affordable.filter(
-        (sc) => SHIP_TEMPLATES[sc].purchaseCost <= maxSpend,
-      );
-      const pool = prudent.length > 0 ? prudent : affordable;
-      // Buy the highest-capacity cargo ship affordable within budget
-      pool.sort(
-        (a, b) =>
-          SHIP_TEMPLATES[b].cargoCapacity - SHIP_TEMPLATES[a].cargoCapacity,
-      );
-      return pool[0];
-    }
-
-    case AIPersonality.CherryPicker:
-      // Pick ships by efficiency ratio: (speed × cargoCapacity) / cost
-      // This balances speed with earning potential per credit spent
-      affordable.sort((a, b) => {
-        const ta = SHIP_TEMPLATES[a];
-        const tb = SHIP_TEMPLATES[b];
-        const effA =
-          (ta.speed * Math.max(ta.cargoCapacity, ta.passengerCapacity)) /
-          ta.purchaseCost;
-        const effB =
-          (tb.speed * Math.max(tb.cargoCapacity, tb.passengerCapacity)) /
-          tb.purchaseCost;
-        return effB - effA;
-      });
-      return affordable[0];
-
-    default:
-      return rng.pick(affordable);
-  }
+  return { fleet, routes: currentRoutes, cash: currentCash };
 }
 
 // ---------------------------------------------------------------------------
@@ -280,13 +199,12 @@ export function pickShipClassForPersonality(
 
 function openAIRoute(
   company: AICompany,
-  idleShips: Ship[],
-  currentFleet: Ship[],
   existingRoutes: ActiveRoute[],
   state: GameState,
   market: MarketState,
+  cash: number,
   rng: SeededRNG,
-): { routes: ActiveRoute[]; fleet: Ship[] } | null {
+): { routes: ActiveRoute[]; openingCost: number } | null {
   const planets = state.galaxy.planets;
   const systems = state.galaxy.systems;
   const empires = state.galaxy.empires;
@@ -326,6 +244,16 @@ function openAIRoute(
     return null;
   }
 
+  // Current capacity usage
+  const totalFC = getAIFreightCapacity(company);
+  const totalPC = getAIPassengerCapacity(company);
+  const usedFC = getUsedFreightCapacity(existingRoutes, state);
+  const usedPC = getUsedPassengerCapacity(existingRoutes, state);
+
+  // AI can go up to 120% capacity when opening new routes (slightly aggressive)
+  const maxFC = totalFC * 1.2;
+  const maxPC = totalPC * 1.2;
+
   // Score candidate routes
   const existingRouteKeys = new Set(
     existingRoutes.map((r) => `${r.originPlanetId}→${r.destinationPlanetId}`),
@@ -341,6 +269,8 @@ function openAIRoute(
     cargoType: (typeof CargoType)[keyof typeof CargoType];
     distance: number;
     profit: number;
+    scope: RouteScope;
+    openingCost: number;
   } | null = null;
 
   // Sample routes (don't evaluate all — too expensive for AI)
@@ -373,6 +303,21 @@ function openAIRoute(
       );
       if (distance < 1 || distance === -1) continue;
 
+      // Determine scope for this route pair
+      const tempRoute: ActiveRoute = {
+        id: "temp",
+        originPlanetId: origin.id,
+        destinationPlanetId: dest.id,
+        distance,
+        assignedShipIds: [],
+        cargoType: null,
+      };
+      const scope = getRouteScope(tempRoute, state);
+      const capacityCost = getCapacityCostForScope(scope);
+      const openingCost =
+        ROUTE_OPENING_COST_BY_SCOPE[scope] ??
+        calculateLicenseFee(distance, existingRoutes.length);
+
       // Find best cargo for this route
       for (const cargoType of cargoTypes) {
         // Per spec §5.1: each AI applies the slot rule against its own routes independently.
@@ -387,23 +332,27 @@ function openAIRoute(
         )
           continue;
 
-        const entry = destMarket[cargoType];
-        const price = calculatePrice(entry, cargoType);
         const isPassenger = cargoType === CargoType.Passengers;
 
-        // Find best idle ship for this cargo
-        const ship = idleShips.find((s) =>
-          isPassenger ? s.passengerCapacity > 0 : s.cargoCapacity > 0,
-        );
-        if (!ship) continue;
+        // Check capacity for this cargo type
+        if (isPassenger) {
+          if (usedPC + capacityCost > maxPC) continue;
+        } else {
+          if (usedFC + capacityCost > maxFC) continue;
+        }
 
-        const capacity = isPassenger
-          ? ship.passengerCapacity
-          : ship.cargoCapacity;
-        const trips = calculateTripsPerTurn(distance, ship.speed);
-        const revenue = trips * capacity * price;
-        const fuelCost =
-          trips * distance * 2 * ship.fuelEfficiency * market.fuelPrice;
+        // Check opening cost affordability
+        if (cash < openingCost) continue;
+
+        const entry = destMarket[cargoType];
+        const price = calculatePrice(entry, cargoType);
+
+        // Standardized capacity (matches TurnSimulator capacity-pool model)
+        const baseCapacity = isPassenger ? 60 : 80;
+        const baseSpeed = isPassenger ? 5 : 4;
+        const trips = calculateTripsPerTurn(distance, baseSpeed);
+        const revenue = trips * baseCapacity * price;
+        const fuelCost = capacityCost * 2 * market.fuelPrice * trips;
 
         // Estimate tariff
         const originSystem = systems.find((s) => s.id === origin.systemId);
@@ -423,47 +372,37 @@ function openAIRoute(
         const profit = revenue - fuelCost - tariff;
         if (profit > bestProfit) {
           bestProfit = profit;
-          bestRoute = { origin, dest, cargoType, distance, profit };
+          bestRoute = {
+            origin,
+            dest,
+            cargoType,
+            distance,
+            profit,
+            scope,
+            openingCost,
+          };
         }
       }
     }
   }
 
-  // Accept profitable routes always. When most ships are idle (desperate),
-  // also accept marginal routes that aren't deeply unprofitable — better
-  // than sitting idle earning nothing.
-  // CherryPickers are more selective — they require higher profit margins.
-  const totalShips = company.fleet.length;
-  const idleRatio = totalShips > 0 ? idleShips.length / totalShips : 0;
-  const desperate = idleRatio > 0.5;
+  // Accept profitable routes always. CherryPickers require higher profit margins.
   const isCherryPicker = company.personality === AIPersonality.CherryPicker;
-  const cherryMinProfit = isCherryPicker ? 200 : 0;
-  const profitFloor = desperate ? -500 : cherryMinProfit;
+  const profitFloor = isCherryPicker ? 200 : 0;
 
   if (!bestRoute || bestRoute.profit <= profitFloor) return null;
-
-  // Create the route and assign the best idle ship
-  const isPassenger = bestRoute.cargoType === CargoType.Passengers;
-  const bestShip = idleShips.find((s) =>
-    isPassenger ? s.passengerCapacity > 0 : s.cargoCapacity > 0,
-  );
-  if (!bestShip) return null;
 
   const newRoute: ActiveRoute = {
     id: `${company.id}-route-${existingRoutes.length}-${rng.nextInt(0, 9999)}`,
     originPlanetId: bestRoute.origin.id,
     destinationPlanetId: bestRoute.dest.id,
     distance: bestRoute.distance,
-    assignedShipIds: [bestShip.id],
+    assignedShipIds: [],
     cargoType: bestRoute.cargoType,
   };
 
-  const updatedFleet = currentFleet.map((s) =>
-    s.id === bestShip.id ? { ...s, assignedRouteId: newRoute.id } : s,
-  );
-
   return {
     routes: [...existingRoutes, newRoute],
-    fleet: updatedFleet,
+    openingCost: bestRoute.openingCost,
   };
 }

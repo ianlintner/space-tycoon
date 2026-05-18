@@ -1,20 +1,15 @@
-import { ShipClass } from "../../data/types.ts";
 import type {
   AICompany,
   Contract,
   GameState,
-  Ship,
   MarketState,
   AITurnSummary,
 } from "../../data/types.ts";
 import {
-  SHIP_TEMPLATES,
   AI_STARTING_CASH,
   AI_REPLACEMENT_DELAY,
   AI_REPLACEMENT_CASH_RATIO,
 } from "../../data/constants.ts";
-import { calculateShipValue } from "../fleet/FleetManager.ts";
-import { ageFleet, calculateMaintenanceCosts } from "../fleet/FleetManager.ts";
 import { AI_PERSONALITIES } from "../NewGameSetup.ts";
 import { createContext } from "@lexiconlang/core";
 import { megacorpName } from "@lexiconlang/scifi";
@@ -72,7 +67,7 @@ export function simulateAITurns(
         netProfit: 0,
         cashAtEnd: company.cash,
         routeCount: 0,
-        fleetSize: 0,
+        fleetSize: company.fleet.length,
         bankrupt: true,
       });
       return company;
@@ -84,15 +79,19 @@ export function simulateAITurns(
     // 2. Update saturation from AI deliveries
     marketState = applyAISaturation(marketState, routeResult.deliveries);
 
-    // 3. Maintenance (+ hub Security Office debuff for player's empire AI)
+    // 3. Hub Security Office debuff for player's empire AI
     const hubEmpireId = state.stationHub?.empireId;
     const aiInPlayerEmpire = hubEmpireId && company.empireId === hubEmpireId;
     const aiMaintenanceDebuff = aiInPlayerEmpire
       ? getAIMaintenanceDebuff(state.stationHub)
       : 0;
 
-    // Apply AI hub maintenance bonus
-    const rawMaintenance = calculateMaintenanceCosts(company.fleet);
+    // AI companies no longer have per-ship maintenance costs.
+    // Operating costs are accounted for per-route in simulateAIRoutes (via
+    // the capacity-pool model). A small flat upkeep scales with route count
+    // to represent administrative overhead, subject to hub debuff.
+    const routeCount = company.activeRoutes.filter((r) => !r.paused).length;
+    const rawMaintenance = routeCount * 500; // flat overhead per active route
     const hubAdjustedMaint = applyAIHubBonuses(
       0,
       0,
@@ -101,10 +100,7 @@ export function simulateAITurns(
     ).maintenance;
     const maintenanceCosts = hubAdjustedMaint * (1 + aiMaintenanceDebuff);
 
-    // 4. Age fleet
-    const agedFleet = ageFleet(company.fleet, rng);
-
-    // 5. Net profit (+ hub Security Office revenue debuff)
+    // 4. Net profit (+ hub Security Office revenue debuff)
     const aiRevenueDebuff = aiInPlayerEmpire
       ? getAIRevenueDebuff(state.stationHub)
       : 0;
@@ -116,27 +112,24 @@ export function simulateAITurns(
       maintenanceCosts;
     let newCash = company.cash + netProfit;
 
-    // 6. AI decisions (buy ships, open routes)
-    let updatedFleet = [...agedFleet];
+    // 5. AI decisions (open/abandon routes)
     let updatedRoutes = [...company.activeRoutes];
     const decisionResult = makeAIDecisions(
       company,
-      updatedFleet,
+      company.fleet, // fleet passed through unchanged
       updatedRoutes,
       newCash,
       state,
       marketState,
       rng,
     );
-    updatedFleet = decisionResult.fleet;
     updatedRoutes = decisionResult.routes;
     newCash = decisionResult.cash;
 
-    // 7. AI tech research (Wave 3)
+    // 6. AI tech research (Wave 3)
     let updatedCompanyWithTech = processAITech(
       {
         ...company,
-        fleet: updatedFleet,
         activeRoutes: updatedRoutes,
         cash: newCash,
       },
@@ -144,7 +137,7 @@ export function simulateAITurns(
       rng,
     );
 
-    // 8. AI contracts (Wave 3)
+    // 7. AI contracts (Wave 3)
     const contractResult = processAIContracts(
       updatedCompanyWithTech,
       { ...state, contracts: currentContracts },
@@ -169,10 +162,10 @@ export function simulateAITurns(
         ),
     );
 
-    // 9. AI hub upgrades (Wave 3)
+    // 8. AI hub upgrades (Wave 3)
     updatedCompanyWithTech = processAIHub(updatedCompanyWithTech, state);
 
-    // 9a. Storyteller-driven AI narrative beats (buff/debuff with optional headline)
+    // 8a. Storyteller-driven AI narrative beats (buff/debuff with optional headline)
     const narrative = applyAINarrativeEvents(
       updatedCompanyWithTech,
       state,
@@ -195,18 +188,12 @@ export function simulateAITurns(
       activeNarrativeEffects: narrative.activeNarrativeEffects,
     };
 
-    // 10. Check bankruptcy
-    const finalFleet = updatedCompanyWithTech.fleet;
-    const totalFleetValue = finalFleet.reduce(
-      (sum, s) => sum + calculateShipValue(s),
-      0,
-    );
-    const bankrupt = newCash < 0 && totalFleetValue < Math.abs(newCash);
+    // 9. Check bankruptcy — no ship value; bankruptcy is purely cash-based
+    const bankrupt = newCash < -10_000; // small negative grace buffer
 
     const updatedCompany: AICompany = {
       ...updatedCompanyWithTech,
       cash: Math.round(newCash * 100) / 100,
-      fleet: finalFleet,
       activeRoutes: bankrupt ? [] : updatedCompanyWithTech.activeRoutes,
       totalCargoDelivered: company.totalCargoDelivered + routeResult.totalCargo,
       bankrupt,
@@ -248,9 +235,9 @@ export function simulateAITurns(
 
 /**
  * After AI_REPLACEMENT_DELAY turns of bankruptcy, replace a bankrupt company
- * with a fresh newcomer. The new company gets a starter ship, reduced cash,
- * and a random personality — simulating a new entrant seizing the opportunity
- * left by the defunct company.
+ * with a fresh newcomer. The new company gets reduced cash and a random
+ * personality — simulating a new entrant seizing the opportunity left by
+ * the defunct company. No starter ship; capacity comes from the base pool.
  */
 function replaceBankruptCompanies(
   companies: AICompany[],
@@ -300,34 +287,14 @@ function replaceBankruptCompanies(
     );
     const empireId = sortedEmpires[0]?.[0] ?? company.empireId;
 
-    // Starter ship
-    const starterTemplate = SHIP_TEMPLATES[ShipClass.CargoShuttle];
-    const starterShip: Ship = {
-      id: `${company.id}-gen${(company.generation ?? 0) + 1}-ship-0`,
-      name: starterTemplate.name,
-      class: starterTemplate.class,
-      cargoCapacity: starterTemplate.cargoCapacity,
-      passengerCapacity: starterTemplate.passengerCapacity,
-      speed: starterTemplate.speed,
-      fuelEfficiency: starterTemplate.fuelEfficiency,
-      reliability: starterTemplate.baseReliability,
-      age: 0,
-      condition: 100,
-      purchaseCost: starterTemplate.purchaseCost,
-      maintenanceCost: starterTemplate.baseMaintenance,
-      assignedRouteId: null,
-    };
-
-    const startingCash =
-      AI_STARTING_CASH * AI_REPLACEMENT_CASH_RATIO -
-      starterTemplate.purchaseCost;
+    const startingCash = AI_STARTING_CASH * AI_REPLACEMENT_CASH_RATIO;
 
     const replacement: AICompany = {
       id: company.id, // reuse slot
       name,
       empireId,
       cash: startingCash,
-      fleet: [starterShip],
+      fleet: [], // no individual ships in capacity-pool model
       activeRoutes: [],
       reputation: 40, // slightly below average — they're newcomers
       totalCargoDelivered: 0,

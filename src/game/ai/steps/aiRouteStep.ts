@@ -6,9 +6,9 @@ import type {
   CargoType as CargoTypeT,
 } from "../../../data/types.ts";
 import {
-  BREAKDOWN_THRESHOLD,
   DISTANCE_PREMIUM_RATE,
   DISTANCE_PREMIUM_CAP,
+  CAPACITY_COST_BY_SCOPE,
 } from "../../../data/constants.ts";
 import {
   calculateTripsPerTurn,
@@ -22,7 +22,7 @@ import { isRouteGrounded } from "../../events/EventEngine.ts";
 import { applyAIHubBonuses } from "./aiHubStep.ts";
 
 // ---------------------------------------------------------------------------
-// Route simulation for one AI company
+// Route simulation for one AI company (capacity-pool model)
 // ---------------------------------------------------------------------------
 
 export interface AIRouteResult {
@@ -33,12 +33,22 @@ export interface AIRouteResult {
   deliveries: Map<string, Map<CargoTypeT, number>>;
 }
 
+/**
+ * Simulate all active routes for one AI company for one turn.
+ *
+ * Uses the same capacity-pool model as TurnSimulator (no per-ship simulation).
+ * Revenue is based on standardized base capacities (80 freight / 60 passenger)
+ * and scope demand multipliers, keeping AI and player on a single economy.
+ */
 export function simulateAIRoutes(
   company: AICompany,
   state: GameState,
   market: MarketState,
   rng: SeededRNG,
 ): AIRouteResult {
+  // rng is accepted for API compatibility (future breakdown checks, etc.)
+  void rng;
+
   let totalRevenue = 0;
   let totalFuelCost = 0;
   let totalTariffCost = 0;
@@ -48,6 +58,7 @@ export function simulateAIRoutes(
 
   for (const route of company.activeRoutes) {
     if (!route.cargoType) continue;
+    if (route.paused) continue;
 
     // Skip grounded routes (embargoes, blockades, border closures)
     const grounded = isRouteGrounded(
@@ -58,82 +69,66 @@ export function simulateAIRoutes(
     );
     if (grounded) continue;
 
-    for (const shipId of route.assignedShipIds) {
-      const ship = company.fleet.find((s) => s.id === shipId);
-      if (!ship) continue;
+    const scope = getRouteScope(route, state);
+    const isPassengers = route.cargoType === CargoType.Passengers;
 
-      // Breakdown check
-      if (
-        ship.condition < BREAKDOWN_THRESHOLD &&
-        rng.chance(1 - ship.condition / 100)
-      ) {
-        totalFuelCost +=
-          route.distance * 2 * ship.fuelEfficiency * market.fuelPrice;
-        continue;
+    // Standardized base capacity (matches TurnSimulator's capacity-pool model)
+    const baseCapacity = isPassengers ? 60 : 80;
+    const baseSpeed = isPassengers ? 5 : 4;
+    const trips = calculateTripsPerTurn(route.distance, baseSpeed);
+
+    const destMarket = market.planetMarkets[route.destinationPlanetId];
+    if (!destMarket) continue;
+
+    const destEntry = destMarket[route.cargoType];
+    const price = calculatePrice(destEntry, route.cargoType);
+
+    const moved = baseCapacity * trips;
+
+    // Apply the same scope-based revenue curve the player uses
+    const scopeMult = getScopeDemandMultiplier(route.cargoType, scope);
+    const distancePremium =
+      scope === RouteScope.System
+        ? 0
+        : Math.min(
+            DISTANCE_PREMIUM_CAP,
+            route.distance * DISTANCE_PREMIUM_RATE,
+          );
+    const revenueMultiplier = scopeMult * (1 + distancePremium);
+
+    let revenue = price * moved * revenueMultiplier;
+
+    // Fuel cost: scope-cost-based (matches TurnSimulator)
+    const scopeCost = CAPACITY_COST_BY_SCOPE[scope] ?? 1;
+    let fuelCost = scopeCost * 2 * market.fuelPrice * trips;
+
+    // Apply AI hub bonuses to route economics
+    const hubBonuses = applyAIHubBonuses(revenue, fuelCost, 0, company.aiHub);
+    revenue = hubBonuses.revenue;
+    fuelCost = hubBonuses.fuel;
+
+    // Tariff
+    const tariff = calculateTariff(
+      route,
+      revenue,
+      company.empireId,
+      state.galaxy.systems,
+      state.galaxy.empires,
+    );
+
+    totalRevenue += revenue;
+    totalFuelCost += fuelCost;
+    totalTariffCost += tariff;
+    totalCargo += moved;
+
+    // Track deliveries for saturation
+    if (moved > 0) {
+      if (!deliveries.has(route.destinationPlanetId)) {
+        deliveries.set(route.destinationPlanetId, new Map());
       }
-
-      const trips = calculateTripsPerTurn(route.distance, ship.speed);
-      const destMarket = market.planetMarkets[route.destinationPlanetId];
-      if (!destMarket) continue;
-
-      const destEntry = destMarket[route.cargoType];
-      const price = calculatePrice(destEntry, route.cargoType);
-
-      const isPassengers = route.cargoType === CargoType.Passengers;
-      const capacity = isPassengers
-        ? ship.passengerCapacity
-        : ship.cargoCapacity;
-
-      const moved = capacity * trips;
-
-      // Apply the same scope-based revenue curve the player uses, so AI and
-      // player operate on a single economy. Without this, AI silently kept
-      // earning `price × moved` while the player ate the scope multiplier —
-      // making AI ~2× stronger on system food and ~40% weaker on galactic
-      // luxury vs the player.
-      const scope = getRouteScope(route, state);
-      const scopeMult = getScopeDemandMultiplier(route.cargoType, scope);
-      const distancePremium =
-        scope === RouteScope.System
-          ? 0
-          : Math.min(
-              DISTANCE_PREMIUM_CAP,
-              route.distance * DISTANCE_PREMIUM_RATE,
-            );
-      const revenueMultiplier = scopeMult * (1 + distancePremium);
-
-      let revenue = price * moved * revenueMultiplier;
-      let fuelCost =
-        route.distance * 2 * ship.fuelEfficiency * market.fuelPrice * trips;
-
-      // Apply AI hub bonuses to route economics
-      const hubBonuses = applyAIHubBonuses(revenue, fuelCost, 0, company.aiHub);
-      revenue = hubBonuses.revenue;
-      fuelCost = hubBonuses.fuel;
-
-      // Tariff
-      const tariff = calculateTariff(
-        route,
-        revenue,
-        company.empireId,
-        state.galaxy.systems,
-        state.galaxy.empires,
-      );
-
-      totalRevenue += revenue;
-      totalFuelCost += fuelCost;
-      totalTariffCost += tariff;
-      totalCargo += moved;
-
-      // Track deliveries for saturation
-      if (moved > 0) {
-        if (!deliveries.has(route.destinationPlanetId)) {
-          deliveries.set(route.destinationPlanetId, new Map());
-        }
-        const planetMap = deliveries.get(route.destinationPlanetId)!;
-        const prev = planetMap.get(route.cargoType) ?? 0;
-        planetMap.set(route.cargoType, prev + moved);
-      }
+      const planetMap = deliveries.get(route.destinationPlanetId)!;
+      const prev = planetMap.get(route.cargoType) ?? 0;
+      planetMap.set(route.cargoType, prev + moved);
     }
   }
 
