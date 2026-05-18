@@ -8,8 +8,12 @@ import {
   getMaintenanceMultiplier,
   getFuelMultiplier,
   getRevenueMultiplier,
+  getFreightHullMark,
+  getPassengerHullMark,
+  getTotalFreightCapacity,
+  getTotalPassengerCapacity,
 } from "../TechEffects.ts";
-import type { GameState } from "../../../data/types.ts";
+import type { GameState, TechState } from "../../../data/types.ts";
 import { initAdviserState } from "../../adviser/AdviserEngine.ts";
 
 function createTestState(overrides: Partial<GameState> = {}): GameState {
@@ -203,5 +207,61 @@ describe("Tech Effects", () => {
   it("revenue multiplier defaults to 1.0", () => {
     const state = createTestState();
     expect(getRevenueMultiplier(state)).toBe(1);
+  });
+});
+
+describe("getFreightHullMark", () => {
+  it("returns 1 (Mk I) with no hull research", () => {
+    const tech: TechState = {
+      researchPoints: 0,
+      completedTechIds: [],
+      purchaseCount: {},
+      queue: [],
+      currentResearchId: null,
+      researchProgress: 0,
+    };
+    expect(getFreightHullMark(tech)).toBe(1);
+  });
+});
+
+describe("getPassengerHullMark", () => {
+  it("returns 1 with no research", () => {
+    const tech: TechState = {
+      researchPoints: 0,
+      completedTechIds: [],
+      purchaseCount: {},
+      queue: [],
+      currentResearchId: null,
+      researchProgress: 0,
+    };
+    expect(getPassengerHullMark(tech)).toBe(1);
+  });
+});
+
+describe("getTotalFreightCapacity", () => {
+  it("returns base (4) with no Logistics AI research", () => {
+    const tech: TechState = {
+      researchPoints: 0,
+      completedTechIds: [],
+      purchaseCount: {},
+      queue: [],
+      currentResearchId: null,
+      researchProgress: 0,
+    };
+    expect(getTotalFreightCapacity(tech)).toBe(4);
+  });
+});
+
+describe("getTotalPassengerCapacity", () => {
+  it("returns base (4) with no research", () => {
+    const tech: TechState = {
+      researchPoints: 0,
+      completedTechIds: [],
+      purchaseCount: {},
+      queue: [],
+      currentResearchId: null,
+      researchProgress: 0,
+    };
+    expect(getTotalPassengerCapacity(tech)).toBe(4);
   });
 });

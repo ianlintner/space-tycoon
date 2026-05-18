@@ -1,5 +1,9 @@
-import type { GameState, TechEffect } from "../../data/types.ts";
-import { TECH_TREE } from "../../data/constants.ts";
+import type { GameState, TechEffect, TechState } from "../../data/types.ts";
+import {
+  BASE_FREIGHT_CAPACITY,
+  BASE_PASSENGER_CAPACITY,
+  TECH_TREE,
+} from "../../data/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Tech Effect Queries
@@ -128,4 +132,67 @@ export function getAutoRepairPerTurn(state: GameState): number {
  */
 export function getIntraEmpireTripBonus(state: GameState): number {
   return getTechEffectTotal(state, "addTripsPerTurn");
+}
+
+// ---------------------------------------------------------------------------
+// Hull Mark & Capacity Queries (TechState-only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Helper to sum a specific effect type from TechState directly.
+ * Used internally by hull mark and capacity queries.
+ */
+function getTechEffectTotalFromState(
+  tech: TechState,
+  effectType: TechEffect["type"],
+): number {
+  let total = 0;
+  for (const [techId, count] of Object.entries(tech.purchaseCount)) {
+    const node = TECH_TREE.find((t) => t.id === techId);
+    if (!node) continue;
+    for (const effect of node.effects) {
+      if (effect.type === effectType) total += effect.value * count;
+    }
+  }
+  return total;
+}
+
+/**
+ * Freight hull mark: starts at 1 (Mk I). Each upgradeFreightHull tech adds 1.
+ * Clamped to 1–5.
+ */
+export function getFreightHullMark(tech: TechState): 1 | 2 | 3 | 4 | 5 {
+  const mark =
+    1 + Math.round(getTechEffectTotalFromState(tech, "upgradeFreightHull"));
+  return Math.min(5, Math.max(1, mark)) as 1 | 2 | 3 | 4 | 5;
+}
+
+/**
+ * Passenger hull mark: starts at 1 (Mk I). Each upgradePassengerHull tech adds 1.
+ * Clamped to 1–5.
+ */
+export function getPassengerHullMark(tech: TechState): 1 | 2 | 3 | 4 | 5 {
+  const mark =
+    1 + Math.round(getTechEffectTotalFromState(tech, "upgradePassengerHull"));
+  return Math.min(5, Math.max(1, mark)) as 1 | 2 | 3 | 4 | 5;
+}
+
+/**
+ * Total freight capacity = BASE_FREIGHT_CAPACITY + sum of addFreightCapacity effects.
+ */
+export function getTotalFreightCapacity(tech: TechState): number {
+  return (
+    BASE_FREIGHT_CAPACITY +
+    Math.round(getTechEffectTotalFromState(tech, "addFreightCapacity"))
+  );
+}
+
+/**
+ * Total passenger capacity = BASE_PASSENGER_CAPACITY + sum of addPassengerCapacity effects.
+ */
+export function getTotalPassengerCapacity(tech: TechState): number {
+  return (
+    BASE_PASSENGER_CAPACITY +
+    Math.round(getTechEffectTotalFromState(tech, "addPassengerCapacity"))
+  );
 }
