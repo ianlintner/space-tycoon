@@ -507,6 +507,7 @@ export const TechBranch = {
   Engineering: "engineering",
   Intelligence: "intelligence",
   Crisis: "crisis",
+  Fleet: "fleet",
 } as const;
 export type TechBranch = (typeof TechBranch)[keyof typeof TechBranch];
 
