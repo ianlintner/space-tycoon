@@ -11,7 +11,6 @@ import {
   addCargoLock,
   canOpenRoute,
   getRouteScope,
-  REFERENCE_SHIP,
 } from "../game/routes/RouteManager.ts";
 import {
   getFreightHullMark,
@@ -42,16 +41,13 @@ import {
   getInitialCargoIndex as computeInitialCargoIndex,
 } from "./routeBuilderHelpers.ts";
 
-type FieldKey = "origin" | "destination" | "cargo" | "ship" | "autoBuy";
+type FieldKey = "origin" | "destination" | "cargo";
 
 export interface RouteBuilderResult {
   routeId: string;
   originPlanetId: string;
   destinationPlanetId: string;
   cargoType: CargoTypeValue;
-  assignedShipId: string | null;
-  assignedShipName: string | null;
-  autoBoughtShipName: string | null;
 }
 
 export interface RouteBuilderOptions {
@@ -62,20 +58,8 @@ export interface RouteBuilderOptions {
   initialDestinationPlanetId?: string;
   initialCargoType?: CargoTypeValue;
   lockOrigin?: boolean;
-  allowAutoBuy?: boolean;
   onComplete?: (result: RouteBuilderResult) => void;
   onCancel?: () => void;
-}
-
-interface PreviewShip {
-  id: string | null;
-  name: string;
-  cargoCapacity: number;
-  passengerCapacity: number;
-  speed: number;
-  fuelEfficiency: number;
-  purchaseCost?: number;
-  isPurchasedPreview?: boolean;
 }
 
 export function openRouteBuilder(
@@ -123,16 +107,12 @@ export class RouteBuilderPanel {
   private originIndex: number;
   private destinationIndex: number;
   private cargoIndex: number;
-  private shipOptionIndex = 0;
   private focusedFieldIndex = 0;
-  private autoBuy: boolean;
   private panel!: Panel;
   private titleValue!: Label;
   private originValue!: Label;
   private destinationValue!: Label;
   private cargoValue!: Label;
-  private shipValue!: Label;
-  private autoBuyButton!: Button;
   private distanceValue!: Label;
   private recommendationValue!: Label;
   private revenueValue!: Label;
@@ -164,7 +144,6 @@ export class RouteBuilderPanel {
     this.planets = [...gameStore.getState().galaxy.planets].sort((a, b) =>
       a.name.localeCompare(b.name),
     );
-    this.autoBuy = options.allowAutoBuy ?? true;
 
     const L = getLayout();
     // Fit comfortably within the viewport with room for the HUD bars.
@@ -189,9 +168,11 @@ export class RouteBuilderPanel {
       options.initialOriginPlanetId && options.initialDestinationPlanetId
     );
 
+    // Only keyboard-navigable fields go here. Cargo is auto-selected, not
+    // arrow-editable, so it doesn't appear in the focus cycle.
     this.fieldOrder = options.lockOrigin
-      ? ["destination", "ship", "autoBuy"]
-      : ["origin", "destination", "ship", "autoBuy"];
+      ? ["destination"]
+      : ["origin", "destination"];
 
     this.panel = new Panel(scene, {
       x: this.panelX,
@@ -241,15 +222,12 @@ export class RouteBuilderPanel {
     this.createFieldRow("destination", "Destination", rowY, true);
     rowY += 38;
     this.createFieldRow("cargo", "Cargo", rowY, false);
-    rowY += 38;
-    this.createFieldRow("ship", "Ship", rowY, true);
     rowY += 48;
 
     // Wire field value labels to named properties for refreshUi()
     this.originValue = this.fieldValues.get("origin")!;
     this.destinationValue = this.fieldValues.get("destination")!;
     this.cargoValue = this.fieldValues.get("cargo")!;
-    this.shipValue = this.fieldValues.get("ship")!;
 
     // Cargo icon placed just before the cargo value text
     const cargoRow = this.cargoValue;
@@ -261,20 +239,6 @@ export class RouteBuilderPanel {
       .setDepth(DEPTH_MODAL)
       .setScale(0.75);
     layer.track(this.cargoIcon);
-
-    this.autoBuyButton = new Button(scene, {
-      x: this.panelX + content.x,
-      y: this.panelY + rowY,
-      width: 260,
-      label: "",
-      onClick: () => {
-        this.toggleAutoBuy();
-      },
-    });
-    this.autoBuyButton.setDepth(DEPTH_MODAL);
-    layer.track(this.autoBuyButton);
-
-    rowY += 38;
 
     this.distanceValue = this.createSummaryLabel(content.x, rowY);
     rowY += 20;
@@ -414,13 +378,12 @@ export class RouteBuilderPanel {
 
     place(this.titleValue, content.y);
 
-    // Field rows (origin/destination/cargo/ship). The rowY sequence below
-    // mirrors the constructor's `rowY` accumulator exactly.
+    // Field rows (origin/destination/cargo). The rowY sequence below mirrors
+    // the constructor's `rowY` accumulator exactly.
     const rowOffsets: Array<{ field: FieldKey; rowY: number }> = [
       { field: "origin", rowY: content.y + 44 },
       { field: "destination", rowY: content.y + 44 + 38 },
       { field: "cargo", rowY: content.y + 44 + 38 * 2 },
-      { field: "ship", rowY: content.y + 44 + 38 * 3 },
     ];
     const contentX = 16;
     for (const { field, rowY } of rowOffsets) {
@@ -447,10 +410,8 @@ export class RouteBuilderPanel {
       this.cargoIcon.setPosition(cargoRow.x - 22, cargoRow.y + 8);
     }
 
-    // Auto-buy / preview column (left).
-    let rowY = content.y + 44 + 38 * 3 + 48; // ship row + 48 spacer
-    place(this.autoBuyButton, rowY);
-    rowY += 38;
+    // Preview column (left). Starts below the cargo row with a 48px spacer.
+    let rowY = content.y + 44 + 38 * 2 + 48;
     place(this.distanceValue, rowY);
     rowY += 20;
     place(this.recommendationValue, rowY);
@@ -604,32 +565,6 @@ export class RouteBuilderPanel {
     return getCargoAtIndex(this.cargoIndex);
   }
 
-  private getAvailableShips(): Array<{ id: string; name: string }> {
-    // Ships removed in the capacity redesign.
-    return [];
-  }
-
-  private getShipSelectionOptions(): Array<{
-    id: string | null;
-    label: string;
-  }> {
-    const options: Array<{ id: string | null; label: string }> = [
-      { id: null, label: "Auto Select" },
-    ];
-    for (const ship of this.getAvailableShips()) {
-      options.push({ id: ship.id, label: ship.name });
-    }
-    return options;
-  }
-
-  private getSelectedShipId(): string | null {
-    const options = this.getShipSelectionOptions();
-    if (this.shipOptionIndex >= options.length) {
-      this.shipOptionIndex = 0;
-    }
-    return options[this.shipOptionIndex]?.id ?? null;
-  }
-
   private autoSelectBestCargo(): void {
     const origin = this.getSelectedOrigin();
     const destination = this.getSelectedDestination();
@@ -693,15 +628,6 @@ export class RouteBuilderPanel {
       const nextIndex = this.findNextDestinationIndex(delta);
       this.destinationIndex = nextIndex;
       this.autoSelectBestCargo();
-    } else if (field === "ship") {
-      const shipOptions = this.getShipSelectionOptions();
-      this.shipOptionIndex = wrapIndex(
-        this.shipOptionIndex + delta,
-        shipOptions.length,
-      );
-    } else if (field === "autoBuy") {
-      this.toggleAutoBuy();
-      return;
     }
 
     this.refreshUi();
@@ -720,11 +646,6 @@ export class RouteBuilderPanel {
     return nextIndex;
   }
 
-  private toggleAutoBuy(): void {
-    this.autoBuy = !this.autoBuy;
-    this.refreshUi();
-  }
-
   private moveFocus(delta: number): void {
     this.focusedFieldIndex = wrapIndex(
       this.focusedFieldIndex + delta,
@@ -738,8 +659,6 @@ export class RouteBuilderPanel {
     const origin = this.getSelectedOrigin();
     const destination = this.getSelectedDestination();
     const cargo = this.getSelectedCargo();
-    const shipOptions = this.getShipSelectionOptions();
-    const shipLabel = shipOptions[this.shipOptionIndex]?.label ?? "Auto Select";
 
     this.originValue.setText(origin?.name ?? "—");
     this.destinationValue.setText(destination?.name ?? "—");
@@ -747,10 +666,6 @@ export class RouteBuilderPanel {
     this.cargoIcon
       .setTexture(getCargoIconKey(cargo))
       .setTint(getCargoColor(cargo));
-    this.shipValue.setText(shipLabel);
-    this.autoBuyButton.setLabel(
-      `Auto-buy if needed: ${this.autoBuy ? "ON" : "OFF"}`,
-    );
     this.titleValue.setText(
       origin && destination
         ? `${origin.name} → ${destination.name}`
@@ -860,7 +775,6 @@ export class RouteBuilderPanel {
 
   private buildPreview(): {
     distanceLabel: string;
-    shipLabel: string;
     statusLabel: string;
     revenueLabel: string;
     fuelLabel: string;
@@ -875,7 +789,6 @@ export class RouteBuilderPanel {
     if (!origin || !destination || origin.id === destination.id) {
       return {
         distanceLabel: "Select origin and destination",
-        shipLabel: "",
         statusLabel: "",
         revenueLabel: "—",
         fuelLabel: "—",
@@ -901,7 +814,6 @@ export class RouteBuilderPanel {
       );
       return {
         distanceLabel: `${distance.toFixed(1)} units`,
-        shipLabel: "—",
         statusLabel: `\u26A0 ${validationError}`,
         revenueLabel: "—",
         fuelLabel: "—",
@@ -937,21 +849,6 @@ export class RouteBuilderPanel {
       state.hyperlanes,
       state.borderPorts,
     );
-    const previewShip = this.getPreviewShip(cargo);
-
-    if (!previewShip) {
-      return {
-        distanceLabel: `${distance.toFixed(1)} units${tariffNote}`,
-        shipLabel: "",
-        statusLabel: this.autoBuy
-          ? "No ship available — assign later"
-          : "No ship — assign later",
-        revenueLabel: "—",
-        fuelLabel: "—",
-        profitLabel: "—",
-        profitValue: null,
-      };
-    }
 
     const routePreview = createRoute(
       origin.id,
@@ -965,16 +862,7 @@ export class RouteBuilderPanel {
 
     return {
       distanceLabel: `${distance.toFixed(1)} units${tariffNote}`,
-      shipLabel: previewShip.isPurchasedPreview
-        ? `${previewShip.name} (auto-buy ${formatCash(previewShip.purchaseCost ?? 0)})`
-        : previewShip.id == null
-          ? previewShip.name
-          : `${previewShip.name}`,
-      statusLabel: previewShip.isPurchasedPreview
-        ? "Ship will be purchased on confirm"
-        : previewShip.id == null
-          ? "Ship auto-assigned when available"
-          : "Ship assigned on create",
+      statusLabel: "",
       revenueLabel: formatCash(revenue),
       fuelLabel: formatCash(fuel),
       profitLabel: formatCash(profit),
@@ -1025,23 +913,6 @@ export class RouteBuilderPanel {
       ? `★ Adviser: ${bestLabel} selected — highest margin for this route`
       : `★ Adviser: ${bestLabel} has better margins for this route`;
     return { text, isOnBest };
-  }
-
-  private getPreviewShip(_cargoType: CargoTypeValue): PreviewShip | null {
-    const state = gameStore.getState();
-    const selectedShipId = this.getSelectedShipId();
-
-    // Ships removed; preview is always the reference-vessel placeholder.
-    void selectedShipId;
-    void state;
-    return {
-      id: null,
-      name: "Capacity",
-      cargoCapacity: REFERENCE_SHIP.cargoCapacity,
-      passengerCapacity: REFERENCE_SHIP.passengerCapacity,
-      speed: REFERENCE_SHIP.speed,
-      fuelEfficiency: REFERENCE_SHIP.fuelEfficiency,
-    };
   }
 
   private confirm(): void {
@@ -1202,9 +1073,6 @@ export class RouteBuilderPanel {
       originPlanetId: origin.id,
       destinationPlanetId: destination.id,
       cargoType: cargo,
-      assignedShipId: null,
-      assignedShipName: null,
-      autoBoughtShipName: null,
     });
 
     this.layer.destroy();
@@ -1236,12 +1104,6 @@ export class RouteBuilderPanel {
       case "KeyD":
         this.changeField(this.fieldOrder[this.focusedFieldIndex], 1);
         event.preventDefault();
-        break;
-      case "Space":
-        if (this.fieldOrder[this.focusedFieldIndex] === "autoBuy") {
-          this.toggleAutoBuy();
-          event.preventDefault();
-        }
         break;
       case "Enter":
         this.confirm();

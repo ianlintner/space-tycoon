@@ -1213,22 +1213,21 @@ export class GameHUDScene extends Phaser.Scene {
 
   /**
    * Enable/disable HUD nav inputs while a required dialogue is on screen.
-   * Best-effort: scenes/widgets that don't expose disable hooks will just
-   * keep their listeners — the dialogue's modal scrim already blocks pointer
-   * events from reaching them.
+   *
+   * Previously called `tabStrip.setInteractive(enabled)` to toggle. That's a
+   * subtle Phaser footgun: `Container.setInteractive(hitArea, hitAreaCallback)`
+   * treats the first arg as the hit area, so `setInteractive(false)` produces
+   * an interactive entry with `hitArea: false, hitAreaCallback: undefined`.
+   * The next pointer move crashes inside Phaser's hit-test loop with
+   * "input.hitAreaCallback is not a function", which kills the input update —
+   * and any modal opened during the drain (the dilemma choice cards) becomes
+   * silently unclickable. The dialogue's modal scrim already blocks pointer
+   * events from reaching the nav, so this hook is a no-op until we add an
+   * explicit dim/disable pass.
    */
-  private setNavInteractive(enabled: boolean): void {
-    if (this.tabStrip && "setInteractive" in this.tabStrip) {
-      const ts = this.tabStrip as unknown as {
-        setInteractive(v: boolean): void;
-      };
-      try {
-        ts.setInteractive(enabled);
-      } catch {
-        // Not all tab strip implementations expose this — ignore.
-      }
-    }
-    // Future: also dim/disable nav sidebar buttons here.
+  private setNavInteractive(_enabled: boolean): void {
+    // Intentionally empty. See comment above.
+    // TODO: dim/disable nav sidebar buttons during dialogue drains.
   }
 
   /**
