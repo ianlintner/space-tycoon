@@ -4,6 +4,7 @@ import type {
   GameState,
   MarketState,
   CargoType as CargoTypeT,
+  TechState,
 } from "../../../data/types.ts";
 import {
   DISTANCE_PREMIUM_RATE,
@@ -20,6 +21,20 @@ import { calculateTariff } from "../../routes/TariffCalculator.ts";
 import type { SeededRNG } from "../../../utils/SeededRNG.ts";
 import { isRouteGrounded } from "../../events/EventEngine.ts";
 import { applyAIHubBonuses } from "./aiHubStep.ts";
+import { computeRouteOperatingCost } from "../../fleet/CapacityManager.ts";
+import {
+  getFreightHullMark,
+  getPassengerHullMark,
+} from "../../tech/TechEffects.ts";
+
+const DEFAULT_TECH_STATE: TechState = {
+  purchaseCount: {},
+  completedTechIds: [],
+  queue: [],
+  researchPoints: 0,
+  currentResearchId: null,
+  researchProgress: 0,
+};
 
 // ---------------------------------------------------------------------------
 // Route simulation for one AI company (capacity-pool model)
@@ -106,6 +121,14 @@ export function simulateAIRoutes(
     const hubBonuses = applyAIHubBonuses(revenue, fuelCost, 0, company.aiHub);
     revenue = hubBonuses.revenue;
     fuelCost = hubBonuses.fuel;
+
+    // Per-turn operating cost (spec §5): 3000 × distanceBand × hullEfficiencyMultiplier
+    const techState = company.techState ?? DEFAULT_TECH_STATE;
+    const hullMark = isPassengers
+      ? getPassengerHullMark(techState)
+      : getFreightHullMark(techState);
+    const operatingCost = computeRouteOperatingCost(scope, hullMark);
+    fuelCost += operatingCost;
 
     // Tariff
     const tariff = calculateTariff(
