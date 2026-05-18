@@ -1,11 +1,16 @@
-import { describe, it, expect, vi } from "vitest";
-// TechQueuePanel requires Phaser which isn't available in Node test env.
-// Test the exported constants and the pure callback contract via the
-// test-helper methods (triggerRemove / triggerReorder) that are exposed
-// without instantiating Phaser.  The Phaser-render path is verified
-// visually / by the smoke tests in TechGraphCanvas.test.ts.
+import { describe, it, expect, vi, afterEach } from "vitest";
+import * as Phaser from "phaser";
+import { mountComponent } from "../../../../packages/spacebiz-ui/src/__tests__/_harness/index.ts";
+import type { MountedComponent } from "../../../../packages/spacebiz-ui/src/__tests__/_harness/index.ts";
+import {
+  TechQueuePanel,
+  SLOT_HEIGHT,
+  SLOT_GAP,
+  HEADER_HEIGHT,
+} from "../TechQueuePanel.ts";
+import type { TechQueuePanelConfig } from "../TechQueuePanel.ts";
 
-import { SLOT_HEIGHT, SLOT_GAP, HEADER_HEIGHT } from "../TechQueuePanel.ts";
+// ─── Layout constant sanity checks ────────────────────────────────────────────
 
 describe("TechQueuePanel layout constants", () => {
   it("SLOT_HEIGHT is 44", () => {
@@ -27,30 +32,76 @@ describe("TechQueuePanel layout constants", () => {
   });
 });
 
-describe("TechQueuePanel callback contract", () => {
-  it("invokes onRemove with the correct index", () => {
+// ─── Behavioral tests via mountComponent harness ──────────────────────────────
+
+describe("TechQueuePanel (headless Phaser)", () => {
+  let mounted: MountedComponent<TechQueuePanel> | undefined;
+
+  afterEach(() => {
+    mounted?.destroy();
+    mounted = undefined;
+  });
+
+  function makePanel(
+    scene: Phaser.Scene,
+    overrides: Partial<TechQueuePanelConfig> = {},
+  ): TechQueuePanel {
+    return new TechQueuePanel(scene, {
+      x: 0,
+      y: 0,
+      width: 200,
+      visibleSlots: 4,
+      onRemove: () => {},
+      onReorder: () => {},
+      ...overrides,
+    });
+  }
+
+  // Behavior 1: empty queue → getSlotCount() === 0
+  it("getSlotCount returns 0 for an empty queue", async () => {
+    mounted = await mountComponent((scene) => makePanel(scene));
+    const panel = mounted.component;
+    panel.setQueueState({ queue: [], researchPoints: 0, purchaseCount: {} });
+    expect(panel.getSlotCount()).toBe(0);
+  }, 15000);
+
+  // Behavior 2: two-item queue → getSlotCount() === 2
+  it("getSlotCount returns 2 for a two-item queue", async () => {
+    mounted = await mountComponent((scene) => makePanel(scene));
+    const panel = mounted.component;
+    panel.setQueueState({
+      queue: ["logistics_hub", "logistics_2a"],
+      researchPoints: 0,
+      purchaseCount: {},
+    });
+    expect(panel.getSlotCount()).toBe(2);
+  }, 15000);
+
+  // Behavior 3: triggerRemove calls onRemove with the correct index
+  it("triggerRemove calls onRemove with the supplied index", async () => {
     const onRemove = vi.fn();
-    const onReorder = vi.fn();
-    // Simulate what triggerRemove does internally
-    onRemove(1);
+    mounted = await mountComponent((scene) => makePanel(scene, { onRemove }));
+    const panel = mounted.component;
+    panel.setQueueState({
+      queue: ["logistics_hub", "logistics_2a"],
+      researchPoints: 0,
+      purchaseCount: {},
+    });
+    panel.triggerRemove(1);
     expect(onRemove).toHaveBeenCalledWith(1);
-    expect(onReorder).not.toHaveBeenCalled();
-  });
+  }, 15000);
 
-  it("invokes onReorder with fromIdx and toIdx", () => {
+  // Behavior 4: triggerReorder calls onReorder with (fromIdx, toIdx)
+  it("triggerReorder calls onReorder with (fromIdx, toIdx)", async () => {
     const onReorder = vi.fn();
-    // Simulate what triggerReorder does internally
-    onReorder(2, 1);
+    mounted = await mountComponent((scene) => makePanel(scene, { onReorder }));
+    const panel = mounted.component;
+    panel.setQueueState({
+      queue: ["logistics_hub", "logistics_2a", "trading_post"],
+      researchPoints: 0,
+      purchaseCount: {},
+    });
+    panel.triggerReorder(2, 1);
     expect(onReorder).toHaveBeenCalledWith(2, 1);
-  });
-
-  it("slot count reflects queue length", () => {
-    const queue = ["logistics_hub", "logistics_2a"];
-    expect(queue.length).toBe(2);
-  });
-
-  it("empty queue yields slot count of 0", () => {
-    const queue: string[] = [];
-    expect(queue.length).toBe(0);
-  });
+  }, 15000);
 });
