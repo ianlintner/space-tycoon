@@ -70,6 +70,8 @@ export class GalaxyMapScene extends Phaser.Scene {
   private companyFilter: string | null = null;
   private companyFilterCycle: (string | null)[] = [null];
   private companyFilterButton: LayerToggleButton | null = null;
+  private mapViewMode: "default" | "cargo" | "political" = "default";
+  private viewModeButtons: LayerToggleButton[] = [];
   private toolbar: MapLayerToolbar | null = null;
   private sidebar: GalaxySidebarPanel | null = null;
 
@@ -291,6 +293,12 @@ export class GalaxyMapScene extends Phaser.Scene {
         this.companyFilterButton.hit.destroy();
         this.companyFilterButton = null;
       }
+      for (const btn of this.viewModeButtons) {
+        btn.bg.destroy();
+        btn.label.destroy();
+        btn.hit.destroy();
+      }
+      this.viewModeButtons = [];
       this.destroyInfoCard();
       this.navDropdown?.destroy();
       this.navDropdown = null;
@@ -412,6 +420,11 @@ export class GalaxyMapScene extends Phaser.Scene {
       this.companyFilterButton.bg.setVisible(visible);
       this.companyFilterButton.label.setVisible(visible);
       this.companyFilterButton.hit.setVisible(visible);
+    }
+    for (const btn of this.viewModeButtons) {
+      btn.bg.setVisible(visible);
+      btn.label.setVisible(visible);
+      btn.hit.setVisible(visible);
     }
     this.toolbar?.setVisible(visible);
     for (const m of this.systemMarkers) {
@@ -576,6 +589,14 @@ export class GalaxyMapScene extends Phaser.Scene {
       cf.bg.setPosition(x, rowY);
       cf.label.setPosition(x + cf.width / 2, rowY + 15);
       cf.hit.setPosition(x, rowY);
+    }
+    let mx = x + TOGGLE_FILTER_WIDTH + 12;
+    const modeGap = 4;
+    for (const btn of this.viewModeButtons) {
+      btn.bg.setPosition(mx, rowY);
+      btn.label.setPosition(mx + btn.width / 2, rowY + 15);
+      btn.hit.setPosition(mx, rowY);
+      mx += btn.width + modeGap;
     }
 
     // Sidebar widget reflows in place — its row count is height-clamped, so
@@ -835,6 +856,95 @@ export class GalaxyMapScene extends Phaser.Scene {
       hit: filterHit,
       width: filterWidth,
     };
+
+    // View-mode toggle: Default | Cargo | Political. Tints route lines:
+    //  - default → neutral player/AI colors
+    //  - cargo → cargo-type color
+    //  - political → owning company's empire color
+    const modes: { id: "default" | "cargo" | "political"; label: string }[] = [
+      { id: "default", label: "Default" },
+      { id: "cargo", label: "Cargo" },
+      { id: "political", label: "Political" },
+    ];
+    const modeWidth = 78;
+    const modeGap = 4;
+    let modeX = x + filterWidth + 12;
+    this.viewModeButtons = [];
+
+    const refreshModeButtons = (): void => {
+      for (let i = 0; i < this.viewModeButtons.length; i++) {
+        const btn = this.viewModeButtons[i];
+        const on = this.mapViewMode === modes[i].id;
+        btn.bg.setFillStyle(
+          on ? theme.colors.accent : theme.colors.panelBg,
+          on ? 0.5 : 0.85,
+        );
+        btn.bg.setStrokeStyle(
+          1,
+          on ? theme.colors.accent : theme.colors.panelBorder,
+          on ? 0.9 : 0.6,
+        );
+        btn.label.setColor(
+          colorToString(on ? theme.colors.text : theme.colors.textDim),
+        );
+      }
+    };
+
+    for (const mode of modes) {
+      const bg = this.add
+        .rectangle(modeX, rowY, modeWidth, 30, theme.colors.panelBg, 0.72)
+        .setStrokeStyle(1, theme.colors.panelBorder, 0.6)
+        .setOrigin(0, 0)
+        .setDepth(902);
+      const label = this.add
+        .text(modeX + modeWidth / 2, rowY + 15, mode.label, {
+          fontSize: `${theme.fonts.caption.size}px`,
+          fontFamily: theme.fonts.caption.family,
+          color: colorToString(theme.colors.textDim),
+        })
+        .setOrigin(0.5, 0.5)
+        .setDepth(903);
+      const hit = this.add
+        .zone(modeX, rowY, modeWidth, 30)
+        .setOrigin(0, 0)
+        .setInteractive({ cursor: "pointer", useHandCursor: true })
+        .setName(`btn-map-view-${mode.id}`);
+      hit.on("pointerup", () => {
+        if (this.mapViewMode === mode.id) return;
+        this.mapViewMode = mode.id;
+        getAudioDirector().sfx("ui_tab_switch");
+        this.applyMapViewMode();
+        refreshModeButtons();
+      });
+      this.viewModeButtons.push({ bg, label, hit, width: modeWidth });
+      modeX += modeWidth + modeGap;
+    }
+    refreshModeButtons();
+    this.applyMapViewMode();
+  }
+
+  /**
+   * Push the current view mode + owner color palette into the galaxy view
+   * and request an immediate re-render of route geometry.
+   */
+  private applyMapViewMode(): void {
+    if (!this.view3D) return;
+    const state = gameStore.getState();
+    const empireColorById = new Map<string, number>();
+    for (const emp of state.galaxy.empires) {
+      empireColorById.set(emp.id, emp.color);
+    }
+    const ownerColors = new Map<string, number>();
+    const playerEmpireColor = empireColorById.get(state.playerEmpireId);
+    if (playerEmpireColor !== undefined) {
+      ownerColors.set("player", playerEmpireColor);
+    }
+    for (const co of state.aiCompanies) {
+      const c = empireColorById.get(co.empireId);
+      if (c !== undefined) ownerColors.set(co.id, c);
+    }
+    this.view3D.setRouteOwnerColors(ownerColors);
+    this.view3D.setRouteViewMode(this.mapViewMode);
   }
 
   private installLayerController(): void {

@@ -423,6 +423,7 @@ export interface RouteTrafficVisual {
   assignedShips: Ship[];
   visibleUnits: number;
   visualClassMix: ShipClass[];
+  cargoType: CargoType | null;
 }
 
 export interface RouteTrafficWaypoint {
@@ -624,6 +625,7 @@ function buildRouteTrafficVisualsFromSources(
           assignedShips,
           visibleUnits: getVisibleRouteTrafficUnits(assignedShips.length),
           visualClassMix: assignedShips.map((ship) => ship.class),
+          cargoType: route.cargoType,
         },
       ];
     });

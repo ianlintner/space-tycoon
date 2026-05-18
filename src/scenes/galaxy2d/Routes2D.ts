@@ -1,9 +1,12 @@
 import * as Phaser from "phaser";
+import { getCargoColor } from "@rogue-universe/shared";
 import type { RouteTrafficVisual } from "../../game/routes/RouteManager.ts";
 import type { Mat4 } from "./Camera3D.ts";
 import { Curve3 } from "./Curve3.ts";
 import { projectToScreenDesignInto } from "./projection.ts";
 import type { Vec3, ViewportRect } from "./types.ts";
+
+export type RouteViewMode = "default" | "cargo" | "political";
 
 const ROUTE_PLAYER_COLOR = 0xffd178;
 const ROUTE_AI_COLOR = 0x9aa6c8;
@@ -24,6 +27,7 @@ interface RouteSegment2D {
   by: number;
   bz: number;
   ownerIdx: number;
+  cargoColor: number;
 }
 
 export class Routes2D {
@@ -38,6 +42,8 @@ export class Routes2D {
   private readonly routeBaseOpacity: number[] = [];
   private routeSegments: RouteSegment2D[] = [];
   private companyFilter: string | null = null;
+  private viewMode: RouteViewMode = "default";
+  private ownerColors = new Map<string, number>();
 
   private readonly scratchA: Vec3 = { x: 0, y: 0, z: 0 };
   private readonly scratchB: Vec3 = { x: 0, y: 0, z: 0 };
@@ -81,6 +87,9 @@ export class Routes2D {
         isPlayer ? ROUTE_PLAYER_OPACITY : ROUTE_AI_OPACITY,
       );
 
+      const cargoColor = visual.cargoType
+        ? getCargoColor(visual.cargoType)
+        : ROUTE_AI_COLOR;
       const pts = curve.getPoints();
       for (let i = 1; i < pts.length; i++) {
         const a = pts[i - 1];
@@ -93,6 +102,7 @@ export class Routes2D {
           by: b.y,
           bz: b.z,
           ownerIdx,
+          cargoColor,
         });
       }
     }
@@ -138,7 +148,16 @@ export class Routes2D {
       const owner = this.routeOwners[seg.ownerIdx];
       const baseOpacity = this.routeBaseOpacity[seg.ownerIdx];
       const isPlayer = owner === "player";
-      const color = isPlayer ? ROUTE_PLAYER_COLOR : ROUTE_AI_COLOR;
+      let color: number;
+      if (this.viewMode === "cargo") {
+        color = seg.cargoColor;
+      } else if (this.viewMode === "political") {
+        color =
+          this.ownerColors.get(owner) ??
+          (isPlayer ? ROUTE_PLAYER_COLOR : ROUTE_AI_COLOR);
+      } else {
+        color = isPlayer ? ROUTE_PLAYER_COLOR : ROUTE_AI_COLOR;
+      }
       const ghosted = filter !== null && owner !== filter;
       const opacity = ghosted
         ? baseOpacity * ROUTE_GHOST_OPACITY_FACTOR
@@ -157,6 +176,14 @@ export class Routes2D {
 
   setCompanyFilter(id: string | null): void {
     this.companyFilter = id;
+  }
+
+  setViewMode(mode: RouteViewMode): void {
+    this.viewMode = mode;
+  }
+
+  setOwnerColors(map: Map<string, number>): void {
+    this.ownerColors = map;
   }
 
   /**

@@ -20,6 +20,7 @@ import { HyperGates2D } from "./HyperGates2D.ts";
 import { Traffic2D } from "./Traffic2D.ts";
 import { Planets2D } from "./Planets2D.ts";
 import { Routes2D } from "./Routes2D.ts";
+import type { RouteViewMode } from "./Routes2D.ts";
 import { Ships2D } from "./Ships2D.ts";
 import { disposeAllGlowTextures, getStarGlowTexture } from "./GlowTextures.ts";
 import {
@@ -1334,6 +1335,16 @@ export class GalaxyView2D {
     if (this.destroyed) return;
     this.routes.setCompanyFilter(id);
     this.ships.setCompanyFilter(id);
+  }
+
+  setRouteViewMode(mode: RouteViewMode): void {
+    if (this.destroyed) return;
+    this.routes.setViewMode(mode);
+  }
+
+  setRouteOwnerColors(map: Map<string, number>): void {
+    if (this.destroyed) return;
+    this.routes.setOwnerColors(map);
   }
 
   getRouteCurve(routeId: string) {
