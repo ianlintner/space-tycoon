@@ -197,7 +197,7 @@ export const CAPACITY_COST_BY_SCOPE: Record<string, number> = {
 
 /** One-time route opening fee by scope */
 export const ROUTE_OPENING_COST_BY_SCOPE: Record<string, number> = {
-  system: 15_000,
+  system: 12_000,
   empire: 45_000,
   galactic: 120_000,
 };
