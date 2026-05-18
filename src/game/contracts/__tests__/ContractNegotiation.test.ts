@@ -4,22 +4,12 @@ import {
   getNegotiationOptions,
   applyNegotiation,
 } from "../ContractNegotiation.ts";
-import {
-  findBestShipForContract,
-  autoAssignShipToContract,
-} from "../ContractShipMatcher.ts";
 import { acceptContractWithNegotiation } from "../ContractManager.ts";
-import type {
-  GameState,
-  Contract,
-  Ship,
-  ActiveRoute,
-} from "../../../data/types.ts";
+import type { GameState, Contract } from "../../../data/types.ts";
 import {
   ContractType,
   ContractStatus,
   CargoType,
-  ShipClass,
 } from "../../../data/types.ts";
 import { SeededRNG } from "../../../utils/SeededRNG.ts";
 import { initAdviserState } from "../../adviser/AdviserEngine.ts";
@@ -167,25 +157,6 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
     status: ContractStatus.Available,
     linkedRouteId: null,
     turnsWithoutShip: 0,
-    ...overrides,
-  };
-}
-
-function makeShip(overrides: Partial<Ship> = {}): Ship {
-  return {
-    id: "ship-1",
-    name: "Starhopper",
-    class: ShipClass.CargoShuttle,
-    cargoCapacity: 50,
-    passengerCapacity: 0,
-    speed: 4,
-    fuelEfficiency: 0.8,
-    reliability: 80,
-    age: 2,
-    condition: 85,
-    purchaseCost: 80_000,
-    maintenanceCost: 1_500,
-    assignedRouteId: null,
     ...overrides,
   };
 }
@@ -382,181 +353,6 @@ describe("applyNegotiation — early_completion", () => {
 });
 
 // ---------------------------------------------------------------------------
-// findBestShipForContract
-// ---------------------------------------------------------------------------
-
-describe("findBestShipForContract", () => {
-  it("returns null when no idle ships are available", () => {
-    const contract = makeContract();
-    const ship = makeShip({ assignedRouteId: "route-99" }); // busy
-    const state = createTestState({ fleet: [ship], contracts: [contract] });
-    const result = findBestShipForContract(contract, state);
-    expect(result.shipId).toBeNull();
-    expect(result.ship).toBeNull();
-  });
-
-  it("returns null when fleet is empty", () => {
-    const contract = makeContract();
-    const state = createTestState({ fleet: [], contracts: [contract] });
-    const result = findBestShipForContract(contract, state);
-    expect(result.shipId).toBeNull();
-  });
-
-  it("prefers a high-condition idle ship over a low-condition one", () => {
-    const contract = makeContract();
-    const goodShip = makeShip({ id: "ship-good", condition: 90, speed: 3 });
-    const badShip = makeShip({ id: "ship-bad", condition: 20, speed: 3 });
-    const state = createTestState({
-      fleet: [badShip, goodShip],
-      contracts: [contract],
-    });
-    const result = findBestShipForContract(contract, state);
-    expect(result.shipId).toBe("ship-good");
-  });
-
-  it("penalises ships with condition < 50", () => {
-    const contract = makeContract();
-    const riskyShip = makeShip({
-      id: "risky",
-      condition: 40,
-      speed: 5,
-      cargoCapacity: 100,
-    });
-    const safeShip = makeShip({
-      id: "safe",
-      condition: 70,
-      speed: 2,
-      cargoCapacity: 50,
-    });
-    const state = createTestState({
-      fleet: [riskyShip, safeShip],
-      contracts: [contract],
-    });
-    const result = findBestShipForContract(contract, state);
-    expect(result.shipId).toBe("safe");
-  });
-
-  it("prefers ships with cargo capacity for non-passenger contracts", () => {
-    const contract = makeContract({ cargoType: CargoType.Food });
-    const cargoShip = makeShip({
-      id: "cargo",
-      cargoCapacity: 80,
-      passengerCapacity: 0,
-      condition: 80,
-      speed: 3,
-    });
-    const emptyShip = makeShip({
-      id: "empty",
-      cargoCapacity: 0,
-      passengerCapacity: 50,
-      condition: 80,
-      speed: 3,
-    });
-    const state = createTestState({
-      fleet: [emptyShip, cargoShip],
-      contracts: [contract],
-    });
-    const result = findBestShipForContract(contract, state);
-    expect(result.shipId).toBe("cargo");
-  });
-
-  it("prefers ships with passenger capacity for ferry contracts", () => {
-    const contract = makeContract({ cargoType: CargoType.Passengers });
-    const ferryShip = makeShip({
-      id: "ferry",
-      cargoCapacity: 0,
-      passengerCapacity: 80,
-      condition: 80,
-      speed: 3,
-    });
-    const cargoShip = makeShip({
-      id: "cargo",
-      cargoCapacity: 80,
-      passengerCapacity: 0,
-      condition: 80,
-      speed: 3,
-    });
-    const state = createTestState({
-      fleet: [cargoShip, ferryShip],
-      contracts: [contract],
-    });
-    const result = findBestShipForContract(contract, state);
-    expect(result.shipId).toBe("ferry");
-  });
-
-  it("includes a human-readable reason in the result", () => {
-    const contract = makeContract();
-    const ship = makeShip();
-    const state = createTestState({ fleet: [ship], contracts: [contract] });
-    const result = findBestShipForContract(contract, state);
-    expect(result.reason).toBeTypeOf("string");
-    expect(result.reason.length).toBeGreaterThan(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// autoAssignShipToContract
-// ---------------------------------------------------------------------------
-
-describe("autoAssignShipToContract", () => {
-  it("assigns ship to route and updates fleet and activeRoutes", () => {
-    const contract = makeContract({
-      status: ContractStatus.Active,
-      linkedRouteId: "route-1",
-    });
-    const ship = makeShip({ id: "ship-1", assignedRouteId: null });
-    const route: ActiveRoute = {
-      id: "route-1",
-      originPlanetId: "planet-1",
-      destinationPlanetId: "planet-2",
-      distance: 10,
-      cargoType: CargoType.Food,
-      assignedShipIds: [],
-    };
-    const state = createTestState({
-      contracts: [contract],
-      fleet: [ship],
-      activeRoutes: [route],
-    });
-
-    const updated = autoAssignShipToContract(contract.id, "ship-1", state);
-    expect(updated.fleet[0].assignedRouteId).toBe("route-1");
-    expect(updated.activeRoutes[0].assignedShipIds).toContain("ship-1");
-  });
-
-  it("no-ops when contract has no linkedRouteId", () => {
-    const contract = makeContract({ linkedRouteId: null });
-    const ship = makeShip();
-    const state = createTestState({ contracts: [contract], fleet: [ship] });
-    const updated = autoAssignShipToContract(contract.id, ship.id, state);
-    // State should be unchanged
-    expect(updated.fleet[0].assignedRouteId).toBeNull();
-  });
-
-  it("no-ops when ship is not found", () => {
-    const contract = makeContract({ linkedRouteId: "route-1" });
-    const route: ActiveRoute = {
-      id: "route-1",
-      originPlanetId: "planet-1",
-      destinationPlanetId: "planet-2",
-      distance: 10,
-      cargoType: CargoType.Food,
-      assignedShipIds: [],
-    };
-    const state = createTestState({
-      contracts: [contract],
-      activeRoutes: [route],
-    });
-    const updated = autoAssignShipToContract(
-      contract.id,
-      "nonexistent-ship",
-      state,
-    );
-    expect(updated.activeRoutes[0].assignedShipIds).toHaveLength(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // acceptContractWithNegotiation — full flow
 // ---------------------------------------------------------------------------
 
@@ -579,48 +375,6 @@ describe("acceptContractWithNegotiation", () => {
     const updatedContract = updated.contracts.find((c) => c.id === contract.id);
     expect(updatedContract?.status).toBe(ContractStatus.Active);
     expect(updatedContract?.linkedRouteId).toBeTruthy();
-  });
-
-  it("auto-assigns an idle ship when one is available", () => {
-    const contract = makeContract();
-    const ship = makeShip();
-    const state = createTestState({
-      contracts: [contract],
-      fleet: [ship],
-      cash: 100_000,
-    });
-    const rng = new SeededRNG(42);
-
-    const updated = acceptContractWithNegotiation(
-      contract.id,
-      "standard",
-      state,
-      rng,
-    );
-    const updatedShip = updated.fleet.find((s) => s.id === ship.id);
-    // Ship should be assigned to the contract's linked route
-    expect(updatedShip?.assignedRouteId).not.toBeNull();
-  });
-
-  it("does not assign ship when all ships are busy", () => {
-    const contract = makeContract();
-    const busyShip = makeShip({ assignedRouteId: "other-route" });
-    const state = createTestState({
-      contracts: [contract],
-      fleet: [busyShip],
-      cash: 100_000,
-    });
-    const rng = new SeededRNG(42);
-
-    const updated = acceptContractWithNegotiation(
-      contract.id,
-      "standard",
-      state,
-      rng,
-    );
-    // Contract still accepted, ship stays on its route
-    const updatedShip = updated.fleet.find((s) => s.id === busyShip.id);
-    expect(updatedShip?.assignedRouteId).toBe("other-route");
   });
 
   it("returns original state when contract not found", () => {

@@ -12,10 +12,6 @@ import { calculateDistance } from "../routes/RouteManager.ts";
 import { calculateUpkeep, grantCharter } from "../charters/CharterManager.ts";
 import type { NegotiationChoice } from "./ContractNegotiation.ts";
 import { applyNegotiation } from "./ContractNegotiation.ts";
-import {
-  findBestShipForContract,
-  autoAssignShipToContract,
-} from "./ContractShipMatcher.ts";
 import type { SeededRNG } from "../../utils/SeededRNG.ts";
 
 // ---------------------------------------------------------------------------
@@ -107,22 +103,11 @@ export function processContracts(state: GameState): Partial<GameState> {
     const c = updatedContracts[i];
     if (c.status !== ContractStatus.Active) continue;
 
-    // Check if route still exists and has a ship assigned
+    // Check if route still exists and is not paused
     const linkedRoute = activeRoutes.find((r) => r.id === c.linkedRouteId);
-    const hasShip = c.aiCompanyId
-      ? true
-      : linkedRoute
-        ? linkedRoute.assignedShipIds.length > 0
-        : false;
-
-    let turnsWithoutShip = c.turnsWithoutShip;
-    if (c.aiCompanyId) {
-      turnsWithoutShip = 0;
-    } else if (!hasShip) {
-      turnsWithoutShip++;
-    } else {
-      turnsWithoutShip = 0;
-    }
+    const routeIsActive =
+      c.aiCompanyId != null || (linkedRoute != null && !linkedRoute.paused);
+    const turnsWithoutShip = routeIsActive ? 0 : (c.turnsWithoutShip ?? 0) + 1;
 
     // Route was deleted or no ship for too long → fail
     if (
@@ -250,7 +235,6 @@ export function processContracts(state: GameState): Partial<GameState> {
  *   1. Locate the contract.
  *   2. Apply negotiation to get modified terms.
  *   3. Accept the contract (create linked route, deduct deposit).
- *   4. Auto-assign the best idle ship to the newly created route.
  *
  * Returns the updated GameState, or the original state if the contract
  * cannot be found / is not available.
@@ -281,19 +265,7 @@ export function acceptContractWithNegotiation(
   const patch = acceptContract(contractId, stateWithNegotiated);
   if (!patch) return state;
 
-  let updatedState: GameState = { ...stateWithNegotiated, ...patch };
-
-  // 4. Auto-assign best idle ship
-  const match = findBestShipForContract(negotiatedContract, updatedState);
-  if (match.shipId !== null) {
-    updatedState = autoAssignShipToContract(
-      contractId,
-      match.shipId,
-      updatedState,
-    );
-  }
-
-  return updatedState;
+  return { ...stateWithNegotiated, ...patch };
 }
 
 // ---------------------------------------------------------------------------

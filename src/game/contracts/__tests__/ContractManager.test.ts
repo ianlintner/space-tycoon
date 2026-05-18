@@ -260,7 +260,7 @@ describe("Contract Lifecycle", () => {
       expect(result.cash).toBe(50000 + 10000 + 2000); // reward + deposit refund
     });
 
-    it("increments turnsWithoutShip when no ship assigned", () => {
+    it("increments turnsWithoutShip when route is paused", () => {
       const contract = makeContract({
         status: ContractStatus.Active,
         linkedRouteId: "route-1",
@@ -273,7 +273,8 @@ describe("Contract Lifecycle", () => {
         destinationPlanetId: "planet-2",
         distance: 10,
         cargoType: CargoType.Food,
-        assignedShipIds: [], // no ship
+        assignedShipIds: [],
+        paused: true, // route is paused
       };
       const state = createTestState({
         contracts: [contract],
@@ -284,7 +285,7 @@ describe("Contract Lifecycle", () => {
       expect(result.contracts![0].turnsWithoutShip).toBe(1);
     });
 
-    it("fails contract when turnsWithoutShip exceeds limit", () => {
+    it("fails contract when turnsWithoutShip exceeds limit (route paused)", () => {
       const contract = makeContract({
         status: ContractStatus.Active,
         linkedRouteId: "route-1",
@@ -297,7 +298,8 @@ describe("Contract Lifecycle", () => {
         destinationPlanetId: "planet-2",
         distance: 10,
         cargoType: CargoType.Food,
-        assignedShipIds: [], // no ship
+        assignedShipIds: [],
+        paused: true, // route is paused
       };
       const state = createTestState({
         contracts: [contract],
