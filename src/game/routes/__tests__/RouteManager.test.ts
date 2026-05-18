@@ -16,6 +16,7 @@ import {
   buildTrafficPatrolWaypoints,
   buildSunAvoidingLocalRouteMotionPath,
   scanAllRouteOpportunities,
+  canOpenRoute,
 } from "../RouteManager.ts";
 import { createNewGame } from "../../NewGameSetup.ts";
 import { CargoType, PlanetType, PlanetBiome } from "../../../data/types.ts";
@@ -819,5 +820,27 @@ describe("RouteManager", () => {
         expect(intraEmpireCount).toBeGreaterThan(0);
       },
     );
+  });
+
+  describe("canOpenRoute — hull mark validation", () => {
+    it("allows system routes at any hull mark", () => {
+      expect(canOpenRoute("system", 1)).toBe(true);
+      expect(canOpenRoute("system", 3)).toBe(true);
+    });
+    it("blocks empire routes at Mk I", () => {
+      expect(canOpenRoute("empire", 1)).toBe(false);
+    });
+    it("allows empire routes at Mk II+", () => {
+      expect(canOpenRoute("empire", 2)).toBe(true);
+      expect(canOpenRoute("empire", 5)).toBe(true);
+    });
+    it("blocks galactic routes below Mk III", () => {
+      expect(canOpenRoute("galactic", 1)).toBe(false);
+      expect(canOpenRoute("galactic", 2)).toBe(false);
+    });
+    it("allows galactic routes at Mk III+", () => {
+      expect(canOpenRoute("galactic", 3)).toBe(true);
+      expect(canOpenRoute("galactic", 5)).toBe(true);
+    });
   });
 });

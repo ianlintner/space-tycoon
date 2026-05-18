@@ -28,6 +28,7 @@ import {
   SCOPE_DEMAND_MULTIPLIERS,
   BASE_GALACTIC_ROUTE_SLOTS,
   BASE_SYSTEM_ROUTE_SLOTS,
+  MIN_HULL_MARK_BY_SCOPE,
 } from "../../data/constants.ts";
 import { calculatePrice } from "../economy/PriceCalculator.ts";
 import { getLicenseFeeMultiplier } from "../reputation/ReputationEffects.ts";
@@ -209,6 +210,14 @@ export function getRouteScope(
     return RouteScopeEnum.Galactic;
   }
   return RouteScopeEnum.Empire;
+}
+
+/**
+ * Returns true if the current hull mark allows opening a route of the given scope.
+ * Mk I: system only. Mk II: empire+. Mk III+: galactic.
+ */
+export function canOpenRoute(scope: RouteScope, hullMark: number): boolean {
+  return hullMark >= (MIN_HULL_MARK_BY_SCOPE[scope] ?? 1);
 }
 
 export interface RouteSlotUsage {
