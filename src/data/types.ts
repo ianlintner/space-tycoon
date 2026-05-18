@@ -1036,7 +1036,7 @@ export interface Contract {
   depositPaid: number;
   status: ContractStatus;
   linkedRouteId: string | null;
-  turnsWithoutShip: number;
+  turnsInactive: number;
   /** AI company id that accepted this contract (Wave 3) */
   aiCompanyId?: string;
 }

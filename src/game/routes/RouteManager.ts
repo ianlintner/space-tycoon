@@ -798,7 +798,7 @@ export function setRouteCargo(
  * Approximates an average freighter so the route-level revenue/fuel numbers
  * stay stable in the post Ship-removal capacity model.
  */
-const REFERENCE_SHIP = {
+export const REFERENCE_SHIP = {
   speed: 1,
   cargoCapacity: 80,
   passengerCapacity: 40,

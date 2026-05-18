@@ -162,9 +162,9 @@ export function generateTurnMessages(
     const w = WARNING_MESSAGES.find((m) => m.id === "warn_underutilization");
     if (w && !shown.has(w.id)) messages.push(makeMessage(w, turn));
   }
-  // Contract at risk: active contract with turnsWithoutShip >= 1
+  // Contract at risk: active contract with turnsInactive >= 1
   const contractAtRisk = state.contracts.some(
-    (c) => c.status === "active" && c.turnsWithoutShip >= 1,
+    (c) => c.status === "active" && c.turnsInactive >= 1,
   );
   if (contractAtRisk) {
     const w = WARNING_MESSAGES.find((m) => m.id === "warn_contract_at_risk")!;

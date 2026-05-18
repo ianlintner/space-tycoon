@@ -151,7 +151,7 @@ const baseContract: Contract = {
   depositPaid: 3000,
   status: ContractStatus.Available,
   linkedRouteId: null,
-  turnsWithoutShip: 0,
+  turnsInactive: 0,
 };
 
 describe("makePremiumContract", () => {
@@ -187,14 +187,14 @@ describe("makePremiumContract", () => {
     expect(premium.status).toBe(ContractStatus.Available);
   });
 
-  it("resets linkedRouteId and turnsWithoutShip", () => {
+  it("resets linkedRouteId and turnsInactive", () => {
     const premium = makePremiumContract({
       ...baseContract,
       linkedRouteId: "route-123",
-      turnsWithoutShip: 2,
+      turnsInactive: 2,
     });
     expect(premium.linkedRouteId).toBeNull();
-    expect(premium.turnsWithoutShip).toBe(0);
+    expect(premium.turnsInactive).toBe(0);
   });
 
   it("generates unique id by appending -premium", () => {

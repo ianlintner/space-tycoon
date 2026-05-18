@@ -44,7 +44,7 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
     depositPaid: 2000,
     status: ContractStatus.Active,
     linkedRouteId: "route-1",
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
     ...overrides,
   };
 }

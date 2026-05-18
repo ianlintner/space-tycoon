@@ -151,7 +151,7 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
     depositPaid: 2000,
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
     ...overrides,
   };
 }
@@ -257,12 +257,12 @@ describe("Contract Lifecycle", () => {
       expect(result.cash).toBe(50000 + 10000 + 2000); // reward + deposit refund
     });
 
-    it("increments turnsWithoutShip when route is paused", () => {
+    it("increments turnsInactive when route is paused", () => {
       const contract = makeContract({
         status: ContractStatus.Active,
         linkedRouteId: "route-1",
         turnsRemaining: 5,
-        turnsWithoutShip: 0,
+        turnsInactive: 0,
       });
       const route: ActiveRoute = {
         id: "route-1",
@@ -278,15 +278,15 @@ describe("Contract Lifecycle", () => {
       });
 
       const result = processContracts(state);
-      expect(result.contracts![0].turnsWithoutShip).toBe(1);
+      expect(result.contracts![0].turnsInactive).toBe(1);
     });
 
-    it("fails contract when turnsWithoutShip exceeds limit (route paused)", () => {
+    it("fails contract when turnsInactive exceeds limit (route paused)", () => {
       const contract = makeContract({
         status: ContractStatus.Active,
         linkedRouteId: "route-1",
         turnsRemaining: 5,
-        turnsWithoutShip: CONTRACT_UNASSIGNED_SHIP_LIMIT - 1,
+        turnsInactive: CONTRACT_UNASSIGNED_SHIP_LIMIT - 1,
       });
       const route: ActiveRoute = {
         id: "route-1",

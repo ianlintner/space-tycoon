@@ -191,7 +191,7 @@ describe("AdviserEngine", () => {
             rewardResearchPoints: 0,
             rewardTariffReduction: null,
             depositPaid: 1000,
-            turnsWithoutShip: 1,
+            turnsInactive: 1,
             status: ContractStatus.Active,
             originPlanetId: "planet-a",
             destinationPlanetId: "planet-b",
@@ -207,7 +207,7 @@ describe("AdviserEngine", () => {
       expect(contractWarning).toBeDefined();
     });
 
-    it("does not warn about contract risk when turnsWithoutShip is 0", () => {
+    it("does not warn about contract risk when turnsInactive is 0", () => {
       const state = makeGameState({
         contracts: [
           {
@@ -221,7 +221,7 @@ describe("AdviserEngine", () => {
             rewardResearchPoints: 0,
             rewardTariffReduction: null,
             depositPaid: 1000,
-            turnsWithoutShip: 0,
+            turnsInactive: 0,
             status: ContractStatus.Active,
             originPlanetId: "planet-a",
             destinationPlanetId: "planet-b",

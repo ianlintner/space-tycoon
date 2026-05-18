@@ -98,7 +98,7 @@ export function makePremiumContract(baseContract: Contract): Contract {
     turnsRemaining: premiumDuration,
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
   };
 }
 

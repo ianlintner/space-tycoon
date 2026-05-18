@@ -186,7 +186,7 @@ function tryGenerateEmpireUnlock(
     depositPaid: 0,
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
   };
 }
 
@@ -287,7 +287,7 @@ function makePassengerFerry(
     depositPaid: Math.round(rewardCash * 0.15),
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
   };
 }
 
@@ -319,7 +319,7 @@ function makeEmergencySupply(
     depositPaid: Math.round(rewardCash * 0.1),
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
   };
 }
 
@@ -359,7 +359,7 @@ function makeTradeAlliance(
     depositPaid: 5000,
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
   };
 }
 
@@ -388,7 +388,7 @@ function makeResearchCourier(
     depositPaid: 3000,
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
   };
 }
 

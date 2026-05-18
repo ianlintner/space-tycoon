@@ -179,7 +179,7 @@ describe("evaluateNavUnlocks", () => {
       depositPaid: 0,
       status: "available" as const,
       linkedRouteId: null,
-      turnsWithoutShip: 0,
+      turnsInactive: 0,
     };
     const result = evaluateNavUnlocks(makeState({ contracts: [contract] }));
     expect(result).toContain("contracts");

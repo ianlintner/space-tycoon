@@ -155,7 +155,7 @@ function makeContract(overrides: Partial<Contract> = {}): Contract {
     depositPaid: 2_000,
     status: ContractStatus.Available,
     linkedRouteId: null,
-    turnsWithoutShip: 0,
+    turnsInactive: 0,
     ...overrides,
   };
 }

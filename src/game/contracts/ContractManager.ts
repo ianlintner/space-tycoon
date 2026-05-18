@@ -107,12 +107,12 @@ export function processContracts(state: GameState): Partial<GameState> {
     const linkedRoute = activeRoutes.find((r) => r.id === c.linkedRouteId);
     const routeIsActive =
       c.aiCompanyId != null || (linkedRoute != null && !linkedRoute.paused);
-    const turnsWithoutShip = routeIsActive ? 0 : (c.turnsWithoutShip ?? 0) + 1;
+    const turnsInactive = routeIsActive ? 0 : (c.turnsInactive ?? 0) + 1;
 
     // Route was deleted or no ship for too long → fail
     if (
       (!linkedRoute && !c.aiCompanyId) ||
-      turnsWithoutShip >= CONTRACT_UNASSIGNED_SHIP_LIMIT
+      turnsInactive >= CONTRACT_UNASSIGNED_SHIP_LIMIT
     ) {
       const failResult = applyContractFailureToValues(
         c,
@@ -123,7 +123,7 @@ export function processContracts(state: GameState): Partial<GameState> {
       updatedContracts[i] = {
         ...c,
         status: ContractStatus.Failed,
-        turnsWithoutShip,
+        turnsInactive,
       };
       continue;
     }
@@ -200,11 +200,11 @@ export function processContracts(state: GameState): Partial<GameState> {
       updatedContracts[i] = {
         ...c,
         turnsRemaining: 0,
-        turnsWithoutShip,
+        turnsInactive,
         status: ContractStatus.Completed,
       };
     } else {
-      updatedContracts[i] = { ...c, turnsRemaining, turnsWithoutShip };
+      updatedContracts[i] = { ...c, turnsRemaining, turnsInactive };
     }
   }
 

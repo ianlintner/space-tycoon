@@ -9,7 +9,14 @@ import {
   estimateRouteFuelCost,
   estimateRouteRevenue,
   addCargoLock,
+  canOpenRoute,
+  getRouteScope,
+  REFERENCE_SHIP,
 } from "../game/routes/RouteManager.ts";
+import {
+  getFreightHullMark,
+  getPassengerHullMark,
+} from "../game/tech/TechEffects.ts";
 import {
   validateRouteCreation,
   getEmpireForPlanet,
@@ -1030,10 +1037,10 @@ export class RouteBuilderPanel {
     return {
       id: null,
       name: "Capacity",
-      cargoCapacity: 80,
-      passengerCapacity: 40,
-      speed: 1,
-      fuelEfficiency: 1,
+      cargoCapacity: REFERENCE_SHIP.cargoCapacity,
+      passengerCapacity: REFERENCE_SHIP.passengerCapacity,
+      speed: REFERENCE_SHIP.speed,
+      fuelEfficiency: REFERENCE_SHIP.fuelEfficiency,
     };
   }
 
@@ -1051,6 +1058,38 @@ export class RouteBuilderPanel {
     }
 
     const cargo = this.getSelectedCargo();
+
+    // Hull mark gate — check that the player's hull tier allows this route scope
+    {
+      const hullMark =
+        cargo === "passengers"
+          ? getPassengerHullMark(latestState.tech)
+          : getFreightHullMark(latestState.tech);
+      const scope = getRouteScope(
+        { originPlanetId: origin.id, destinationPlanetId: destination.id },
+        latestState,
+      );
+      if (!canOpenRoute(scope, hullMark)) {
+        const required =
+          scope === "galactic"
+            ? cargo === "passengers"
+              ? "Passenger Hull Mk III"
+              : "Freight Hull Mk III"
+            : cargo === "passengers"
+              ? "Passenger Hull Mk II"
+              : "Freight Hull Mk II";
+        const message = `This route requires ${required}. Research it in the Tech tree to unlock ${scope} routes.`;
+        this.statusValue.setText(`⚠ ${message}`);
+        this.statusValue.setLabelColor(getTheme().colors.loss);
+        const hullModal = new Modal(this.scene, {
+          title: "Hull Upgrade Required",
+          body: message,
+          onOk: () => hullModal.destroy(),
+        });
+        hullModal.show();
+        return;
+      }
+    }
 
     // Validate route creation (slots, empire access, trade policies, cargo locks)
     const validationError = validateRouteCreation(
