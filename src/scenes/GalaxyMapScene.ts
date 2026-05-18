@@ -455,7 +455,6 @@ export class GalaxyMapScene extends Phaser.Scene {
       title: "New Trade Route",
       initialOriginPlanetId: originPlanet?.id,
       initialDestinationPlanetId: destPlanet?.id,
-      allowAutoBuy: true,
       onComplete: (_result) => {
         restoreOpacity();
         // Rebuild route traffic visuals so newly created route appears.
@@ -482,7 +481,6 @@ export class GalaxyMapScene extends Phaser.Scene {
       ui: this.ui,
       title: "New Trade Route",
       initialOriginPlanetId: planetId,
-      allowAutoBuy: true,
       onComplete: (_result) => {
         restoreOpacity();
         const fresh = gameStore.getState();

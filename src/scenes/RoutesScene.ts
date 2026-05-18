@@ -1717,7 +1717,6 @@ export class RoutesScene extends Phaser.Scene {
       ui: this.ui,
       title: "Create Trade Route",
       confirmLabel: "Create Route",
-      allowAutoBuy: true,
       initialOriginPlanetId: selectedOpp?.originPlanetId,
       initialDestinationPlanetId: selectedOpp?.destinationPlanetId,
       initialCargoType,
