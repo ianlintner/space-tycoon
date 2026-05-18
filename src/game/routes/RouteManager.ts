@@ -897,9 +897,24 @@ export function setRouteCargo(
  * galactic routes, the scope multiplier stacks with the standard distance
  * premium.
  */
+/**
+ * Reference ship used for capacity-pool route estimates when no specific
+ * ship is supplied. Approximates an average freighter so the route-level
+ * revenue/fuel numbers stay stable regardless of fleet composition.
+ */
+const REFERENCE_SHIP: Pick<
+  Ship,
+  "speed" | "cargoCapacity" | "passengerCapacity" | "fuelEfficiency"
+> = {
+  speed: 1,
+  cargoCapacity: 80,
+  passengerCapacity: 40,
+  fuelEfficiency: 1,
+};
+
 export function estimateRouteRevenue(
   route: ActiveRoute,
-  ship: Ship,
+  ship: Ship | undefined,
   market: MarketState,
   state?: Pick<GameState, "galaxy">,
 ): number {
@@ -911,13 +926,14 @@ export function estimateRouteRevenue(
   const destEntry = destMarket[route.cargoType];
   const price = calculatePrice(destEntry, route.cargoType);
 
-  const trips = calculateTripsPerTurn(route.distance, ship.speed);
+  const ref = ship ?? REFERENCE_SHIP;
+  const trips = calculateTripsPerTurn(route.distance, ref.speed);
 
   // Use passenger capacity for passengers, cargo capacity for everything else
   const capacity =
     route.cargoType === "passengers"
-      ? ship.passengerCapacity
-      : ship.cargoCapacity;
+      ? ref.passengerCapacity
+      : ref.cargoCapacity;
 
   const totalCargoMoved = capacity * trips;
 
@@ -960,12 +976,13 @@ function inferScopeFromIds(
  */
 export function estimateRouteFuelCost(
   route: ActiveRoute,
-  ship: Ship,
+  ship: Ship | undefined,
   fuelPrice: number,
 ): number {
-  const trips = calculateTripsPerTurn(route.distance, ship.speed);
+  const ref = ship ?? REFERENCE_SHIP;
+  const trips = calculateTripsPerTurn(route.distance, ref.speed);
   const totalDistance = trips * route.distance * 2;
-  const fuelCost = totalDistance * ship.fuelEfficiency * fuelPrice;
+  const fuelCost = totalDistance * ref.fuelEfficiency * fuelPrice;
   return Math.round(fuelCost * 100) / 100;
 }
 

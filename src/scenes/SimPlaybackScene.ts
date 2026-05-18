@@ -16,7 +16,16 @@ import type { GameHUDScene } from "./GameHUDScene.ts";
 import type { GameState, TurnResult } from "../data/types.ts";
 import { EventCategory } from "../data/types.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
-import { buildGalaxyRouteTrafficVisuals } from "../game/routes/RouteManager.ts";
+import {
+  buildGalaxyRouteTrafficVisuals,
+  getRouteScope,
+} from "../game/routes/RouteManager.ts";
+import { getCapacityCostForScope } from "../game/fleet/CapacityManager.ts";
+import {
+  getTotalFreightCapacity,
+  getTotalPassengerCapacity,
+} from "../game/tech/TechEffects.ts";
+import { CargoType } from "../data/types.ts";
 import {
   getActiveGalaxyView,
   setGalaxy3DDimmed,
@@ -390,10 +399,23 @@ export class SimPlaybackScene extends Phaser.Scene {
       1,
     );
     ty += 16;
+    let usedFC = 0;
+    let usedPC = 0;
+    for (const route of state.activeRoutes) {
+      if (route.paused) continue;
+      const cost = getCapacityCostForScope(getRouteScope(route, state));
+      if (route.cargoType === CargoType.Passengers) {
+        usedPC += cost;
+      } else {
+        usedFC += cost;
+      }
+    }
+    const totalFC = getTotalFreightCapacity(state.tech);
+    const totalPC = getTotalPassengerCapacity(state.tech);
     rightHudText(
       8,
       ty,
-      `▶ ${state.fleet.length} ships in fleet`,
+      `▶ FC ${usedFC}/${totalFC} · PC ${usedPC}/${totalPC}`,
       theme.colors.textDim,
       11,
       1,

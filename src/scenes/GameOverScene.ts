@@ -21,10 +21,15 @@ import {
   getHighScores,
   rankCompanies,
 } from "../game/scoring/ScoreCalculator.ts";
-import { calculateShipValue } from "../game/fleet/FleetManager.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { buildRevealMessages } from "../game/adviser/AdviserEngine.ts";
 import { CARGO_DIVERSITY_BONUS } from "../data/constants.ts";
+import {
+  getTotalFreightCapacity,
+  getTotalPassengerCapacity,
+} from "../game/tech/TechEffects.ts";
+import { getCapacityCostForScope } from "../game/fleet/CapacityManager.ts";
+import { getRouteScope } from "../game/routes/RouteManager.ts";
 
 function formatCash(amount: number): string {
   const sign = amount < 0 ? "-" : "";
@@ -116,16 +121,17 @@ export class GameOverScene extends Phaser.Scene {
     // -----------------------------------------------------------------------
     const finalScore = calculateScore(state);
 
-    // Compute breakdown components (mirrors ScoreCalculator logic)
-    const fleetValue = state.fleet.reduce(
-      (sum, ship) => sum + calculateShipValue(ship),
-      0,
-    );
+    // Compute breakdown components. Fleet ships have been replaced by a
+    // capacity-pool model — use researched freight + passenger capacity above
+    // the base (4 each) as the "infrastructure value" proxy in net worth.
+    const capacityValue =
+      (getTotalFreightCapacity(state.tech) - 4) * 5000 +
+      (getTotalPassengerCapacity(state.tech) - 4) * 5000;
     const loanBalance = state.loans.reduce(
       (sum, loan) => sum + loan.remainingBalance,
       0,
     );
-    const netWorth = state.cash + fleetValue - loanBalance;
+    const netWorth = state.cash + capacityValue - loanBalance;
     const reputationBonus = state.reputation * 100;
 
     const allCargoTypes: CargoTypeT[] = Object.values(CargoType);
@@ -394,7 +400,7 @@ export class GameOverScene extends Phaser.Scene {
           colorFn: (v) =>
             (v as number) >= 0 ? theme.colors.profit : theme.colors.loss,
         },
-        { key: "fleet", label: "Ships", width: 80, align: "right" },
+        { key: "usedCapacity", label: "Capacity", width: 80, align: "right" },
         { key: "routes", label: "Routes", width: 80, align: "right" },
         {
           key: "score",
@@ -407,12 +413,29 @@ export class GameOverScene extends Phaser.Scene {
       ],
     });
 
+    // Build a per-company usedCapacity map by summing scope costs across
+    // each company's active routes. Player draws from state.activeRoutes;
+    // AI rivals carry their own activeRoutes arrays.
+    const usedCapacityByName = new Map<string, number>();
+    let playerUsed = 0;
+    for (const route of state.activeRoutes) {
+      playerUsed += getCapacityCostForScope(getRouteScope(route, state));
+    }
+    usedCapacityByName.set(state.companyName, playerUsed);
+    for (const ai of state.aiCompanies) {
+      let used = 0;
+      for (const route of ai.activeRoutes) {
+        used += getCapacityCostForScope(getRouteScope(route, state));
+      }
+      usedCapacityByName.set(ai.name, used);
+    }
+
     const rankRows = rankings.map((r, i) => ({
       rank: i + 1,
       name: r.isPlayer ? `${r.name} (You)` : r.name,
       isPlayer: r.isPlayer,
       netWorth: r.netWorth,
-      fleet: r.fleetSize,
+      usedCapacity: usedCapacityByName.get(r.name) ?? 0,
       routes: r.routeCount,
       score: r.score,
     }));

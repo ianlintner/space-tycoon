@@ -201,8 +201,8 @@ export class CompetitionScene extends Phaser.Scene {
         },
         {
           key: "fleet",
-          label: this.intelTier >= 3 ? "Ships" : "Ships (T3)",
-          width: 90,
+          label: this.intelTier >= 3 ? "Capacity" : "Capacity (T3)",
+          width: 100,
           align: "right",
         },
         { key: "status", label: "Status", width: 90, colorFn: statusColorFn },

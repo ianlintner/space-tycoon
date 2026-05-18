@@ -27,12 +27,9 @@ import {
   getCargoColor,
   getCargoLabel,
   getCargoShortLabel,
-  getShipIconKey,
-  getShipColor,
   attachReflowHandler,
 } from "../ui/index.ts";
 import {
-  assignShipToRoute,
   calculateDistance,
   calculateLicenseFee,
   createRoute,
@@ -43,6 +40,7 @@ import {
   addCargoLock,
   removeCargoLocks,
   setRoutePaused,
+  getRouteScope,
   getAvailableRouteSlots,
   getUsedRouteSlots,
   getFreeRouteSlots,
@@ -58,9 +56,13 @@ import {
   findPath,
   countBorderCrossings,
 } from "../game/routes/HyperlaneRouter.ts";
-import { buyShip } from "../game/fleet/FleetManager.ts";
-import { SHIP_TEMPLATES } from "../data/constants.ts";
-import type { ShipClass } from "../data/types.ts";
+import {
+  getTotalFreightCapacity,
+  getTotalPassengerCapacity,
+  getFreightHullMark,
+  getPassengerHullMark,
+} from "../game/tech/TechEffects.ts";
+import { getCapacityCostForScope } from "../game/fleet/CapacityManager.ts";
 import {
   validateRouteCreation,
   getEmpireForPlanet,
@@ -103,9 +105,11 @@ export class RoutesScene extends Phaser.Scene {
   private selectedRouteSummary!: Phaser.GameObjects.Text;
   private selectedRouteHint!: Phaser.GameObjects.Text;
   private deleteRouteButton!: Button;
-  private assignShipButton!: Button;
   private setCargoButton!: Button;
   private pauseRouteButton!: Button;
+  private freightCapacityText!: Phaser.GameObjects.Text;
+  private passengerCapacityText!: Phaser.GameObjects.Text;
+  private hullMarkText!: Phaser.GameObjects.Text;
 
   // ── Route Finder tab state ──
   private finderTable!: DataTable;
@@ -514,20 +518,6 @@ export class RoutesScene extends Phaser.Scene {
             return (v as number) >= 0 ? t.colors.profit : t.colors.loss;
           },
         },
-        {
-          key: "ship",
-          label: "Ship",
-          width: 72,
-          sortable: true,
-          iconFn: (_v, row) => {
-            const sc = row?.["shipClass"] as string | undefined;
-            return sc ? getShipIconKey(sc) : null;
-          },
-          iconTintFn: (_v, row) => {
-            const sc = row?.["shipClass"] as string | undefined;
-            return sc ? getShipColor(sc) : null;
-          },
-        },
       ],
       keyboardNavigation: true,
       autoFocus: true,
@@ -640,21 +630,6 @@ export class RoutesScene extends Phaser.Scene {
           format: (v) => (v as number).toFixed(1),
         },
         {
-          key: "ships",
-          label: "Ships",
-          width: 70,
-          align: "center",
-          sortable: true,
-          iconFn: (_v, row) => {
-            const sc = row?.["shipClass"] as string | undefined;
-            return sc ? getShipIconKey(sc) : null;
-          },
-          iconTintFn: (_v, row) => {
-            const sc = row?.["shipClass"] as string | undefined;
-            return sc ? getShipColor(sc) : null;
-          },
-        },
-        {
           key: "cargoType",
           label: "Cargo",
           width: 90,
@@ -744,18 +719,8 @@ export class RoutesScene extends Phaser.Scene {
     });
     activeContent.add(this.deleteRouteButton);
 
-    this.assignShipButton = new Button(this, {
-      x: contentInnerX + 140,
-      y: activeButtonY,
-      width: 120,
-      label: "Assign Ship",
-      disabled: true,
-      onClick: () => this.showAssignShip(),
-    });
-    activeContent.add(this.assignShipButton);
-
     this.setCargoButton = new Button(this, {
-      x: contentInnerX + 280,
+      x: contentInnerX + 140,
       y: activeButtonY,
       width: 120,
       label: "Set Cargo",
@@ -765,7 +730,7 @@ export class RoutesScene extends Phaser.Scene {
     activeContent.add(this.setCargoButton);
 
     this.pauseRouteButton = new Button(this, {
-      x: contentInnerX + 420,
+      x: contentInnerX + 280,
       y: activeButtonY,
       width: 120,
       label: "Pause",
@@ -775,13 +740,44 @@ export class RoutesScene extends Phaser.Scene {
     activeContent.add(this.pauseRouteButton);
 
     const addRouteBtn = new Button(this, {
-      x: contentInnerX + 560,
+      x: contentInnerX + 420,
       y: activeButtonY,
       width: 140,
       label: "Create Route",
       onClick: () => this.startCreateRoute(),
     });
     activeContent.add(addRouteBtn);
+
+    // Capacity status readout pinned to the right of the Active Routes
+    // header. Color reflects utilization band (green/yellow/orange/red).
+    const capacityRightX = contentInnerX + contentInnerW;
+    this.freightCapacityText = this.add
+      .text(capacityRightX, tabContentY + 2, "FC 0/0", {
+        fontSize: `${getTheme().fonts.value.size}px`,
+        fontFamily: getTheme().fonts.value.family,
+        color: colorToString(getTheme().colors.text),
+      })
+      .setOrigin(1, 0);
+    activeContent.add(this.freightCapacityText);
+
+    this.passengerCapacityText = this.add
+      .text(capacityRightX, tabContentY + 22, "PC 0/0", {
+        fontSize: `${getTheme().fonts.value.size}px`,
+        fontFamily: getTheme().fonts.value.family,
+        color: colorToString(getTheme().colors.text),
+      })
+      .setOrigin(1, 0);
+    activeContent.add(this.passengerCapacityText);
+
+    // Hull-mark badge for the route creation context (active tab header).
+    this.hullMarkText = this.add
+      .text(capacityRightX, tabContentY + 42, "Hulls: Mk1 / Mk1", {
+        fontSize: `${getTheme().fonts.caption.size}px`,
+        fontFamily: getTheme().fonts.caption.family,
+        color: colorToString(getTheme().colors.textDim),
+      })
+      .setOrigin(1, 0);
+    activeContent.add(this.hullMarkText);
 
     // ── Initial data load ──
     this.refreshFinderTable();
@@ -1288,12 +1284,11 @@ export class RoutesScene extends Phaser.Scene {
 
     const route = createRoute(origin.id, dest.id, distance, opp.bestCargoType);
 
-    let updatedFleet = [...state.fleet];
-    let updatedRoutes = [...state.activeRoutes, route];
-    let updatedCash = state.cash - licenseFee;
+    const updatedRoutes = [...state.activeRoutes, route];
+    const updatedCash = state.cash - licenseFee;
 
     // Track inter-empire cargo lock
-    let updatedLocks = addCargoLock(
+    const updatedLocks = addCargoLock(
       origin.id,
       dest.id,
       opp.bestCargoType,
@@ -1303,57 +1298,7 @@ export class RoutesScene extends Phaser.Scene {
       state.interEmpireCargoLocks,
     );
 
-    // Find best available ship for this cargo
-    const isPassenger = opp.bestCargoType === "passengers";
-    const availableShip = updatedFleet
-      .filter((s) => !s.assignedRouteId)
-      .filter((s) =>
-        isPassenger ? s.passengerCapacity > 0 : s.cargoCapacity > 0,
-      )
-      .sort((a, b) =>
-        isPassenger
-          ? b.passengerCapacity - a.passengerCapacity
-          : b.cargoCapacity - a.cargoCapacity,
-      )[0];
-
-    let shipId: string | null = availableShip?.id ?? null;
-    let boughtShipName: string | null = null;
-
-    // Auto-buy if no owned ship available
-    if (!shipId && opp.shipSource === "autoBuy") {
-      const shipClasses = Object.keys(SHIP_TEMPLATES) as ShipClass[];
-      const compatible = shipClasses
-        .map((sc) => ({ class: sc, template: SHIP_TEMPLATES[sc] }))
-        .filter((e) =>
-          isPassenger
-            ? e.template.passengerCapacity > 0
-            : e.template.cargoCapacity > 0,
-        )
-        .filter((e) => e.template.purchaseCost <= updatedCash)
-        .sort((a, b) => a.template.purchaseCost - b.template.purchaseCost);
-
-      if (compatible.length > 0) {
-        const { ship, cost } = buyShip(compatible[0].class, updatedFleet);
-        updatedFleet = [...updatedFleet, ship];
-        updatedCash -= cost;
-        shipId = ship.id;
-        boughtShipName = ship.name;
-      }
-    }
-
-    if (shipId) {
-      const result = assignShipToRoute(
-        shipId,
-        route.id,
-        updatedFleet,
-        updatedRoutes,
-      );
-      updatedFleet = result.fleet;
-      updatedRoutes = result.routes;
-    }
-
     gameStore.update({
-      fleet: updatedFleet,
       activeRoutes: updatedRoutes,
       interEmpireCargoLocks: updatedLocks,
       cash: updatedCash,
@@ -1364,13 +1309,7 @@ export class RoutesScene extends Phaser.Scene {
     // Breach any non-compete agreements that cover the new route's empires.
     this.checkNonCompeteBreach(origin.systemId, dest.systemId);
 
-    const assignedName =
-      updatedFleet.find((s) => s.id === shipId)?.name ?? null;
-    const msg = boughtShipName
-      ? `Route created! Bought ${boughtShipName} and assigned to ${opp.originName} → ${opp.destinationName}.`
-      : assignedName
-        ? `Route created! ${assignedName} assigned to ${opp.originName} → ${opp.destinationName}.`
-        : `Route created: ${opp.originName} → ${opp.destinationName}. Assign a ship on the Active Routes tab.`;
+    const msg = `Route created: ${opp.originName} → ${opp.destinationName}.`;
 
     const m = new Modal(this, {
       title: "Route Created",
@@ -1530,11 +1469,6 @@ export class RoutesScene extends Phaser.Scene {
     }
 
     const rows = state.activeRoutes.map((route) => {
-      const firstShipId = route.assignedShipIds[0];
-      const firstShip = firstShipId
-        ? state.fleet.find((s) => s.id === firstShipId)
-        : undefined;
-
       let revenue: number | string = "\u2014";
       let fuelCost: number | string = "\u2014";
       let profit: number | string = "\u2014";
@@ -1543,11 +1477,11 @@ export class RoutesScene extends Phaser.Scene {
         revenue = "\u23f8 paused";
         fuelCost = 0;
         profit = 0;
-      } else if (firstShip && route.cargoType) {
-        const rev = estimateRouteRevenue(route, firstShip, state.market, state);
+      } else if (route.cargoType) {
+        const rev = estimateRouteRevenue(route, undefined, state.market, state);
         const fuel = estimateRouteFuelCost(
           route,
-          firstShip,
+          undefined,
           state.market.fuelPrice,
         );
         revenue = rev;
@@ -1565,8 +1499,6 @@ export class RoutesScene extends Phaser.Scene {
         origin: route.paused ? `\u23f8 ${originName}` : originName,
         destination: destinationName,
         distance: route.distance,
-        ships: route.assignedShipIds.length,
-        shipClass: firstShip?.class ?? null,
         cargoType: route.cargoType ?? "None",
         revenue,
         fuelCost,
@@ -1577,6 +1509,58 @@ export class RoutesScene extends Phaser.Scene {
 
     this.routeTable.setRows(rows);
     this.updateSelectedRouteUi();
+    this.updateCapacityDisplay();
+  }
+
+  /**
+   * Update the capacity-pool readout in the active-routes header.
+   * Colors the value based on utilization band:
+   *   <= 0.8  \u2192 success/profit (green)
+   *   <= 1.0  \u2192 accent (yellow-ish)
+   *   <= 1.2  \u2192 warning (orange)
+   *   >  1.2  \u2192 loss (red)
+   */
+  private updateCapacityDisplay(): void {
+    if (!this.freightCapacityText) return;
+    const state = gameStore.getState();
+    const theme = getTheme();
+    let usedFC = 0;
+    let usedPC = 0;
+    for (const route of state.activeRoutes) {
+      if (route.paused) continue;
+      const cost = getCapacityCostForScope(getRouteScope(route, state));
+      if (route.cargoType === CargoType.Passengers) {
+        usedPC += cost;
+      } else {
+        usedFC += cost;
+      }
+    }
+    const totalFC = getTotalFreightCapacity(state.tech);
+    const totalPC = getTotalPassengerCapacity(state.tech);
+
+    const colorForUtil = (used: number, total: number): number => {
+      if (total <= 0) return theme.colors.textDim;
+      const u = used / total;
+      if (u <= 0.8) return theme.colors.profit;
+      if (u <= 1.0) return theme.colors.accent;
+      if (u <= 1.2) return theme.colors.warning;
+      return theme.colors.loss;
+    };
+
+    this.freightCapacityText.setText(`FC ${usedFC}/${totalFC}`);
+    this.freightCapacityText.setColor(
+      colorToString(colorForUtil(usedFC, totalFC)),
+    );
+    this.passengerCapacityText.setText(`PC ${usedPC}/${totalPC}`);
+    this.passengerCapacityText.setColor(
+      colorToString(colorForUtil(usedPC, totalPC)),
+    );
+
+    const freightMk = getFreightHullMark(state.tech);
+    const passMk = getPassengerHullMark(state.tech);
+    this.hullMarkText.setText(
+      `Freight Hull Mk${freightMk} \u00b7 Pax Hull Mk${passMk}`,
+    );
   }
 
   private updateSelectedRouteUi(): void {
@@ -1588,7 +1572,6 @@ export class RoutesScene extends Phaser.Scene {
 
     const hasSelection = Boolean(route);
     this.deleteRouteButton?.setDisabled(!hasSelection);
-    this.assignShipButton?.setDisabled(!hasSelection);
     this.setCargoButton?.setDisabled(!hasSelection);
     this.pauseRouteButton?.setDisabled(!hasSelection);
     this.pauseRouteButton?.setLabel(route?.paused ? "Resume" : "Pause");
@@ -1614,10 +1597,6 @@ export class RoutesScene extends Phaser.Scene {
     const destinationIndex = destination
       ? state.galaxy.planets.indexOf(destination)
       : 0;
-    const firstShip = route.assignedShipIds[0]
-      ? state.fleet.find((ship) => ship.id === route.assignedShipIds[0])
-      : undefined;
-
     if (destination) {
       const path = origin
         ? findPath(
@@ -1662,35 +1641,20 @@ export class RoutesScene extends Phaser.Scene {
     const routeTitle = `${origin?.name ?? "Origin"} \u2192 ${destination?.name ?? "Destination"}`;
     this.selectedRouteSummary.setText(routeTitle);
 
-    if (route.assignedShipIds.length === 0) {
-      this.selectedRouteHint.setText(
-        "Next step: assign a ship to start flying this route. Press Enter or use Assign Ship.",
-      );
-      this.assignShipButton.setLabel("Assign Ship");
-    } else if (!firstShip) {
-      this.selectedRouteHint.setText(
-        "This route has assigned ship IDs but no matching ship was found. Delete or reassign to recover.",
-      );
-      this.assignShipButton.setLabel("Assign Ship");
-    } else {
-      const revenue = route.cargoType
-        ? estimateRouteRevenue(route, firstShip, state.market, state)
-        : null;
-      const fuel = route.cargoType
-        ? estimateRouteFuelCost(route, firstShip, state.market.fuelPrice)
-        : null;
-      const profit = revenue != null && fuel != null ? revenue - fuel : null;
-      const profitLabel =
-        profit == null
-          ? "\u2014"
-          : `${profit >= 0 ? "profit" : "loss"} ${formatCash(profit)}`;
-      this.selectedRouteHint.setText(
-        `Assigned: ${firstShip.name}. Cargo: ${route.cargoType ?? "None"}. Current estimate: ${profitLabel}. Enter adjusts cargo; Assign Ship adds another ship.`,
-      );
-      this.assignShipButton.setLabel(
-        route.assignedShipIds.length > 0 ? "Add Ship" : "Assign Ship",
-      );
-    }
+    const revenue = route.cargoType
+      ? estimateRouteRevenue(route, undefined, state.market, state)
+      : null;
+    const fuel = route.cargoType
+      ? estimateRouteFuelCost(route, undefined, state.market.fuelPrice)
+      : null;
+    const profit = revenue != null && fuel != null ? revenue - fuel : null;
+    const profitLabel =
+      profit == null
+        ? "\u2014"
+        : `${profit >= 0 ? "profit" : "loss"} ${formatCash(profit)}`;
+    this.selectedRouteHint.setText(
+      `Cargo: ${route.cargoType ?? "None"}. Current estimate: ${profitLabel}. Enter adjusts cargo.`,
+    );
 
     this.selectedRouteSummary.setColor(colorToString(theme.colors.accent));
   }
@@ -1735,11 +1699,6 @@ export class RoutesScene extends Phaser.Scene {
       .getState()
       .activeRoutes.find((entry) => entry.id === this.selectedRouteId);
     if (!route) {
-      return;
-    }
-
-    if (route.assignedShipIds.length === 0) {
-      this.showAssignShip();
       return;
     }
 
@@ -1836,136 +1795,6 @@ export class RoutesScene extends Phaser.Scene {
       },
     });
     modal.show();
-  }
-
-  private showAssignShip(): void {
-    if (!this.selectedRouteId) {
-      const noSelectModal = new Modal(this, {
-        title: "No Route Selected",
-        body: "Please select a route from the table first.",
-        onOk: () => {
-          noSelectModal.destroy();
-        },
-      });
-      noSelectModal.show();
-      return;
-    }
-
-    const theme = getTheme();
-    const state = gameStore.getState();
-    const availableShips = state.fleet.filter((s) => !s.assignedRouteId);
-
-    if (availableShips.length === 0) {
-      const noShipsModal = new Modal(this, {
-        title: "No Available Ships",
-        body: "All ships are currently assigned to routes. Unassign a ship first or buy a new one.",
-        onOk: () => {
-          noShipsModal.destroy();
-        },
-      });
-      noShipsModal.show();
-      return;
-    }
-
-    const layer = this.ui.openLayer({ key: "routes-assign-ship" });
-    layer.createOverlay({
-      alpha: 0.6,
-      color: theme.colors.modalOverlay,
-      closeOnPointerUp: true,
-    });
-
-    const L = getLayout();
-    const panelW = 450;
-    const panelH = 400;
-    const panelX = (L.gameWidth - panelW) / 2;
-    const panelY = (L.gameHeight - panelH) / 2;
-
-    const shipPanel = layer.track(
-      new Panel(this, {
-        x: panelX,
-        y: panelY,
-        width: panelW,
-        height: panelH,
-        title: "Assign Ship",
-      }),
-    );
-    shipPanel.setDepth(1000);
-
-    const content = shipPanel.getContentArea();
-    const routeId = this.selectedRouteId;
-
-    const shipList = layer.track(
-      new ScrollableList(this, {
-        x: panelX + content.x,
-        y: panelY + content.y,
-        width: content.width,
-        height: content.height - 50,
-        itemHeight: 40,
-        keyboardNavigation: true,
-        autoFocus: true,
-        onCancel: () => {
-          layer.destroy();
-        },
-        onSelect: (index: number) => {
-          const ship = availableShips[index];
-          if (!ship || !routeId) return;
-
-          const freshState = gameStore.getState();
-          const result = assignShipToRoute(
-            ship.id,
-            routeId,
-            freshState.fleet,
-            freshState.activeRoutes,
-          );
-          gameStore.update({
-            fleet: result.fleet,
-            activeRoutes: result.routes,
-          });
-
-          layer.destroy();
-          this.refreshFinderTable();
-          this.refreshActiveTable();
-        },
-      }),
-    );
-    shipList.setDepth(1000);
-
-    for (const ship of availableShips) {
-      const itemContainer = this.add.container(0, 0);
-      const nameText = this.add.text(10, 4, `${ship.name} (${ship.class})`, {
-        fontSize: `${theme.fonts.body.size}px`,
-        fontFamily: theme.fonts.body.family,
-        color: colorToString(theme.colors.text),
-        wordWrap: { width: content.width - 20 },
-      });
-      const statsText = this.add.text(
-        10,
-        22,
-        `Cargo: ${ship.cargoCapacity}  Pax: ${ship.passengerCapacity}  Spd: ${ship.speed}`,
-        {
-          fontSize: `${theme.fonts.caption.size}px`,
-          fontFamily: theme.fonts.caption.family,
-          color: colorToString(theme.colors.textDim),
-          wordWrap: { width: content.width - 20 },
-        },
-      );
-      itemContainer.add([nameText, statsText]);
-      shipList.addItem(itemContainer);
-    }
-
-    layer
-      .track(
-        new Button(this, {
-          x: panelX + panelW - content.x - 100,
-          y: panelY + panelH - 50,
-          width: 100,
-          label: "Close",
-          onClick: () => {
-            layer.destroy();
-          },
-        }),
-      )
-      .setDepth(1000);
   }
 
   private showSetCargo(): void {
