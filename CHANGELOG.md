@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-W21] — 2026-05-18
+
+- replace static word arrays with lexicon-conlang generators (#331)
+- improve system label visibility with grid-collision sup… (#334)
+- Add tutorial skip option and UI enhancements (#335)
+- perf+feat(routes): cache route lookup hot paths and add system/planet search (#336)
+- unified character dialogue modal with post-turn FIFO queue drain (#337)
+
 ## [2026-W20] — 2026-05-11
 
 - industry chain economy — planet specialization + route slot rule (#296)
