@@ -61,6 +61,8 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
   private dragStartPanX = 0;
   private dragStartPanY = 0;
   private currentState: TechGraphState | null = null;
+  private breathingTween: Phaser.Tweens.Tween | null = null;
+  private breathingTechId: string | null = null;
   private bgHit: Phaser.GameObjects.Rectangle;
   private clipMask!: Phaser.GameObjects.Graphics;
   private maskSyncBound!: () => void;
@@ -357,12 +359,50 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
     view.bg.strokeRoundedRect(-HALF, -HALF, NODE_SIZE, NODE_SIZE, 8);
   }
 
+  private ensureBreathingTween(researchingId: string | null): void {
+    // If the researching node hasn't changed, leave the tween alone.
+    if (this.breathingTechId === researchingId) return;
+
+    // Stop and reset previous breathing target.
+    if (this.breathingTween) {
+      this.breathingTween.stop();
+      this.breathingTween = null;
+    }
+    if (this.breathingTechId) {
+      const prev = this.nodeViews.get(this.breathingTechId);
+      if (prev) {
+        prev.glow.setAlpha(0);
+        prev.glow.setScale(1);
+      }
+    }
+    this.breathingTechId = researchingId;
+    if (!researchingId) return;
+
+    const view = this.nodeViews.get(researchingId);
+    if (!view) return;
+
+    view.glow.setScale(1);
+    view.glow.setAlpha(0.55);
+
+    this.breathingTween = this.scene.tweens.add({
+      targets: view.glow,
+      alpha: { from: 0.55, to: 1.0 },
+      scaleX: { from: 1.0, to: 1.08 },
+      scaleY: { from: 1.0, to: 1.08 },
+      duration: 1600,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
   setGraphState(state: TechGraphState): this {
     this.currentState = state;
     this.drawEdges(state);
     for (const tech of TECH_GRAPH) {
       this.refreshNodeView(tech.id);
     }
+    this.ensureBreathingTween(state.queue[0] ?? null);
     return this;
   }
 
@@ -425,6 +465,10 @@ export class TechGraphCanvas extends Phaser.GameObjects.Container {
   }
 
   override destroy(fromScene?: boolean): void {
+    if (this.breathingTween) {
+      this.breathingTween.stop();
+      this.breathingTween = null;
+    }
     if (this._onMove) this.scene.input.off("pointermove", this._onMove);
     if (this._onUp) this.scene.input.off("pointerup", this._onUp);
     if (this._onWheel) this.scene.input.off("wheel", this._onWheel);
