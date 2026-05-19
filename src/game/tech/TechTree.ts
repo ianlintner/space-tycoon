@@ -5,6 +5,7 @@ import {
   HUB_ROOM_DEFINITIONS,
 } from "../../data/constants.ts";
 import { calculateRouteRP } from "./DeliveryRP.ts";
+import { isBranchCommitted } from "./BranchCommitment.ts";
 
 const CARGO_PACT_IDS = new Set([
   "diplomacy_food",
@@ -49,6 +50,12 @@ export function isTechAvailable(techId: string, tech: TechState): boolean {
         (tech.completedTechIds.includes(id) || tech.queue.includes(id)),
     );
     if (conflict) return false;
+  }
+
+  // Tier wall — T3 and T4 require the branch to be committed.
+  // T1/T2 are accessible to any player.
+  if (node.tier >= 3 && !isBranchCommitted(node.branch, tech)) {
+    return false;
   }
 
   // Center node is always available

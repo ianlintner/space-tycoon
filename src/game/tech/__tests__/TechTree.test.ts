@@ -604,3 +604,36 @@ describe("Tech Tree System", () => {
     });
   });
 });
+
+describe("isTechAvailable — tier wall", () => {
+  it("blocks T3+ techs in uncommitted branches", () => {
+    // logistics_4 is T4; needs both: (a) prereq logistics_3 owned, (b) Logistics committed.
+    // Provide only (a) — expect blocked.
+    const tech = makeTechState({
+      researchPoints: 1_000,
+      completedTechIds: ["logistics_3"],
+      purchaseCount: { logistics_3: 1 },
+    });
+    expect(isTechAvailable("logistics_4", tech)).toBe(false);
+  });
+
+  it("allows T3+ techs in committed branches when prereq owned", () => {
+    const tech = makeTechState({
+      researchPoints: 1_000,
+      completedTechIds: ["logistics_3"],
+      purchaseCount: { logistics_3: 1 },
+      committedBranches: ["logistics"],
+    });
+    expect(isTechAvailable("logistics_4", tech)).toBe(true);
+  });
+
+  it("allows T1/T2 techs without commitment", () => {
+    const tech = makeTechState({
+      researchPoints: 1_000,
+      completedTechIds: ["fuel_efficiency_1"],
+      purchaseCount: { fuel_efficiency_1: 1 },
+    });
+    // logistics_hub is T1, no commitment required
+    expect(isTechAvailable("logistics_hub", tech)).toBe(true);
+  });
+});
