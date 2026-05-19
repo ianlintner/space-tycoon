@@ -231,6 +231,64 @@ export function calculateRPPerTurn(state: GameState): number {
   return Math.round(rp * 100) / 100;
 }
 
+export interface RPBreakdown {
+  base: number;
+  delivery: number;
+  infrastructure: number;
+  total: number;
+}
+
+export function getRPBreakdown(state: GameState): RPBreakdown {
+  const base = BASE_RP_PER_TURN;
+
+  const lastResult =
+    state.history.length > 0 ? state.history[state.history.length - 1] : null;
+  const tripsByRoute = new Map<string, number>();
+  if (lastResult) {
+    for (const perf of lastResult.routePerformance) {
+      tripsByRoute.set(perf.routeId, perf.trips);
+    }
+  }
+
+  let delivery = 0;
+  for (const route of state.activeRoutes) {
+    if (route.paused) continue;
+    const trips = tripsByRoute.get(route.id) ?? 1;
+    delivery += calculateRouteRP(route, trips, state);
+  }
+
+  let infrastructure = 0;
+  for (const [techId, count] of Object.entries(state.tech.purchaseCount)) {
+    const node = TECH_GRAPH.find((n) => n.id === techId);
+    if (!node) continue;
+    for (const effect of node.effects) {
+      if (effect.type === "addRPPerTurn") {
+        infrastructure += effect.value * count;
+      }
+    }
+  }
+  if (state.stationHub) {
+    for (const room of state.stationHub.rooms) {
+      const def = HUB_ROOM_DEFINITIONS[room.type];
+      if (!def) continue;
+      for (const effect of def.bonusEffects) {
+        if (effect.type === "addRPPerTurn") {
+          infrastructure += effect.value;
+        }
+      }
+    }
+  }
+
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const total = base + delivery + infrastructure;
+  return {
+    base: round2(base),
+    delivery: round2(delivery),
+    infrastructure: round2(infrastructure),
+    total: round2(total),
+  };
+}
+
 export function getCurrentResearch(tech: TechState): Technology | null {
   if (!tech.queue[0]) return null;
   return TECH_GRAPH.find((t) => t.id === tech.queue[0]) ?? null;
