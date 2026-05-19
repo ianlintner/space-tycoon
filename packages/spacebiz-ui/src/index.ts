@@ -10,6 +10,7 @@ export {
   setTheme,
   colorToString,
   lerpColor,
+  getBranchColor,
   DEFAULT_THEME,
 } from "./Theme.ts";
 export type { ThemeConfig } from "./Theme.ts";
