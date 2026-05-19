@@ -243,8 +243,6 @@ export const CONTRACT_UNASSIGNED_SHIP_LIMIT = 2;
 // ── Tech Tree ──────────────────────────────────────────────────
 
 export const BASE_RP_PER_TURN = 1;
-export const RP_DIVERSITY_THRESHOLD = 4;
-export const RP_RESEARCH_PLANET_BONUS = 0.5;
 
 // ── Mothball ───────────────────────────────────────────────────
 
