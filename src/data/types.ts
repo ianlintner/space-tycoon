@@ -513,6 +513,8 @@ export const HubRoomType = {
   CustomsBureau: "customsBureau",
   RepairBay: "repairBay",
   ResearchLab: "researchLab",
+  RdCenter: "rdCenter",
+  TheoreticalInstitute: "theoreticalInstitute",
   CargoWarehouse: "cargoWarehouse",
   SecurityOffice: "securityOffice",
 } as const;

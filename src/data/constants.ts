@@ -1547,14 +1547,41 @@ export const HUB_ROOM_DEFINITIONS: Record<HubRoomType, HubRoomDefinition> = {
   [HubRoomType.ResearchLab]: {
     type: HubRoomType.ResearchLab,
     name: "Research Lab",
-    description: "Generates +1 research point per turn.",
+    description:
+      "Generates +1 research point per turn. Foundation for advanced research facilities.",
     icon: "🔬",
-    buildCost: 20000,
-    upkeepCost: 2500,
-    limit: 1,
-    techRequirement: "intelligence_2",
+    buildCost: 15_000,
+    upkeepCost: 1_500,
+    limit: 3,
+    techRequirement: null,
     bonusScope: "empire",
     bonusEffects: [{ type: "addRPPerTurn", value: 1 }],
+  },
+  [HubRoomType.RdCenter]: {
+    type: HubRoomType.RdCenter,
+    name: "R&D Center",
+    description:
+      "Generates +3 research points per turn. Requires a Research Lab in the same hub + 1 branch commitment.",
+    icon: "🧪",
+    buildCost: 50_000,
+    upkeepCost: 5_000,
+    limit: 2,
+    techRequirement: null,
+    bonusScope: "empire",
+    bonusEffects: [{ type: "addRPPerTurn", value: 3 }],
+  },
+  [HubRoomType.TheoreticalInstitute]: {
+    type: HubRoomType.TheoreticalInstitute,
+    name: "Theoretical Institute",
+    description:
+      "Generates +6 research points per turn. Requires an R&D Center in the same hub + 2 branch commitments.",
+    icon: "🏛️",
+    buildCost: 150_000,
+    upkeepCost: 15_000,
+    limit: 1,
+    techRequirement: null,
+    bonusScope: "empire",
+    bonusEffects: [{ type: "addRPPerTurn", value: 6 }],
   },
   [HubRoomType.CargoWarehouse]: {
     type: HubRoomType.CargoWarehouse,
@@ -1592,6 +1619,9 @@ export const HUB_STARTER_ROOMS: HubRoomType[] = [
   HubRoomType.SimpleTerminal,
   HubRoomType.TradeOffice,
   HubRoomType.PassengerLounge,
+  HubRoomType.ResearchLab,
+  HubRoomType.RdCenter,
+  HubRoomType.TheoreticalInstitute,
 ];
 
 /** Room types that require tech and are randomized per run */
@@ -1606,7 +1636,6 @@ export const HUB_TECH_GATED_ROOMS: HubRoomType[] = [
   HubRoomType.MarketExchange,
   HubRoomType.CustomsBureau,
   HubRoomType.RepairBay,
-  HubRoomType.ResearchLab,
   HubRoomType.CargoWarehouse,
   HubRoomType.SecurityOffice,
 ];
