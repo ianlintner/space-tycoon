@@ -35,7 +35,7 @@ jobs:
 
   e2e:
     name: E2E Tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +123,7 @@ jobs:
 
   subpath-smoke:
     name: Subpath Smoke (/space-tycoon/)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
