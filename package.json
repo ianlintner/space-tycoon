@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:subpath": "playwright test -c playwright.subpath.config.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:tier2": "playwright test e2e/tier2.spec.ts",
     "test:e2e:headed": "playwright test --headed",
