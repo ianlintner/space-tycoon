@@ -74,6 +74,7 @@ import {
   removeTagsByKind,
 } from "../game/diplomacy/StandingTags.ts";
 import type { GalaxyMapScene } from "./GalaxyMapScene.ts";
+import type { GameHUDScene } from "./GameHUDScene.ts";
 
 function formatCash(n: number): string {
   const sign = n < 0 ? "-" : "";
@@ -151,6 +152,20 @@ export class RoutesScene extends Phaser.Scene {
   getCreateRouteBtnBounds(): { x: number; y: number; w: number; h: number } {
     const b = this.createSelectedBtn.getBounds();
     return { x: b.x, y: b.y, w: b.width, h: b.height };
+  }
+
+  getFirstFinderRowBounds(): {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null {
+    return this.finderTable?.getFirstRowBounds() ?? null;
+  }
+
+  /** Test/tutorial helper: select the highlighted (first) finder row. */
+  selectFirstFinderRow(): boolean {
+    return this.finderTable?.selectRowByIndex(0) ?? false;
   }
 
   create(): void {
@@ -1305,6 +1320,10 @@ export class RoutesScene extends Phaser.Scene {
       interEmpireCargoLocks: updatedLocks,
       cash: updatedCash,
     });
+
+    // Advance the tutorial when the player creates the first route themselves.
+    const hud = this.scene.get("GameHUDScene") as GameHUDScene | undefined;
+    hud?.fireTutorialTrigger("firstRoute");
 
     // Queue ambassador greetings for any empire the player hasn't visited before.
     this.queueAmbassadorGreetingsForRoute(origin.systemId, dest.systemId);

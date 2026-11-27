@@ -9,11 +9,18 @@ export interface TutorialStep {
   highlightHint?: string;
 }
 
+/**
+ * Rex's prompt on the Routes step. Exported so copy tests can assert that the
+ * player — not the adviser — makes the first route decision.
+ */
+export const ROUTE_PICK_PROMPT =
+  "This is the Routes Command screen. Every row in the finder is a viable trade corridor, sorted by estimated profit. The highlighted top row is the strongest one right now. Pick a row yourself, then press Create Route — that first decision is yours. Want me to do it for you instead?";
+
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "tut_new_game",
     trigger: "newGame",
-    text: "Welcome aboard, Commander! I'm Rex, your K9-Corp Executive Adviser. Your company is chartered and your home system is online — now let's haul some cargo. Open the Routes panel (↔) from the left nav to lay down your first trade corridor.",
+    text: "Welcome aboard, Commander! I'm Rex, your K9-Corp Executive Adviser. Goal: finish #1 in net worth among the companies in your galaxy when the clock runs out. Your company is chartered and your home system is online — now let's haul some cargo. Open the Routes panel (↔) from the left nav to lay down your first trade corridor.",
     mood: "success",
     targetScene: "GameHUDScene",
     highlightHint: "routes",

@@ -14,6 +14,7 @@ import {
 } from "../game/simulation/SimulationRunner.ts";
 import type { ChoiceEvent, DilemmaTemplate, GameState } from "../data/types.ts";
 import { createNewGame } from "../game/NewGameSetup.ts";
+import type { RoutesScene } from "../scenes/RoutesScene.ts";
 
 let gameRef: Phaser.Game | null = null;
 
@@ -140,6 +141,8 @@ export interface SemanticActions {
   /** Test-only: install a generated rival field so ranking has competitors. */
   seedRivals: (seed: number) => void;
   openScene: (key: string, data?: object) => void;
+  /** Test-only: select the tutorial's highlighted first route-finder row. */
+  selectFirstFinderRow: () => boolean;
   closeModal: () => void;
   seed: (n: number) => void;
   getSeed: () => number;
@@ -228,6 +231,12 @@ export function makeSemanticActions(): SemanticActions {
       logs.sft.info("rivals seeded", { count: generated.aiCompanies.length });
     },
     openScene: (key, data) => goToScene(key, data),
+    selectFirstFinderRow: () => {
+      const scene = gameRef?.scene.getScene("RoutesScene") as
+        | RoutesScene
+        | undefined;
+      return scene?.selectFirstFinderRow() ?? false;
+    },
     closeModal: () => {
       // Modals render a close "×" as a Text, not a Button — clicking the overlay also cancels.
       // For MVP, press Escape through the global keyboard.

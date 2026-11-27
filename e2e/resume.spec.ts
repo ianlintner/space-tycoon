@@ -91,6 +91,28 @@ test.describe("Resume from autosave", () => {
         adviser?: { tutorialComplete: boolean };
       }>();
       if (tut.adviser?.tutorialComplete) break;
+      // Rex's choice buttons are typewriter-gated; reveal them before clicking.
+      const pickChoice = await waitRegistered("btn-i-ll-pick-one", 2_000)
+        .then(() => true)
+        .catch(() => false);
+      if (pickChoice) {
+        await skipTypewriter();
+        await waitWidget("btn-i-ll-pick-one", 15_000);
+        await sft.click("btn-i-ll-pick-one");
+        await waitWidget("btn-create-route-enter", 15_000);
+        await sft.actions.selectFirstFinderRow();
+        await sft.click("btn-create-route-enter");
+        continue;
+      }
+      const fallbackChoice = await waitRegistered("btn-do-it-for-me", 2_000)
+        .then(() => true)
+        .catch(() => false);
+      if (fallbackChoice) {
+        await skipTypewriter();
+        await waitWidget("btn-do-it-for-me", 15_000);
+        await sft.click("btn-do-it-for-me");
+        continue;
+      }
       const appeared = await waitRegistered("btn-continue", 15_000)
         .then(() => true)
         .catch(() => false);

@@ -340,7 +340,7 @@ function renderSite(): void {
                 <span class="kicker">Cleared for Launch</span>
                 <h1>Run a freight empire across a procedural galaxy.</h1>
                 <p>
-                  Buy low, sell high, expand the fleet, weather the events. Twenty quarters to build something that lasts.
+                  Buy low, sell high, expand the fleet, weather the events. Finish #1 in net worth before the clock runs out.
                 </p>
 
                 <div class="hero-actions">

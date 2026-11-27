@@ -20,7 +20,8 @@ import {
   PORTRAIT_PLACEHOLDER_KEY,
 } from "../game/PortraitLoader.ts";
 import { withLoadingOverlay } from "../ui/LoadingOverlay.ts";
-import type { GamePreset } from "../data/constants.ts";
+import { GAME_LENGTH_PRESETS, type GamePreset } from "../data/constants.ts";
+import { formatGoalLine } from "../game/scoring/GoalText.ts";
 
 const PRESET_NAMES = [
   "Stellar Shipping Co.",
@@ -36,9 +37,21 @@ const PRESET_OPTIONS: Array<{
   label: string;
   description: string;
 }> = [
-  { preset: "quick", label: "QUICK", description: "~25 min · 6 empires" },
-  { preset: "standard", label: "STANDARD", description: "~45 min · 8 empires" },
-  { preset: "epic", label: "EPIC", description: "~80 min · 12 empires" },
+  {
+    preset: "quick",
+    label: "QUICK",
+    description: `${GAME_LENGTH_PRESETS.quick.maxTurns} quarters`,
+  },
+  {
+    preset: "standard",
+    label: "STANDARD",
+    description: `${GAME_LENGTH_PRESETS.standard.maxTurns} quarters`,
+  },
+  {
+    preset: "epic",
+    label: "EPIC",
+    description: `${GAME_LENGTH_PRESETS.epic.maxTurns} quarters`,
+  },
 ];
 
 /**
@@ -61,7 +74,7 @@ export class GalaxySetupScene extends Phaser.Scene {
   private nameIndex = 0;
   private portraitIndex = 0;
   private selectedSystemIndex = 0;
-  private gamePreset: GamePreset = "standard";
+  private gamePreset: GamePreset = "quick";
   private galaxyShape: GalaxyShape = "spiral";
   private seedLabel!: Label;
   private nameLabel!: Label;
@@ -92,6 +105,7 @@ export class GalaxySetupScene extends Phaser.Scene {
   private randomizeButton!: Button;
   private lengthFieldLabel!: Label;
   private presetDescriptions: Label[] = [];
+  private goalLabel!: Label;
   private shapeFieldLabel!: Label;
   private shapeDropdown!: Dropdown;
   private selectStartingLabel!: Label;
@@ -121,7 +135,7 @@ export class GalaxySetupScene extends Phaser.Scene {
       this.seed = Math.floor(Math.random() * 1000000);
       this.nameIndex = Math.floor(Math.random() * PRESET_NAMES.length);
       this.portraitIndex = Math.floor(Math.random() * CEO_PORTRAITS.length);
-      this.gamePreset = "standard";
+      this.gamePreset = "quick";
       this.galaxyShape = "spiral";
     }
     this.selectedSystemIndex = 0;
@@ -302,6 +316,15 @@ export class GalaxySetupScene extends Phaser.Scene {
       descLabel.setOrigin(0.5, 0);
       this.presetDescriptions.push(descLabel);
     });
+
+    this.goalLabel = new Label(this, {
+      x: 0,
+      y: 0,
+      text: "",
+      style: "body",
+      color: theme.colors.accent,
+    });
+    this.goalLabel.setOrigin(0, 0);
 
     this.updatePresetHighlight();
 
@@ -533,7 +556,10 @@ export class GalaxySetupScene extends Phaser.Scene {
       }
     });
 
-    rowY += rowH + 20; // extra space for descriptions
+    this.goalLabel.setPosition(fieldX, rowY + presetBtnH + 24);
+    this.goalLabel.setSize(totalPresetW, 20);
+
+    rowY += rowH + 46; // room for descriptions + the goal line
 
     // Shape row.
     this.shapeFieldLabel.setPosition(rightX, rowY + 6);
@@ -595,13 +621,22 @@ export class GalaxySetupScene extends Phaser.Scene {
     };
   }
 
-  /** Highlight the currently-selected preset button */
+  /** Highlight the currently-selected preset button and refresh the goal line. */
   private updatePresetHighlight(): void {
     PRESET_OPTIONS.forEach(({ preset }, idx) => {
       const btn = this.presetButtons[idx];
       if (!btn) return;
       btn.setActive(preset === this.gamePreset);
     });
+    if (this.goalLabel) {
+      const config = GAME_LENGTH_PRESETS[this.gamePreset];
+      this.goalLabel.setText(
+        formatGoalLine({
+          maxTurns: config.maxTurns,
+          companyCount: config.aiCompanyCount + 1,
+        }),
+      );
+    }
   }
 
   private updatePortraitPreview(): void {

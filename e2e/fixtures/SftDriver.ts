@@ -160,6 +160,7 @@ export type ActionProxy = {
   setRivalCash: (index: number, n: number) => Promise<void>;
   seedRivals: (seed: number) => Promise<void>;
   openScene: (key: string, data?: object) => Promise<void>;
+  selectFirstFinderRow: () => Promise<boolean>;
   closeModal: () => Promise<void>;
   seed: (n: number) => Promise<void>;
   getSeed: () => Promise<number>;

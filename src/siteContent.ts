@@ -1,6 +1,6 @@
 import {
   BASE_CARGO_PRICES,
-  MAX_TURNS,
+  GAME_LENGTH_PRESETS,
   STARTING_CASH,
 } from "./data/constants.ts";
 
@@ -134,9 +134,9 @@ export const HERO_METRICS: HeroMetric[] = [
   },
   {
     label: "Mission Length",
-    value: `${MAX_TURNS} quarters`,
+    value: `${GAME_LENGTH_PRESETS.quick.maxTurns} quarters`,
     detail:
-      "A fixed-length run. Survive the clock and your ledger writes the ending.",
+      "Quick is the default run. Longer presets are there when you're ready for a deeper campaign.",
   },
   {
     label: "Starting Hangar",
@@ -222,7 +222,7 @@ export const MANUAL_SECTIONS: GuideSection[] = [
   },
   {
     title: "6. Stick the landing",
-    summary: `A campaign runs ${MAX_TURNS} quarters. Late-game scores reward operators who balance expansion with discipline.`,
+    summary: `A Quick campaign runs ${GAME_LENGTH_PRESETS.quick.maxTurns} quarters (Standard ${GAME_LENGTH_PRESETS.standard.maxTurns}, Epic ${GAME_LENGTH_PRESETS.epic.maxTurns}). Late-game scores reward operators who balance expansion with discipline.`,
     bullets: [
       "Keep a cash cushion. The final stretch is when bad events love to show up.",
       "Upgrade only when a new hull unlocks throughput or coverage you're already short on.",
