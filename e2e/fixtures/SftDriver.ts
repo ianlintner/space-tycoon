@@ -11,6 +11,7 @@ import type {
   PortraitStatus,
   AdviserSnapshot,
 } from "../../src/testing/tier2.ts";
+import type { SftTestAPI } from "../../src/testing/TestAPI.ts";
 import type { TickerItem } from "../../src/generation/news/types.ts";
 
 /**
@@ -117,6 +118,10 @@ export class SftDriver {
     return this.page.evaluate(() => window.__sft!.getAdviserState());
   }
 
+  getGameOutcome(): Promise<ReturnType<SftTestAPI["getGameOutcome"]>> {
+    return this.page.evaluate(() => window.__sft!.getGameOutcome());
+  }
+
   /** Typed proxy for `__sft.actions.*`. */
   readonly actions: ActionProxy = new Proxy(
     {},
@@ -151,6 +156,9 @@ export type ActionProxy = {
   newGame: (seed?: number) => Promise<void>;
   endTurn: () => Promise<ClickResult | null>;
   setMaxTurns: (n: number) => Promise<void>;
+  setPlayerCash: (n: number) => Promise<void>;
+  setRivalCash: (index: number, n: number) => Promise<void>;
+  seedRivals: (seed: number) => Promise<void>;
   openScene: (key: string, data?: object) => Promise<void>;
   closeModal: () => Promise<void>;
   seed: (n: number) => Promise<void>;

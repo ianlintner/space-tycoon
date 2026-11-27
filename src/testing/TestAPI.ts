@@ -29,8 +29,10 @@ import {
 } from "./tier2.ts";
 import type { PortraitStatus, AdviserSnapshot } from "./tier2.ts";
 import type { TickerItem } from "../generation/news/types.ts";
+import { getGameOutcome as computeGameOutcome } from "../game/scoring/ScoreCalculator.ts";
+import type { GameOutcome } from "../game/scoring/ScoreCalculator.ts";
 
-export const TEST_API_VERSION = "0.2.0";
+export const TEST_API_VERSION = "0.3.0";
 
 export interface SftTestAPI {
   readonly version: string;
@@ -54,6 +56,16 @@ export interface SftTestAPI {
   getNewsItems: () => TickerItem[];
   /** Tier-2 inspection: adviser subsystem state + current message. */
   getAdviserState: () => AdviserSnapshot;
+  /** Outcome computed by the pure function + what GameOverScene rendered. */
+  getGameOutcome: () => {
+    outcome: GameOutcome;
+    displayed: {
+      outcome: GameOutcome;
+      heading: string;
+      subtitle: string;
+      playerRow: string | null;
+    } | null;
+  };
   /** Test-only: append a synthetic TurnResult so news pipeline has data. */
   _seedFakeTurnResult: () => number;
 }
@@ -106,6 +118,7 @@ export function createTestAPI(game: Phaser.Game): SftTestAPI {
         "  __sft.getPortrait(ceoId?)  → { ceoId, textureKey, loaded, ... }",
         "  __sft.getNewsItems()       → TickerItem[]",
         "  __sft.getAdviserState()    → { state, pending, current }",
+        "  __sft.getGameOutcome()     → pure outcome + rendered headline/row",
         "",
         "Docs: docs/qa/console-api.md",
       ];
@@ -129,6 +142,21 @@ export function createTestAPI(game: Phaser.Game): SftTestAPI {
     getPortrait,
     getNewsItems,
     getAdviserState,
+    getGameOutcome: () => {
+      const outcome = computeGameOutcome(gameStore.getState());
+      const scene = game.scene.getScene("GameOverScene") as unknown as {
+        getDisplayedOutcome?: () => {
+          outcome: GameOutcome;
+          heading: string;
+          subtitle: string;
+          playerRow: string | null;
+        };
+      } | null;
+      return {
+        outcome,
+        displayed: scene?.getDisplayedOutcome?.() ?? null,
+      };
+    },
     _seedFakeTurnResult: seedFakeTurnResult,
   };
 }

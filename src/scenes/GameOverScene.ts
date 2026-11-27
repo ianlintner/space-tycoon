@@ -19,8 +19,10 @@ import {
   calculateScore,
   saveHighScore,
   getHighScores,
+  getGameOutcome,
   rankCompanies,
 } from "../game/scoring/ScoreCalculator.ts";
+import type { GameOutcome } from "../game/scoring/ScoreCalculator.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
 import { buildRevealMessages } from "../game/adviser/AdviserEngine.ts";
 import { CARGO_DIVERSITY_BONUS } from "../data/constants.ts";
@@ -38,13 +40,16 @@ function formatCash(amount: number): string {
 }
 
 const SCORE_PANEL_WIDTH = 520;
-const SCORE_PANEL_HEIGHT = 280;
+const SCORE_PANEL_HEIGHT = 240;
 const HS_PANEL_WIDTH = 520;
-const HS_PANEL_HEIGHT = 280;
+const HS_PANEL_HEIGHT = 240;
 const HS_PANEL_X_OFFSET = 540;
-const RANK_PANEL_HEIGHT = 160;
+const RANK_PANEL_HEIGHT = 240;
+const RANK_PANEL_Y_OFFSET = 340;
+const RANK_HEADER_HEIGHT = 22;
 const BTN_WIDTH = 180;
 const BTN_HEIGHT = 48;
+const BTN_BOTTOM_GAP = 56;
 const REVEAL_PANEL_WIDTH = 220;
 const REVEAL_TAB_WIDTH = 36; // mirrors AdviserPanel TAB_WIDTH
 
@@ -61,8 +66,13 @@ export class GameOverScene extends Phaser.Scene {
   private hsTableFrame!: ScrollFrame;
   private hsTable!: DataTable;
   private rankPanel!: GlassPanel;
-  private rankTableFrame!: ScrollFrame;
-  private rankTable!: DataTable;
+  private rankHeaderLabels: Phaser.GameObjects.Text[] = [];
+  private rankRowViews: Array<{
+    highlight: Phaser.GameObjects.Rectangle;
+    texts: Phaser.GameObjects.Text[];
+  }> = [];
+  private outcome!: GameOutcome;
+  private playerRankText: Phaser.GameObjects.Text | null = null;
   private playAgainButton!: Button;
   private mainMenuButton!: Button;
   private revealPanel: AdviserPanel | null = null;
@@ -71,11 +81,29 @@ export class GameOverScene extends Phaser.Scene {
     super({ key: "GameOverScene" });
   }
 
+  /** QA hook: the rendered outcome, verified against the pure function. */
+  getDisplayedOutcome(): {
+    outcome: GameOutcome;
+    heading: string;
+    subtitle: string;
+    playerRow: string | null;
+  } {
+    return {
+      outcome: this.outcome,
+      heading: this.heading.text,
+      subtitle: this.subtitle.text,
+      playerRow: this.playerRankText?.text ?? null,
+    };
+  }
+
   create(): void {
     const L = getLayout();
     const theme = getTheme();
     const state = gameStore.getState();
     getAudioDirector().setMusicState("gameover");
+    // Scene instances are reused across restarts; avoid stale row objects.
+    this.scoreRowLabels = [];
+    this.scoreRowValues = [];
 
     // Stop the HUD scene since the game is over
     this.scene.stop("GameHUDScene");
@@ -86,9 +114,15 @@ export class GameOverScene extends Phaser.Scene {
     // -----------------------------------------------------------------------
     // Win / Lose heading with glow
     // -----------------------------------------------------------------------
-    const isVictory = state.gameOverReason === "completed";
-    const headingText = isVictory ? "VICTORY!" : "BANKRUPTCY!";
-    const headingColor = isVictory ? theme.colors.profit : theme.colors.loss;
+    const outcome = getGameOutcome(state);
+    this.outcome = outcome;
+    const headingText = outcome.label;
+    const headingColor =
+      outcome.kind === "victory"
+        ? theme.colors.profit
+        : outcome.kind === "bankruptcy"
+          ? theme.colors.loss
+          : theme.colors.accent;
 
     this.heading = new Label(this, {
       x: L.gameWidth / 2,
@@ -103,9 +137,12 @@ export class GameOverScene extends Phaser.Scene {
     this.heading.setStroke("#000000", 3);
 
     // Subtitle
-    const subtitleText = isVictory
-      ? `Congratulations, ${state.companyName}! You survived all ${state.maxTurns} turns.`
-      : `${state.companyName} has gone bankrupt after ${state.turn - 1} turns.`;
+    const subtitleText =
+      outcome.kind === "victory"
+        ? `Congratulations, ${state.companyName}! You finished #1 of ${outcome.of} companies.`
+        : outcome.kind === "placed"
+          ? `${state.companyName}, you finished #${outcome.rank} of ${outcome.of} companies — the top spot is still within reach.`
+          : `${state.companyName} has gone bankrupt after ${state.turn - 1} turns.`;
     this.subtitle = new Label(this, {
       x: L.gameWidth / 2,
       y: L.contentTop + 60,
@@ -355,11 +392,20 @@ export class GameOverScene extends Phaser.Scene {
     this.hsTable.setRows(hsRows);
 
     // -----------------------------------------------------------------------
-    // Company Rankings panel (full width below score + high score panels)
+    // Company Rankings panel — all companies (including the player) in a
+    // compact, non-scrolling table so no row is clipped at 1280x720.
     // -----------------------------------------------------------------------
     const rankings = rankCompanies(state);
-    const rankPanelY = L.contentTop + 380;
-    const rankPanelWidth = hsPanelX + HS_PANEL_WIDTH - L.fullContentLeft;
+    const rankPanelY = L.contentTop + RANK_PANEL_Y_OFFSET;
+    // Reserve the right-hand strip for the closed adviser drawer so an open
+    // Rex reveal never overlaps the rankings table or the action buttons.
+    const rankPanelWidth =
+      hsPanelX +
+      HS_PANEL_WIDTH -
+      L.fullContentLeft -
+      REVEAL_PANEL_WIDTH -
+      REVEAL_TAB_WIDTH -
+      24;
     this.rankPanel = new GlassPanel(this, {
       x: L.fullContentLeft,
       y: rankPanelY,
@@ -367,55 +413,12 @@ export class GameOverScene extends Phaser.Scene {
       height: RANK_PANEL_HEIGHT,
       title: "Company Rankings",
     });
-
-    this.rankTableFrame = new ScrollFrame(this, {
-      x: L.fullContentLeft + 10,
-      y: rankPanelY + 34,
-      width: rankPanelWidth - 20,
-      height: RANK_PANEL_HEIGHT - 44,
-    });
-    this.rankTable = new DataTable(this, {
-      x: 0,
-      y: 0,
-      width: rankPanelWidth - 20,
-      height: RANK_PANEL_HEIGHT - 50,
-      contentSized: true,
-      columns: [
-        { key: "rank", label: "#", width: 50, align: "center" },
-        {
-          key: "name",
-          label: "Company",
-          width: 250,
-          colorFn: (v) =>
-            typeof v === "string" && v.endsWith("(You)")
-              ? theme.colors.accent
-              : null,
-        },
-        {
-          key: "netWorth",
-          label: "Net Worth",
-          width: 150,
-          align: "right",
-          format: (v) => formatCash(v as number),
-          colorFn: (v) =>
-            (v as number) >= 0 ? theme.colors.profit : theme.colors.loss,
-        },
-        { key: "usedCapacity", label: "Capacity", width: 80, align: "right" },
-        { key: "routes", label: "Routes", width: 80, align: "right" },
-        {
-          key: "score",
-          label: "Score",
-          width: 150,
-          align: "right",
-          format: (v) => (v as number).toLocaleString("en-US"),
-          colorFn: () => theme.colors.accent,
-        },
-      ],
-    });
+    this.rankHeaderLabels = [];
+    this.rankRowViews = [];
+    this.playerRankText = null;
 
     // Build a per-company usedCapacity map by summing scope costs across
-    // each company's active routes. Player draws from state.activeRoutes;
-    // AI rivals carry their own activeRoutes arrays.
+    // each company's active routes.
     const usedCapacityByName = new Map<string, number>();
     let playerUsed = 0;
     for (const route of state.activeRoutes) {
@@ -430,37 +433,103 @@ export class GameOverScene extends Phaser.Scene {
       usedCapacityByName.set(ai.name, used);
     }
 
-    const rankRows = rankings.map((r, i) => ({
-      rank: i + 1,
-      name: r.isPlayer ? `${r.name} (You)` : r.name,
-      isPlayer: r.isPlayer,
-      netWorth: r.netWorth,
-      usedCapacity: usedCapacityByName.get(r.name) ?? 0,
-      routes: r.routeCount,
-      score: r.score,
-    }));
-    this.rankTableFrame.setContent(this.rankTable);
-    this.rankTable.setRows(rankRows);
+    const innerWidth = rankPanelWidth - 24;
+    const colFractions = [0.06, 0.28, 0.18, 0.14, 0.12, 0.22];
+    const colWidths = colFractions.map((f) => innerWidth * f);
+    const colXs: number[] = [];
+    let cursor = L.fullContentLeft + 12;
+    for (const w of colWidths) {
+      colXs.push(cursor);
+      cursor += w;
+    }
+    const headers = [
+      "#",
+      "Company",
+      "Net Worth",
+      "Capacity",
+      "Routes",
+      "Score",
+    ];
+    for (let i = 0; i < headers.length; i++) {
+      const label = this.add.text(
+        i === 1 ? colXs[i] + 8 : colXs[i] + colWidths[i] - 8,
+        rankPanelY + 30 + RANK_HEADER_HEIGHT / 2,
+        headers[i],
+        {
+          fontFamily: theme.fonts.body.family,
+          fontSize: `${theme.fonts.body.size - 2}px`,
+          color: colorToString(theme.colors.accent),
+        },
+      );
+      label.setOrigin(i === 1 ? 0 : 1, 0.5);
+      this.rankHeaderLabels.push(label);
+    }
+
+    const rowHeight = 24;
+    const rowStartY = rankPanelY + 30 + RANK_HEADER_HEIGHT + 12;
+    rankings.forEach((r, index) => {
+      const rowY = rowStartY + index * rowHeight + rowHeight / 2;
+      const highlight = this.add.rectangle(
+        L.fullContentLeft + 12 + innerWidth / 2,
+        rowY,
+        innerWidth,
+        rowHeight - 2,
+        r.isPlayer ? theme.colors.accent : theme.colors.rowEven,
+        r.isPlayer ? 0.26 : index % 2 === 0 ? 0.12 : 0.06,
+      );
+      if (r.isPlayer) {
+        highlight.setStrokeStyle(1, theme.colors.accent, 0.9);
+      }
+      const values = [
+        String(r.rank),
+        r.isPlayer ? `${r.name} (You)` : r.name,
+        formatCash(r.netWorth),
+        String(usedCapacityByName.get(r.name) ?? 0),
+        String(r.routeCount),
+        r.score.toLocaleString("en-US"),
+      ];
+      const texts = values.map((value, i) => {
+        const text = this.add.text(
+          i === 1 ? colXs[i] + 8 : colXs[i] + colWidths[i] - 8,
+          rowY,
+          value,
+          {
+            fontFamily: theme.fonts.body.family,
+            fontSize: `${theme.fonts.body.size - 1}px`,
+            color: colorToString(
+              i === 1 && r.isPlayer
+                ? theme.colors.accent
+                : i === 2
+                  ? r.netWorth >= 0
+                    ? theme.colors.profit
+                    : theme.colors.loss
+                  : theme.colors.text,
+            ),
+          },
+        );
+        text.setOrigin(i === 1 ? 0 : 1, 0.5);
+        if (i === 1 && r.isPlayer) {
+          this.playerRankText = text;
+        }
+        return text;
+      });
+      this.rankRowViews.push({ highlight, texts });
+    });
 
     // -----------------------------------------------------------------------
     // Action buttons — centered horizontally below panels
     // -----------------------------------------------------------------------
-    const btnY = L.contentTop + L.contentHeight - 100;
+    const btnY = L.contentTop + L.contentHeight - BTN_BOTTOM_GAP;
 
     // -----------------------------------------------------------------------
-    // Rex's Reveal — the adviser reveals their true role.
-    //
-    // High-score and ranking panels are the primary content on this screen,
-    // so anchor the reveal drawer to the bottom-right (narrow, closed-by-
-    // default) instead of spanning the full width where it would overlap
-    // the Company Rankings table.
+    // Rex's Reveal — anchored in the reserved right-hand strip beside the
+    // rankings table, so opening the drawer cannot cover any ranked row.
     // -----------------------------------------------------------------------
     if (state.adviser && !state.adviser.secretRevealed) {
       const revealMsgs = buildRevealMessages(state);
       if (revealMsgs.length > 0) {
-        const revealX =
-          L.gameWidth - REVEAL_PANEL_WIDTH - REVEAL_TAB_WIDTH - 12;
-        const revealY = btnY - 200;
+        const revealX = L.fullContentLeft + rankPanelWidth + 12;
+        const revealY = rankPanelY + 8;
         this.revealPanel = new AdviserPanel(this, {
           x: revealX,
           y: revealY,
@@ -520,13 +589,13 @@ export class GameOverScene extends Phaser.Scene {
         spContent.x + spContent.width - 8,
         rowY,
       );
-      rowY += 32;
+      rowY += 26;
     }
 
     // Separator
     this.scoreSeparator.setPosition(spContent.x + 8, rowY + 4);
     this.scoreSeparator.setSize(spContent.width - 16, 1);
-    rowY += 16;
+    rowY += 12;
 
     // Total
     this.totalLabel.setPosition(spContent.x + 8, rowY);
@@ -543,25 +612,58 @@ export class GameOverScene extends Phaser.Scene {
     this.hsTable.setSize(HS_PANEL_WIDTH - 20, HS_PANEL_HEIGHT - 44);
 
     // Rankings panel
-    const rankPanelY = L.contentTop + 380;
-    const rankPanelWidth = hsPanelX + HS_PANEL_WIDTH - L.fullContentLeft;
+    const rankPanelY = L.contentTop + RANK_PANEL_Y_OFFSET;
+    const rankPanelWidth =
+      hsPanelX +
+      HS_PANEL_WIDTH -
+      L.fullContentLeft -
+      REVEAL_PANEL_WIDTH -
+      REVEAL_TAB_WIDTH -
+      24;
     this.rankPanel.setPosition(L.fullContentLeft, rankPanelY);
     this.rankPanel.setSize(rankPanelWidth, RANK_PANEL_HEIGHT);
 
-    this.rankTableFrame.setPosition(L.fullContentLeft + 10, rankPanelY + 34);
-    this.rankTableFrame.setSize(rankPanelWidth - 20, RANK_PANEL_HEIGHT - 44);
-    this.rankTable.setSize(rankPanelWidth - 20, RANK_PANEL_HEIGHT - 44);
+    const innerWidth = rankPanelWidth - 24;
+    const colWidths = [0.06, 0.28, 0.18, 0.14, 0.12, 0.22].map(
+      (f) => innerWidth * f,
+    );
+    const colXs: number[] = [];
+    let cursor = L.fullContentLeft + 12;
+    for (const w of colWidths) {
+      colXs.push(cursor);
+      cursor += w;
+    }
+    const headerY = rankPanelY + 30 + RANK_HEADER_HEIGHT / 2;
+    this.rankHeaderLabels.forEach((label, i) => {
+      label.setPosition(
+        i === 1 ? colXs[i] + 8 : colXs[i] + colWidths[i] - 8,
+        headerY,
+      );
+    });
+    const rowStartY = rankPanelY + 30 + RANK_HEADER_HEIGHT + 12;
+    const rowHeight = 24;
+    this.rankRowViews.forEach((view, index) => {
+      const rowY = rowStartY + index * rowHeight + rowHeight / 2;
+      view.highlight.setPosition(L.fullContentLeft + 12 + innerWidth / 2, rowY);
+      view.highlight.setSize(innerWidth, rowHeight - 2);
+      view.texts.forEach((text, i) => {
+        text.setPosition(
+          i === 1 ? colXs[i] + 8 : colXs[i] + colWidths[i] - 8,
+          rowY,
+        );
+      });
+    });
 
     // Action buttons
-    const btnY = L.contentTop + L.contentHeight - 100;
+    const btnY = L.contentTop + L.contentHeight - BTN_BOTTOM_GAP;
     this.playAgainButton.setPosition(L.gameWidth / 2 - BTN_WIDTH - 20, btnY);
     this.mainMenuButton.setPosition(L.gameWidth / 2 + 20, btnY);
 
     // Adviser reveal panel — reposition + reflow internal width. Pass
     // height=0 to keep AdviserPanel's content-driven internal panelHeight.
     if (this.revealPanel) {
-      const revealX = L.gameWidth - REVEAL_PANEL_WIDTH - REVEAL_TAB_WIDTH - 12;
-      const revealY = btnY - 200;
+      const revealX = L.fullContentLeft + rankPanelWidth + 12;
+      const revealY = rankPanelY + 8;
       this.revealPanel.setPosition(revealX, revealY);
       this.revealPanel.setSize(REVEAL_PANEL_WIDTH, 0);
     }
