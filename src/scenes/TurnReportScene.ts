@@ -653,6 +653,12 @@ export class TurnReportScene extends Phaser.Scene {
         height: 40,
         label: "View Results",
         onClick: () => {
+          // GameOverScene is full-screen. Stop the HUD first so its queued
+          // dialogue/adviser modals are torn down (SceneUiDirector shutdown)
+          // instead of firing into a dead scene after the hand-off.
+          if (this.scene.isActive("GameHUDScene")) {
+            this.scene.stop("GameHUDScene");
+          }
           this.scene.start("GameOverScene");
         },
       });

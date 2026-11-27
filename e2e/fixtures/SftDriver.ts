@@ -150,6 +150,7 @@ export type { SandboxRunOptions };
 export type ActionProxy = {
   newGame: (seed?: number) => Promise<void>;
   endTurn: () => Promise<ClickResult | null>;
+  setMaxTurns: (n: number) => Promise<void>;
   openScene: (key: string, data?: object) => Promise<void>;
   closeModal: () => Promise<void>;
   seed: (n: number) => Promise<void>;

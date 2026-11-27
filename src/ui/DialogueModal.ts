@@ -74,12 +74,18 @@ export function openDialogueModal(
   return new Promise<DialogueResult>((resolve) => {
     const layer = ui.openLayer({ key: "dialogue" });
     const theme = getTheme();
-    layer.createOverlay({
+    const overlay = layer.createOverlay({
       alpha: 0.65,
       color: theme.colors.modalOverlay,
       closeOnPointerUp: false,
       activationDelayMs: 300,
     });
+    if (!overlay) {
+      // Owning scene was shut down while this request was queued (e.g. the
+      // final turn handed off to GameOverScene). Resolve as a plain dismiss.
+      resolve({ kind: "continue" });
+      return;
+    }
     new DialogueModalRenderer(scene, layer, request, options, resolve);
     options.onOpen?.();
   });

@@ -140,6 +140,9 @@ export class RoutesScene extends Phaser.Scene {
   }
 
   switchToActiveRoutesTab(): void {
+    // The tutorial can call this while the scene is not running (not yet
+    // created, or already shut down) — there is no tab strip to update then.
+    if (!this.sys?.isActive() || !this.tabGroup) return;
     this.tabGroup.setActiveTab(1);
     this.refreshActiveTable();
   }
