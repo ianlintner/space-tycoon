@@ -89,6 +89,9 @@ export function migrateSave(state: GameState): GameState {
   if (!migrated.diplomacy) {
     migrated = { ...migrated, diplomacy: { ...EMPTY_DIPLOMACY_STATE } };
   }
+  if (!migrated.rankHistory) {
+    migrated = { ...migrated, rankHistory: [] };
+  }
   if (migrated.tech) {
     migrated = { ...migrated, tech: migrateTechState(migrated.tech) };
   }
