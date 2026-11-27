@@ -993,6 +993,37 @@ export class DataTable extends Phaser.GameObjects.Container {
     return this.selectedRowIndex;
   }
 
+  /** Screen-space bounds of the first data row (for tutorial highlights). */
+  getFirstRowBounds(): { x: number; y: number; w: number; h: number } | null {
+    if (this.rows.length === 0) return null;
+    const rowBg = this.bodyContainer.list.find(
+      (
+        object: Phaser.GameObjects.GameObject,
+      ): object is Phaser.GameObjects.Rectangle =>
+        object instanceof Phaser.GameObjects.Rectangle &&
+        object.width === this.tableConfig.width,
+    );
+    if (!rowBg) return null;
+    const b = rowBg.getBounds();
+    return { x: b.x, y: b.y, w: b.width, h: b.height };
+  }
+
+  /** Test/tutorial helper: select a row as if the player had clicked it. */
+  selectRowByIndex(index: number): boolean {
+    const rowBgs = this.bodyContainer.list.filter(
+      (
+        object: Phaser.GameObjects.GameObject,
+      ): object is Phaser.GameObjects.Rectangle =>
+        object instanceof Phaser.GameObjects.Rectangle &&
+        object.width === this.tableConfig.width,
+    );
+    const rowBg = rowBgs[index];
+    if (!rowBg) return false;
+    this.selectRow(index, rowBg.y, rowBg.height, true);
+    this.ensureRowVisible(index, rowBg.height);
+    return true;
+  }
+
   getSelectedRow(): Record<string, unknown> | null {
     if (
       this.selectedRowIndex < 0 ||

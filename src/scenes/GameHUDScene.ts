@@ -163,6 +163,7 @@ export class GameHUDScene extends Phaser.Scene {
   private newsTicker: HorizontalNewsTicker | null = null;
   private sceneUi!: SceneUiDirector;
   private tutorialHighlight?: Phaser.GameObjects.Rectangle;
+  private tutorialRunner?: TutorialRunner;
   /** Empire ids copied from state when a new turn begins — drained as ambassador modals show. */
   private sessionAmbassadorQueue: string[] = [];
   private ambassadorGreetingShowing = false;
@@ -914,7 +915,7 @@ export class GameHUDScene extends Phaser.Scene {
       !state.adviser?.tutorialComplete &&
       !localStorage.getItem("sft-tutorial-disabled")
     ) {
-      const runner = new TutorialRunner(this, this.sceneUi, {
+      this.tutorialRunner = new TutorialRunner(this, this.sceneUi, {
         navigateTo: (sceneName) => this.switchContentScene(sceneName),
         skipTutorial: () => this.skipTutorial(),
         showNamedHighlight: (region) => this.showNamedHighlight(region),
@@ -927,7 +928,7 @@ export class GameHUDScene extends Phaser.Scene {
           routesScene?.switchToActiveRoutesTab();
         },
       });
-      this.time.delayedCall(900, () => runner.start());
+      this.time.delayedCall(900, () => this.tutorialRunner?.start());
     }
   }
 
@@ -1915,6 +1916,10 @@ export class GameHUDScene extends Phaser.Scene {
     )
       return;
 
+    if (trigger === "firstRoute") {
+      this.tutorialRunner?.handleFirstRoute();
+    }
+
     const result = checkTutorialAdvancement(state.adviser, trigger, state.turn);
     if (result === state.adviser) return; // no change
 
@@ -1957,7 +1962,9 @@ export class GameHUDScene extends Phaser.Scene {
     });
   }
 
-  showNamedHighlight(region: "endTurn" | "routesNav" | "createRouteBtn"): void {
+  showNamedHighlight(
+    region: "endTurn" | "routesNav" | "createRouteBtn" | "routeFirstRow",
+  ): void {
     this.hideTutorialHighlight();
     const L = getLayout();
     const theme = getTheme();
@@ -1980,6 +1987,16 @@ export class GameHUDScene extends Phaser.Scene {
       y = bounds.y - 4;
       w = bounds.w + 8;
       h = bounds.h + 8;
+    } else if (region === "routeFirstRow") {
+      const routesScene = this.scene.get("RoutesScene") as
+        | RoutesScene
+        | undefined;
+      const bounds = routesScene?.getFirstFinderRowBounds();
+      if (!bounds) return;
+      x = bounds.x - 3;
+      y = bounds.y - 3;
+      w = bounds.w + 6;
+      h = bounds.h + 6;
     } else {
       const hitArea = this.navHitAreas.get("RoutesScene");
       if (!hitArea) return;

@@ -2,6 +2,8 @@ import * as Phaser from "phaser";
 import type { SceneUiDirector } from "@spacebiz/ui";
 import { openCommunicationModal } from "../../ui/CommunicationModal.ts";
 import { gameStore } from "../../data/GameStore.ts";
+import { formatGoalLine } from "../scoring/GoalText.ts";
+import { ROUTE_PICK_PROMPT } from "./TutorialDefinitions.ts";
 import {
   scanAllRouteOpportunities,
   createRoute,
@@ -12,7 +14,7 @@ export interface TutorialCallbacks {
   navigateTo: (sceneName: string) => void;
   skipTutorial: () => void;
   showNamedHighlight: (
-    region: "endTurn" | "routesNav" | "createRouteBtn",
+    region: "endTurn" | "routesNav" | "createRouteBtn" | "routeFirstRow",
   ) => void;
   hideHighlight: () => void;
   showActiveRoutes: () => void;
@@ -22,6 +24,7 @@ export class TutorialRunner {
   private readonly scene: Phaser.Scene;
   private readonly ui: SceneUiDirector;
   private readonly callbacks: TutorialCallbacks;
+  private awaitingRoutePick = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -50,9 +53,14 @@ export class TutorialRunner {
   }
 
   start(): void {
+    const state = gameStore.getState();
+    const goal = formatGoalLine({
+      maxTurns: state.maxTurns,
+      companyCount: state.aiCompanies.length + 1,
+    });
     this.rexDialogue({
       mood: "success",
-      text: "Congratulations on your promotion to CEO! I'm Rex, your K9-Corp Executive Adviser. Ready to walk through the basics of your freight empire? I'll open your first trade route and show you the ropes.",
+      text: `Congratulations on your promotion to CEO! I'm Rex, your K9-Corp Executive Adviser. ${goal}. Ready to walk through the basics of your freight empire? I'll show you how to open your first trade route.`,
       choices: [
         { label: "Let's go!", onClick: () => this.runRoutesTutorial() },
         { label: "Skip intro", onClick: () => this.skip() },
@@ -66,27 +74,38 @@ export class TutorialRunner {
 
     this.scene.time.delayedCall(1250, () => {
       this.callbacks.hideHighlight();
+      this.callbacks.showNamedHighlight("routeFirstRow");
+      this.awaitingRoutePick = false;
       this.rexDialogue({
         mood: "standby",
-        text: "This is the Routes Command screen. Every row in this table is a viable trade corridor — sorted by estimated profit. Tap a row to open a route. I'll pick the best one and open it for you now!",
-        onDismiss: () => this.pointToCreateRouteBtn(),
+        text: ROUTE_PICK_PROMPT,
+        choices: [
+          { label: "I'll pick one", onClick: () => this.beginRoutePick() },
+          { label: "Do it for me", onClick: () => this.createTutorialRoute() },
+        ],
       });
     });
   }
 
-  private pointToCreateRouteBtn(): void {
-    this.callbacks.showNamedHighlight("createRouteBtn");
-    this.rexDialogue({
-      mood: "analyzing",
-      text: "See that 'Create Route' button? Select any row in the finder table and tap it to open that lane yourself. For now — I'll open the top corridor for you!",
-      onDismiss: () => {
-        this.callbacks.hideHighlight();
-        this.createTutorialRoute();
-      },
+  private beginRoutePick(): void {
+    this.awaitingRoutePick = true;
+    this.callbacks.showNamedHighlight("routeFirstRow");
+  }
+
+  /** Called by the HUD when the player creates their first route unaided. */
+  handleFirstRoute(): void {
+    if (!this.awaitingRoutePick) return;
+    this.awaitingRoutePick = false;
+    this.callbacks.hideHighlight();
+    this.scene.time.delayedCall(600, () => {
+      this.showFinalModal(
+        "Route opened! Capacity is drawn from your global fleet pools. Hit the End Turn button to run the simulation and see how you stack up against the rivals.",
+      );
     });
   }
 
   private createTutorialRoute(): void {
+    this.awaitingRoutePick = false;
     const state = gameStore.getState();
 
     const opportunities = scanAllRouteOpportunities(
@@ -175,6 +194,7 @@ export class TutorialRunner {
   }
 
   private skip(): void {
+    this.awaitingRoutePick = false;
     this.callbacks.skipTutorial();
   }
 }

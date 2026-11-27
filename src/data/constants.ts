@@ -32,6 +32,10 @@ export const SCOUT_COST_CASH = 500;
 export const ROUTE_MARKET_ENTRY_DURATION = 3;
 
 export const STARTING_CASH = 200000;
+/**
+ * @deprecated Legacy default used by older saves/tests only. Player-facing
+ * length copy must derive from `GAME_LENGTH_PRESETS` (Quick is the default).
+ */
 export const MAX_TURNS = 20;
 export const BASE_FUEL_PRICE = 10;
 export const MAX_LOAN_AMOUNT = 500000;
