@@ -388,6 +388,7 @@ export function createNewGame(
     aiCompanies,
     activeEvents: [],
     history: [],
+    rankHistory: [],
     storyteller,
     score: 0,
     gameOver: false,

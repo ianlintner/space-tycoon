@@ -22,6 +22,12 @@ import { TutorialRunner } from "../game/adviser/TutorialRunner.ts";
 import { RdAdviser } from "../game/adviser/RdAdviser.ts";
 import { getRdChief } from "../game/adviser/RdChiefs.ts";
 import { SettingsPanel } from "../ui/SettingsPanel.ts";
+import { registerWidget } from "../../packages/spacebiz-ui/src/WidgetHooks.ts";
+import {
+  getStandings,
+  formatStandingsChip,
+  STANDINGS_UNLOCK_TURN,
+} from "../game/scoring/Standings.ts";
 import { formatTurnShort, formatTurnLong } from "../utils/turnFormat.ts";
 import { HorizontalNewsTicker } from "@rogue-universe/shared";
 import { gameStore } from "../data/GameStore.ts";
@@ -134,6 +140,11 @@ export class GameHUDScene extends Phaser.Scene {
   private turnLabel!: Label;
   private cashLabel!: Label;
   private streakLabel!: Label;
+  private standingsBg!: Phaser.GameObjects.Rectangle;
+  private standingsLabel!: Label;
+  private standingsTooltip!: Tooltip;
+  private standingsTipText = "";
+  private standingsFullText = "";
   private phaseLabel!: Label;
   private bottomTurnInfoLabel!: Label;
   private endTurnButton!: Button;
@@ -485,8 +496,8 @@ export class GameHUDScene extends Phaser.Scene {
     // Streak counter (left of cash, hidden until streak >= 2)
     const initStreak = state.storyteller?.consecutiveProfitTurns ?? 0;
     this.streakLabel = new Label(this, {
-      x: L.contentLeft + L.maxContentWidth - 18,
-      y: L.hudTopBarHeight / 2 + 1,
+      x: this.statusChipBg.x - this.statusChipBg.displayWidth - 8,
+      y: L.hudTopBarHeight / 2,
       text: initStreak >= 2 ? `\uD83D\uDD25 ${initStreak}` : "",
       style: "caption",
       color: theme.colors.accent,
@@ -494,6 +505,8 @@ export class GameHUDScene extends Phaser.Scene {
     this.streakLabel.setOrigin(1, 0.5);
     this.streakLabel.setAlpha(initStreak >= 2 ? 1 : 0);
     this.streakLabel.setDepth(25);
+
+    this.createStandingsChip();
 
     // ── Left Navigation Sidebar (Paradox-style icon strip) ──
     // 6-icon nav: 4 standalone (Map/Routes/Fleet/Finance) + 2 grouped
@@ -937,6 +950,82 @@ export class GameHUDScene extends Phaser.Scene {
    * changes. Children themselves are built once in `create()`; this only
    * touches geometry, not content/state.
    */
+  /** Compact "Rank #N/M · gap" chip between the company name and turn label. */
+  private createStandingsChip(): void {
+    const theme = getTheme();
+    this.standingsBg = this.add
+      .rectangle(0, 0, 10, 24, theme.colors.background, 0.42)
+      .setOrigin(1, 0.5)
+      .setStrokeStyle(1, theme.colors.panelBorder, 0.26)
+      .setDepth(21);
+    this.standingsLabel = new Label(this, {
+      x: 0,
+      y: 0,
+      text: "",
+      style: "caption",
+      color: theme.colors.accent,
+    });
+    this.standingsLabel.setOrigin(1, 0.5);
+    this.standingsLabel.setDepth(24);
+    this.standingsLabel.setInteractive({ useHandCursor: true });
+    this.standingsTooltip = new Tooltip(this, { showDelay: 300 });
+    this.standingsTooltip.attachTo(this.standingsLabel, "");
+    const open = (): void => {
+      const st = gameStore.getState();
+      if (st.phase !== "planning") return;
+      if (st.turn < STANDINGS_UNLOCK_TURN) return;
+      this.switchContentScene("CompetitionScene");
+    };
+    this.standingsLabel.on("pointerup", open);
+    const self = this;
+    const unregister = registerWidget({
+      testId: "hud-standings",
+      kind: "button",
+      get label() {
+        return self.standingsFullText;
+      },
+      scene: this,
+      invoke: open,
+      isEnabled: () => gameStore.getState().turn >= STANDINGS_UNLOCK_TURN,
+      isVisible: () => this.standingsLabel.visible,
+    });
+    if (unregister) this.events.once("shutdown", unregister);
+  }
+
+  /** Right-align the chip to the turn label; fall back to short text if tight. */
+  private layoutStandingsChip(): void {
+    if (!this.standingsLabel) return;
+    const L = getLayout();
+    const state = gameStore.getState();
+    const snap = getStandings(state);
+    const full = formatStandingsChip(snap);
+    const topMidY = L.hudTopBarHeight / 2;
+    const right = L.gameWidth / 2 - this.turnLabel.displayWidth / 2 - 14;
+    const left = this.companyLabel.x + this.companyLabel.displayWidth + 12;
+    const padX = 8;
+    this.standingsLabel.setText(full);
+    let visible = true;
+    if (right - left < this.standingsLabel.displayWidth + padX * 2) {
+      this.standingsLabel.setText(formatStandingsChip(snap, true));
+      visible = right - left >= this.standingsLabel.displayWidth + padX * 2;
+    }
+    this.standingsLabel.setVisible(visible);
+    this.standingsBg.setVisible(visible);
+    this.standingsLabel.setPosition(right - padX, topMidY);
+    this.standingsBg.setPosition(right, topMidY);
+    this.standingsBg.setSize(this.standingsLabel.displayWidth + padX * 2, 24);
+    // Tooltip text depends on the turn; Tooltip has no setText, so re-attach.
+    const tip =
+      state.turn < STANDINGS_UNLOCK_TURN
+        ? `Your rank among all companies. Standings unlock on turn ${STANDINGS_UNLOCK_TURN}.`
+        : `${full} \u2014 click to open rival standings`;
+    if (tip !== this.standingsTipText) {
+      this.standingsTipText = tip;
+      this.standingsTooltip.attachTo(this.standingsLabel, tip);
+    }
+    this.standingsFullText = full;
+  }
+
   private relayout(): void {
     const L = getLayout();
 
@@ -1000,10 +1089,12 @@ export class GameHUDScene extends Phaser.Scene {
     );
     this.statusChipBg.setSize(statusChipW, 34);
     this.cashLabel.setPosition(L.contentLeft + L.maxContentWidth - 18, topMidY);
+    // Streak sits left of the status chip so it never covers the cash figure.
     this.streakLabel.setPosition(
-      L.contentLeft + L.maxContentWidth - 18,
-      topMidY + 1,
+      this.statusChipBg.x - this.statusChipBg.displayWidth - 8,
+      topMidY,
     );
+    this.layoutStandingsChip();
     this.routeSlotLabel.setPosition(
       L.contentLeft + L.maxContentWidth - 122,
       topMidY - 8,
@@ -1488,6 +1579,7 @@ export class GameHUDScene extends Phaser.Scene {
       this.streakLabel.setAlpha(0);
     }
 
+    this.layoutStandingsChip();
     this.phaseLabel.setText(`Phase: ${state.phase}`);
     this.endTurnButton.setVisible(state.phase === "planning");
     this.updateActionPrompt();

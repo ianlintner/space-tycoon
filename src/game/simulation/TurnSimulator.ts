@@ -1,4 +1,5 @@
 import { CargoType } from "../../data/types.ts";
+import { getStandings } from "../scoring/Standings.ts";
 import type {
   GameState,
   ActiveRoute,
@@ -1026,6 +1027,13 @@ export function simulateTurn(state: GameState, rng: SeededRNG): GameState {
   nextState = {
     ...nextState,
     history: [...nextState.history, turnResult],
+  };
+  nextState = {
+    ...nextState,
+    rankHistory: [
+      ...(nextState.rankHistory ?? []),
+      getStandings(nextState).rank,
+    ],
   };
 
   // ----- Step 11b: Generate adviser messages -----

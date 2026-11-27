@@ -1310,6 +1310,8 @@ export interface GameState {
   aiCompanies: AICompany[];
   activeEvents: GameEvent[];
   history: TurnResult[];
+  /** Player's rank (by score) at the end of each simulated quarter. Optional for older saves. */
+  rankHistory?: number[];
   storyteller: StorytellerState;
   adviser: AdviserState;
   score: number;

@@ -193,6 +193,7 @@ test.describe("Full loop", () => {
 
     // 3. End turns until game over
     let realTurns = 0;
+    let standingsChecked = false;
     const deadline = Date.now() + 180_000;
     const isOver = async () =>
       (await sft.state<{ gameOver: boolean }>()).gameOver;
@@ -231,8 +232,32 @@ test.describe("Full loop", () => {
         await page.waitForTimeout(500);
       }
       await page.waitForTimeout(300);
+      if (
+        !standingsChecked &&
+        (await sft.state<{ turn: number }>()).turn >= 2
+      ) {
+        // The HUD standings chip must carry its rank label by turn 2.
+        await page.waitForFunction(
+          () =>
+            (window as unknown as QAWindow).__sft
+              ?.list()
+              .some(
+                (w) =>
+                  w.testId === "hud-standings" &&
+                  w.visible &&
+                  (w as QAWidget & { label?: string }).label?.includes(
+                    "Rank #",
+                  ),
+              ) ?? false,
+          undefined,
+          { timeout: 30_000, polling: 100 },
+        );
+        standingsChecked = true;
+        mark("hud-standings-visible");
+      }
     }
     expect(await isOver(), "game reached gameOver").toBe(true);
+    expect(standingsChecked, "hud-standings chip verified").toBe(true);
     expect(realTurns).toBeGreaterThanOrEqual(3);
     mark(`game-over after ${realTurns} turns`);
 

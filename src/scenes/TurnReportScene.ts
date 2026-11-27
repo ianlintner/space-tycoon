@@ -14,6 +14,7 @@ import {
   attachReflowHandler,
 } from "../ui/index.ts";
 import type { StarfieldHandle } from "../ui/index.ts";
+import { getStandings, formatRankDelta } from "../game/scoring/Standings.ts";
 import { autoSave } from "../game/SaveManager.ts";
 import type { TurnResult } from "../data/types.ts";
 import type { GameHUDScene } from "./GameHUDScene.ts";
@@ -142,6 +143,16 @@ export class TurnReportScene extends Phaser.Scene {
     const netColor =
       lastTurn.netProfit >= 0 ? theme.colors.profit : theme.colors.loss;
 
+    // Standings: rank this quarter vs last (stored per-quarter in rankHistory)
+    // plus the current leader.
+    const standings = getStandings(state);
+    const rankHistory = state.rankHistory ?? [];
+    const rankDelta = formatRankDelta(
+      rankHistory.length >= 2 ? rankHistory[rankHistory.length - 2] : undefined,
+      standings.rank,
+    );
+    const leaderValue = `${standings.leaderIsPlayer ? "You" : standings.leaderName} ${formatCash(standings.leaderNetWorth)}`;
+
     this.portrait = new PortraitPanel(this, {
       x: L.sidebarLeft,
       y: L.contentTop,
@@ -157,6 +168,11 @@ export class TurnReportScene extends Phaser.Scene {
         { label: "Revenue", value: formatCash(lastTurn.revenue) },
         { label: "Costs", value: formatCash(totalCosts) },
         { label: "Net Profit", value: formatCash(lastTurn.netProfit) },
+        {
+          label: "Rank",
+          value: `#${standings.rank}/${standings.of}${rankDelta ? ` ${rankDelta}` : ""}`,
+        },
+        { label: "Leader", value: leaderValue },
       ],
       { eventCategory: "market" },
     );
