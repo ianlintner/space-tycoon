@@ -126,6 +126,12 @@ export interface SandboxRunOptions {
 export interface SemanticActions {
   newGame: (seed?: number) => Promise<void>;
   endTurn: () => ClickResult | null;
+  /**
+   * Test-only shortcut: override the running game's `maxTurns` so a full
+   * menu → game-over loop can finish quickly in CI. The game still ends via
+   * the normal end-turn → TurnReport → "View Results" path.
+   */
+  setMaxTurns: (n: number) => void;
   openScene: (key: string, data?: object) => void;
   closeModal: () => void;
   seed: (n: number) => void;
@@ -188,6 +194,10 @@ export function makeSemanticActions(): SemanticActions {
       }
     },
     endTurn: () => clickIfPresent("btn-end-turn"),
+    setMaxTurns: (n: number) => {
+      gameStore.update({ maxTurns: Math.max(1, Math.floor(n)) });
+      logs.sft.info("maxTurns override", { maxTurns: n });
+    },
     openScene: (key, data) => goToScene(key, data),
     closeModal: () => {
       // Modals render a close "×" as a Text, not a Button — clicking the overlay also cancels.

@@ -80,6 +80,7 @@ export function createTestAPI(game: Phaser.Game): SftTestAPI {
         "Semantic actions:",
         "  __sft.actions.newGame(seed?)",
         "  __sft.actions.endTurn()",
+        "  __sft.actions.setMaxTurns(n)   (test-only: shorten the running game)",
         "  __sft.actions.openScene(key)",
         "  __sft.actions.closeModal()",
         "  __sft.actions.seed(n) / getSeed()",

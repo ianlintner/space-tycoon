@@ -36,7 +36,7 @@ export function openCommunicationModal(
   const layer = ui.openLayer({ key: "communication" });
   const theme = getTheme();
 
-  layer.createOverlay({
+  const overlay = layer.createOverlay({
     alpha: 0.65,
     color: theme.colors.modalOverlay,
     closeOnPointerUp: false,
@@ -46,6 +46,7 @@ export function openCommunicationModal(
       layer.destroy();
     },
   });
+  if (!overlay) return; // owning scene already shut down
   new CommunicationPanel(scene, layer, dialogue);
 }
 

@@ -920,6 +920,7 @@ export class GameHUDScene extends Phaser.Scene {
         showNamedHighlight: (region) => this.showNamedHighlight(region),
         hideHighlight: () => this.hideTutorialHighlight(),
         showActiveRoutes: () => {
+          if (!this.scene.isActive("RoutesScene")) return;
           const routesScene = this.scene.get("RoutesScene") as
             | RoutesScene
             | undefined;

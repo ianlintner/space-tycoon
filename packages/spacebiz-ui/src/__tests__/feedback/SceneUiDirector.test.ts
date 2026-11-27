@@ -98,10 +98,21 @@ describe("SceneUiDirector", () => {
     const dir = new SceneUiDirector(scene as never);
     const layer = dir.openLayer();
     const overlay = layer.createOverlay();
-    expect(overlay.depth).toBe(DEPTH_MODAL - 1);
+    expect(overlay!.depth).toBe(DEPTH_MODAL - 1);
     // It should sit on the camera's full surface.
-    expect(overlay.width).toBe(800);
-    expect(overlay.height).toBe(600);
+    expect(overlay!.width).toBe(800);
+    expect(overlay!.height).toBe(600);
+  });
+
+  it("createOverlay() is a no-op (and closes the layer) once the scene's camera is gone", () => {
+    const dir = new SceneUiDirector(scene as never);
+    const layer = dir.openLayer({ key: "dialogue" });
+    (scene as unknown as { cameras: unknown }).cameras = {
+      main: undefined,
+    };
+    expect(() => layer.createOverlay()).not.toThrow();
+    expect(layer.createOverlay()).toBeUndefined();
+    expect(dir.hasLayer("dialogue")).toBe(false);
   });
 
   it("createOverlay({ closeOnPointerUp: true }) tears down the layer when clicked", () => {
@@ -110,7 +121,7 @@ describe("SceneUiDirector", () => {
     const r = scene.add.rectangle(0, 0, 1, 1);
     layer.track(asGo(r));
     const overlay = layer.createOverlay({ closeOnPointerUp: true });
-    overlay.emit("pointerup");
+    overlay!.emit("pointerup");
     expect(r.destroyed).toBe(true);
   });
 
@@ -119,7 +130,7 @@ describe("SceneUiDirector", () => {
     const layer = dir.openLayer();
     const cb = vi.fn();
     const overlay = layer.createOverlay({ onPointerUp: cb });
-    overlay.emit("pointerup");
+    overlay!.emit("pointerup");
     expect(cb).toHaveBeenCalledTimes(1);
     expect((layer as unknown as { isDestroyed: boolean }).isDestroyed).toBe(
       false,
@@ -135,12 +146,27 @@ describe("SceneUiDirector", () => {
       activationDelayMs: 100,
     });
     // No listener attached yet — emit is a no-op.
-    overlay.emit("pointerup");
+    overlay!.emit("pointerup");
     expect(cb).not.toHaveBeenCalled();
     // Fire the timer; handler is now wired.
     scene.time._all[0]!.fire();
-    overlay.emit("pointerup");
+    overlay!.emit("pointerup");
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("createOverlay({ activationDelayMs }) is inert if the layer is destroyed before the timer fires", () => {
+    const dir = new SceneUiDirector(scene as never);
+    const layer = dir.openLayer();
+    const cb = vi.fn();
+    const overlay = layer.createOverlay({
+      onPointerUp: cb,
+      activationDelayMs: 100,
+    });
+    layer.destroy();
+    // Simulates the player dismissing the modal during the activation delay.
+    expect(() => scene.time._all[0]!.fire()).not.toThrow();
+    overlay!.emit("pointerup");
+    expect(cb).not.toHaveBeenCalled();
   });
 
   it("closeAll() destroys both keyed and anonymous layers", () => {

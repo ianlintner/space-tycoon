@@ -18,6 +18,7 @@ __sft.click("btn-new-campaign"); // fires the onClick that a real pointer would
 __sft.snapshot(); // JSON-safe GameState + scene info + seed + turn
 __sft.actions.newGame(42); // seeded new game via the real UI path
 __sft.actions.endTurn(); // clicks btn-end-turn if present
+__sft.actions.setMaxTurns(5); // test-only: shorten the running game so it ends after turn 5 (still ends via the real TurnReport → View Results path)
 __sft.seed(1337); // reseed RNG for determinism
 ```
 

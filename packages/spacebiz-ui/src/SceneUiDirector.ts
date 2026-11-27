@@ -114,9 +114,26 @@ export class SceneUiLayer {
     return objects;
   }
 
+  /**
+   * Whether the owning scene can still host display objects. False once the
+   * scene has been shut down/destroyed (its camera manager and factories are
+   * torn down), e.g. when a queued modal callback fires after a scene switch.
+   */
+  isSceneUsable(): boolean {
+    return Boolean(this.scene.cameras?.main && this.scene.add);
+  }
+
+  /**
+   * Adds a full-screen dimming overlay. Returns `undefined` (and closes this
+   * layer) when the owning scene is already gone, instead of throwing.
+   */
   createOverlay(
     options: SceneUiOverlayOptions = {},
-  ): Phaser.GameObjects.Rectangle {
+  ): Phaser.GameObjects.Rectangle | undefined {
+    if (!this.isSceneUsable()) {
+      this.destroy();
+      return undefined;
+    }
     const camera = this.scene.cameras.main;
     const activationDelayMs = options.activationDelayMs ?? 0;
     const overlay = this.scene.add
@@ -132,6 +149,11 @@ export class SceneUiLayer {
       .setDepth(DEPTH_MODAL - 1);
 
     const armOverlay = () => {
+      // The layer can be dismissed (or its scene shut down) during the
+      // activation delay. Phaser detaches `scene` from destroyed objects, so
+      // touching setInteractive() on one throws TypeError reading 'sys'.
+      if (this.isDestroyed || !overlay.scene || overlay.active === false)
+        return;
       overlay.setInteractive();
       overlay.on("pointerup", () => {
         options.onPointerUp?.();

@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 import { gameStore } from "../data/GameStore.ts";
 import { isInDistanceBand, matchesScopeBand } from "./routesFinderFilters.ts";
+import { canSwitchToActiveRoutesTab } from "./routesTabGuards.ts";
 import type { DistanceBand, RouteScopeBand } from "./routesFinderFilters.ts";
 import { CargoType } from "../data/types.ts";
 import type { CargoType as CargoTypeValue } from "../data/types.ts";
@@ -140,6 +141,9 @@ export class RoutesScene extends Phaser.Scene {
   }
 
   switchToActiveRoutesTab(): void {
+    // The tutorial can call this while the scene is not running (not yet
+    // created, or already shut down) — there is no tab strip to update then.
+    if (!canSwitchToActiveRoutesTab(this.sys, Boolean(this.tabGroup))) return;
     this.tabGroup.setActiveTab(1);
     this.refreshActiveTable();
   }
