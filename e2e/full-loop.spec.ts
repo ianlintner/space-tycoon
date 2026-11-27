@@ -11,19 +11,32 @@ import * as path from "node:path";
  * asserts there are none. Only report/dialogue "continue" buttons are
  * dismissed — no QA shortcuts into GameOverScene (forceGameOver would bypass
  * the TurnReport → GameOver hand-off this spec exists to protect).
+ *
+ * The communication modal gates its action buttons behind a frame-driven
+ * typewriter. Under software GL in CI that timer can take well over a minute,
+ * which made the Rex intro step flake. Every dialogue is therefore opened by
+ * first waiting for its widget registration, then clicking the dialog text
+ * area (the game's built-in "skip typewriter" affordance).
  */
 // Video capture needs a separate ffmpeg download; this spec asserts on errors,
 // not footage.
 test.use({ video: "off" });
+
+/** Inside the 1280×720 dialog text hit-zone (never overlaps its buttons). */
+const TYPEWRITER_SKIP_X = 700;
+const TYPEWRITER_SKIP_Y = 380;
 
 test.describe("Full loop", () => {
   test("menu → results → play again with zero errors", async ({
     page,
     sft,
   }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(300_000);
     await page.setViewportSize({ width: 1280, height: 720 });
 
+    const startedAt = Date.now();
+    const mark = (label: string) =>
+      console.log(`full-loop: ${label} @${Date.now() - startedAt}ms`);
     const pageErrors: string[] = [];
     const consoleErrors: string[] = [];
     const badResponses: string[] = [];
@@ -39,45 +52,117 @@ test.describe("Full loop", () => {
     await page.reload();
     await sft.ready();
 
-    const has = (id: string) =>
-      page.evaluate(
+    type QAWidget = { testId: string; visible: boolean; enabled: boolean };
+    type QAWindow = {
+      __sft?: {
+        list(): QAWidget[];
+        currentScene(): { active: string[] };
+        state(): unknown;
+      };
+    };
+    const waitRegistered = (id: string, timeout = 30_000) =>
+      page.waitForFunction(
         (i) =>
-          window.__sft?.list().some((w) => w.testId === i && w.visible) ??
-          false,
+          (window as unknown as QAWindow).__sft
+            ?.list()
+            .some((w) => w.testId === i) ?? false,
         id,
+        { timeout, polling: 100 },
       );
     const waitWidget = (id: string, timeout = 30_000) =>
       page.waitForFunction(
         (i) =>
-          window.__sft?.list().some((w) => w.testId === i && w.visible) ??
-          false,
+          (window as unknown as QAWindow).__sft
+            ?.list()
+            .some((w) => w.testId === i && w.visible) ?? false,
         id,
         { timeout, polling: 100 },
       );
     const clickWhenReady = async (id: string, timeout = 30_000) => {
       await waitWidget(id, timeout);
-      await sft.click(id);
+      const result = await sft.click(id);
+      expect(result?.ok, `${id} click landed`).toBe(true);
     };
     const activeScenes = async () => (await sft.currentScene()).active;
+    /** Reveal a communication modal's buttons without waiting for its timer. */
+    const skipTypewriter = async () => {
+      await page.mouse.click(TYPEWRITER_SKIP_X, TYPEWRITER_SKIP_Y);
+    };
+    /** Wait for a dialogue's buttons and make them actionable immediately. */
+    const openDialogue = async (id: string, timeout = 30_000) => {
+      await waitRegistered(id, timeout);
+      await skipTypewriter();
+      await waitWidget(id, 15_000);
+    };
 
-    // 1. Menu → Quick game → Launch
+    // 1. Menu → Quick game → Launch. Verify the scene hand-off after each
+    // click so a swallowed click cannot masquerade as a slow tutorial.
     await clickWhenReady("btn-new-game");
+    await waitWidget("btn-quick");
     await clickWhenReady("btn-quick");
+    await waitWidget("btn-launch");
     await clickWhenReady("btn-launch");
+    await page.waitForFunction(
+      () =>
+        (window as unknown as QAWindow).__sft
+          ?.currentScene()
+          .active.includes("GameHUDScene") ?? false,
+      undefined,
+      { timeout: 60_000, polling: 100 },
+    );
+    mark("hud-active");
 
-    // 2. Rex intro + tutorial
-    await clickWhenReady("btn-let-s-go", 60_000);
-    for (let k = 0; k < 10; k++) {
-      await page.waitForTimeout(1500);
-      if (!(await has("btn-continue"))) break;
+    // 2. Rex intro + tutorial. The intro is only scheduled on a fresh game;
+    // assert the precondition instead of waiting blindly for its buttons.
+    const introState = await sft.state<{
+      turn: number;
+      gameOver: boolean;
+      activeRoutes: unknown[];
+      adviser?: { tutorialSkipped: boolean; tutorialComplete: boolean };
+    }>();
+    expect(introState.turn, "fresh game starts on turn 1").toBe(1);
+    expect(introState.activeRoutes.length, "no routes before tutorial").toBe(0);
+    expect(
+      introState.adviser?.tutorialSkipped ||
+        introState.adviser?.tutorialComplete,
+      "tutorial still eligible",
+    ).toBeFalsy();
+    await openDialogue("btn-let-s-go", 30_000);
+    await sft.click("btn-let-s-go");
+    mark("rex-intro-dismissed");
+    const tutorialDeadline = Date.now() + 60_000;
+    let step = 0;
+    while (Date.now() < tutorialDeadline) {
+      const tut0 = await sft.state<{
+        adviser?: { tutorialComplete: boolean };
+      }>();
+      if (tut0.adviser?.tutorialComplete) break;
+      const appeared = await waitRegistered("btn-continue", 15_000)
+        .then(() => true)
+        .catch(() => false);
+      if (!appeared) continue;
+      await skipTypewriter();
+      await waitWidget("btn-continue", 15_000);
       await sft.click("btn-continue");
+      const tut = await sft.state<{
+        activeRoutes: unknown[];
+        adviser?: { tutorialComplete: boolean };
+      }>();
+      mark(
+        `rex-step-${step++} routes=${tut.activeRoutes.length} complete=${tut.adviser?.tutorialComplete}`,
+      );
+      await page.waitForTimeout(500);
     }
+    mark("tutorial-complete");
 
     // Test-only shortcut: a real 25-turn Quick game is too slow for CI, so cap
     // the run at 4 more turns. The game still ends through the normal
     // end-turn → TurnReport → "View Results" path (>= 3 genuine end-turns).
     const startTurn = (await sft.state<{ turn: number }>()).turn;
     await sft.actions.setMaxTurns(startTurn + 3);
+    mark(
+      `pre-loop turn=${startTurn} scenes=${(await sft.currentScene()).active.join(",")}`,
+    );
 
     // 3. End turns until game over
     let realTurns = 0;
@@ -122,6 +207,7 @@ test.describe("Full loop", () => {
     }
     expect(await isOver(), "game reached gameOver").toBe(true);
     expect(realTurns).toBeGreaterThanOrEqual(3);
+    mark(`game-over after ${realTurns} turns`);
 
     // 4. View Results → GameOverScene → Play Again → MainMenuScene
     await clickWhenReady("btn-view-results", 60_000);
@@ -133,11 +219,13 @@ test.describe("Full loop", () => {
     await waitWidget("btn-play-again");
     await page.waitForTimeout(1500);
 
-    const outDir = path.join(process.cwd(), "docs", "pr-screenshots");
-    fs.mkdirSync(outDir, { recursive: true });
-    await page.screenshot({
-      path: path.join(outDir, "st-play-1-results-1280.png"),
-    });
+    // Keep local runs from overwriting the committed PR capture. CI can opt
+    // into a different path with SFT_SCREENSHOT_PATH.
+    const shot =
+      process.env.SFT_SCREENSHOT_PATH ??
+      path.join(process.cwd(), "test-results", "full-loop-results-1280.png");
+    fs.mkdirSync(path.dirname(shot), { recursive: true });
+    await page.screenshot({ path: shot });
 
     await sft.click("btn-play-again");
     await page.waitForFunction(
@@ -147,7 +235,7 @@ test.describe("Full loop", () => {
     );
 
     console.log(
-      `full-loop: pageErrors=${pageErrors.length} consoleErrors=${consoleErrors.length} badResponses=${badResponses.length} endTurns=${realTurns}`,
+      `full-loop: pageErrors=${pageErrors.length} consoleErrors=${consoleErrors.length} badResponses=${badResponses.length} endTurns=${realTurns} elapsed=${Date.now() - startedAt}ms screenshot=${shot}`,
     );
     expect(pageErrors, "page errors").toEqual([]);
     expect(consoleErrors, "console errors").toEqual([]);

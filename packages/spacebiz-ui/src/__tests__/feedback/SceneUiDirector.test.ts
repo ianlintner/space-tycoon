@@ -154,6 +154,21 @@ describe("SceneUiDirector", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
+  it("createOverlay({ activationDelayMs }) is inert if the layer is destroyed before the timer fires", () => {
+    const dir = new SceneUiDirector(scene as never);
+    const layer = dir.openLayer();
+    const cb = vi.fn();
+    const overlay = layer.createOverlay({
+      onPointerUp: cb,
+      activationDelayMs: 100,
+    });
+    layer.destroy();
+    // Simulates the player dismissing the modal during the activation delay.
+    expect(() => scene.time._all[0]!.fire()).not.toThrow();
+    overlay!.emit("pointerup");
+    expect(cb).not.toHaveBeenCalled();
+  });
+
   it("closeAll() destroys both keyed and anonymous layers", () => {
     const dir = new SceneUiDirector(scene as never);
     const a = dir.openLayer({ key: "a" });
