@@ -143,6 +143,10 @@ export interface SaveMeta {
   timestamp: number;
   /** Quarter (turn number) the save was captured on. */
   turn: number;
+  /** True when the saved game had already ended (victory or bankruptcy). */
+  gameOver: boolean;
+  /** Company name stored in the save, for menu display. */
+  companyName: string;
 }
 
 function readSaveMeta(key: string): SaveMeta | null {
@@ -157,7 +161,15 @@ function readSaveMeta(key: string): SaveMeta | null {
       typeof envelope.timestamp === "number" &&
       typeof envelope.turn === "number"
     ) {
-      return { timestamp: envelope.timestamp, turn: envelope.turn };
+      return {
+        timestamp: envelope.timestamp,
+        turn: envelope.turn,
+        gameOver: envelope.state?.gameOver === true,
+        companyName:
+          typeof envelope.state?.companyName === "string"
+            ? envelope.state.companyName
+            : "",
+      };
     }
     return null;
   } catch {
@@ -229,10 +241,68 @@ export function getDraftMeta(): SaveMeta | null {
 
 /**
  * Returns true when a draft exists AND was written within DRAFT_MAX_AGE_MS.
- * Used by MainMenuScene to decide whether to offer "Resume session?".
  */
 export function hasFreshDraft(): boolean {
   const meta = getDraftMeta();
   if (!meta) return false;
   return Date.now() - meta.timestamp <= DRAFT_MAX_AGE_MS;
+}
+
+// ---------------------------------------------------------------------------
+// Continue — pick the newest resumable save across manual / auto / draft
+// ---------------------------------------------------------------------------
+
+export type ContinueSourceKind = "manual" | "auto" | "draft";
+
+export interface ContinueSource {
+  kind: ContinueSourceKind;
+  meta: SaveMeta;
+}
+
+/**
+ * Pure selection: given the metadata of each save slot (null when absent),
+ * return the newest one that is still a live game. Finished games
+ * (`gameOver: true`) are never offered. Ties prefer manual > auto > draft.
+ */
+export function pickContinueSource(slots: {
+  manual: SaveMeta | null;
+  auto: SaveMeta | null;
+  draft: SaveMeta | null;
+}): ContinueSource | null {
+  const ordered: ContinueSource[] = [];
+  if (slots.manual) ordered.push({ kind: "manual", meta: slots.manual });
+  if (slots.auto) ordered.push({ kind: "auto", meta: slots.auto });
+  if (slots.draft) ordered.push({ kind: "draft", meta: slots.draft });
+  let best: ContinueSource | null = null;
+  for (const candidate of ordered) {
+    if (candidate.meta.gameOver) continue;
+    if (!best || candidate.meta.timestamp > best.meta.timestamp) {
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+/** Newest resumable save on disk. A draft only counts while it is fresh. */
+export function getContinueSource(): ContinueSource | null {
+  return pickContinueSource({
+    manual: getSaveMeta(),
+    auto: getAutoSaveMeta(),
+    draft: hasFreshDraft() ? getDraftMeta() : null,
+  });
+}
+
+/** Load the given continue source into the game store. */
+export function loadContinueSourceIntoStore(source: ContinueSource): boolean {
+  switch (source.kind) {
+    case "manual":
+      return loadGameIntoStore();
+    case "auto":
+      return loadAutoSaveIntoStore();
+    case "draft": {
+      const ok = loadDraftIntoStore();
+      if (ok) deleteDraft();
+      return ok;
+    }
+  }
 }

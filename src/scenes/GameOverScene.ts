@@ -22,6 +22,7 @@ import {
   rankCompanies,
 } from "../game/scoring/ScoreCalculator.ts";
 import { getAudioDirector } from "../audio/AudioDirector.ts";
+import { deleteAutoSave, deleteDraft } from "../game/SaveManager.ts";
 import { buildRevealMessages } from "../game/adviser/AdviserEngine.ts";
 import { CARGO_DIVERSITY_BONUS } from "../data/constants.ts";
 import {
@@ -79,6 +80,10 @@ export class GameOverScene extends Phaser.Scene {
 
     // Stop the HUD scene since the game is over
     this.scene.stop("GameHUDScene");
+
+    // A finished game must never be offered by Continue on the main menu.
+    deleteAutoSave();
+    deleteDraft();
 
     // Starfield background
     createStarfield(this);
