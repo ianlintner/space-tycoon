@@ -219,6 +219,24 @@ test.describe("Full loop", () => {
     await waitWidget("btn-play-again");
     await page.waitForTimeout(1500);
 
+    const outcome = await sft.getGameOutcome();
+    expect(
+      outcome.displayed,
+      "GameOverScene exposes its rendered outcome",
+    ).not.toBeNull();
+    expect(outcome.displayed!.outcome).toEqual(outcome.outcome);
+    expect(outcome.displayed!.heading, "headline matches getGameOutcome").toBe(
+      outcome.outcome.label,
+    );
+    expect(outcome.outcome.of, "all companies ranked").toBeGreaterThan(1);
+    expect(
+      outcome.displayed!.playerRow,
+      "player's own ranking row is rendered",
+    ).toContain("(You)");
+    mark(
+      `outcome=${outcome.outcome.label} rank=${outcome.outcome.rank}/${outcome.outcome.of} playerRow=${outcome.displayed!.playerRow}`,
+    );
+
     // Keep local runs from overwriting the committed PR capture. CI can opt
     // into a different path with SFT_SCREENSHOT_PATH.
     const shot =

@@ -3,8 +3,17 @@ import type {
   GameState,
   CargoType as CargoTypeT,
   AICompany,
+  TechState,
 } from "../../data/types.ts";
-import { CARGO_DIVERSITY_BONUS } from "../../data/constants.ts";
+import {
+  BASE_FREIGHT_CAPACITY,
+  BASE_PASSENGER_CAPACITY,
+  CARGO_DIVERSITY_BONUS,
+} from "../../data/constants.ts";
+import {
+  getTotalFreightCapacity,
+  getTotalPassengerCapacity,
+} from "../tech/TechEffects.ts";
 
 // ---------------------------------------------------------------------------
 // High score types
@@ -134,17 +143,29 @@ function computeAINetWorth(company: AICompany): number {
 }
 
 export interface CompanyRanking {
+  /** Competition rank: tied scores share the same rank. */
+  rank: number;
   name: string;
   isPlayer: boolean;
   netWorth: number;
+  /** Total freight + passenger capacity (the current fleet model). */
   fleetSize: number;
   routeCount: number;
   score: number;
 }
 
+/** Fleet capacity for a company whose tech state is unavailable (v6 saves). */
+const DEFAULT_FLEET_CAPACITY = BASE_FREIGHT_CAPACITY + BASE_PASSENGER_CAPACITY;
+
+function fleetCapacity(tech: TechState | undefined): number {
+  if (!tech) return DEFAULT_FLEET_CAPACITY;
+  return getTotalFreightCapacity(tech) + getTotalPassengerCapacity(tech);
+}
+
 /**
  * Rank the player against all AI companies.
- * Returns array sorted by score descending.
+ * Returns array sorted by score descending (ties broken by name for a stable
+ * display order), with a competition rank that makes equal scores share a place.
  */
 export function rankCompanies(state: GameState): CompanyRanking[] {
   const playerScore = calculateScore(state);
@@ -153,10 +174,11 @@ export function rankCompanies(state: GameState): CompanyRanking[] {
 
   const rankings: CompanyRanking[] = [
     {
+      rank: 1,
       name: state.companyName,
       isPlayer: true,
       netWorth: Math.round(playerNetWorth),
-      fleetSize: state.activeRoutes.length,
+      fleetSize: fleetCapacity(state.tech),
       routeCount: state.activeRoutes.length,
       score: playerScore,
     },
@@ -171,17 +193,63 @@ export function rankCompanies(state: GameState): CompanyRanking[] {
         ai.activeRoutes.length * 500,
     );
     rankings.push({
+      rank: 1,
       name: ai.name,
       isPlayer: false,
       netWorth: Math.round(aiNetWorth),
-      fleetSize: ai.activeRoutes.length,
+      fleetSize: fleetCapacity(ai.techState),
       routeCount: ai.activeRoutes.length,
       score: aiScore,
     });
   }
 
-  rankings.sort((a, b) => b.score - a.score);
+  rankings.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  for (const entry of rankings) {
+    entry.rank =
+      1 + rankings.filter((other) => other.score > entry.score).length;
+  }
   return rankings;
+}
+
+export type GameOutcomeKind = "victory" | "placed" | "bankruptcy";
+
+export interface GameOutcome {
+  rank: number;
+  of: number;
+  isWin: boolean;
+  kind: GameOutcomeKind;
+  /** Headline text rendered by GameOverScene. */
+  label: string;
+}
+
+/**
+ * Single source of truth for the end-of-game outcome. Victory means finishing
+ * #1 by score; every other non-bankrupt result is a placement, not a loss.
+ */
+export function getGameOutcome(state: GameState): GameOutcome {
+  const rankings = rankCompanies(state);
+  const of = rankings.length;
+  const rank = rankings.find((r) => r.isPlayer)?.rank ?? of;
+
+  if (state.gameOverReason === "bankruptcy") {
+    return {
+      rank,
+      of,
+      isWin: false,
+      kind: "bankruptcy",
+      label: "BANKRUPTCY!",
+    };
+  }
+  if (rank === 1) {
+    return { rank, of, isWin: true, kind: "victory", label: "VICTORY!" };
+  }
+  return {
+    rank,
+    of,
+    isWin: false,
+    kind: "placed",
+    label: `FINISHED #${rank} OF ${of}`,
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import {
   type SimulationResult,
 } from "../game/simulation/SimulationRunner.ts";
 import type { ChoiceEvent, DilemmaTemplate, GameState } from "../data/types.ts";
+import { createNewGame } from "../game/NewGameSetup.ts";
 
 let gameRef: Phaser.Game | null = null;
 
@@ -132,6 +133,12 @@ export interface SemanticActions {
    * the normal end-turn → TurnReport → "View Results" path.
    */
   setMaxTurns: (n: number) => void;
+  /** Test-only: adjust player cash so an outcome spec can force rank #1. */
+  setPlayerCash: (amount: number) => void;
+  /** Test-only: adjust a rival's cash to create a non-winning placement. */
+  setRivalCash: (index: number, amount: number) => void;
+  /** Test-only: install a generated rival field so ranking has competitors. */
+  seedRivals: (seed: number) => void;
   openScene: (key: string, data?: object) => void;
   closeModal: () => void;
   seed: (n: number) => void;
@@ -197,6 +204,28 @@ export function makeSemanticActions(): SemanticActions {
     setMaxTurns: (n: number) => {
       gameStore.update({ maxTurns: Math.max(1, Math.floor(n)) });
       logs.sft.info("maxTurns override", { maxTurns: n });
+    },
+    setPlayerCash: (amount: number) => {
+      gameStore.update({ cash: Math.max(0, Math.floor(amount)) });
+      logs.sft.info("playerCash override", { cash: amount });
+    },
+    setRivalCash: (index: number, amount: number) => {
+      const rivals = [...gameStore.getState().aiCompanies];
+      if (!rivals[index]) return;
+      rivals[index] = {
+        ...rivals[index],
+        cash: Math.max(0, Math.floor(amount)),
+      };
+      gameStore.update({ aiCompanies: rivals });
+      logs.sft.info("rivalCash override", { index, cash: amount });
+    },
+    seedRivals: (seed: number) => {
+      const generated = createNewGame(seed, "QA Rival Field", "quick").state;
+      gameStore.update({
+        aiCompanies: generated.aiCompanies,
+        unlockedEmpireIds: generated.unlockedEmpireIds,
+      });
+      logs.sft.info("rivals seeded", { count: generated.aiCompanies.length });
     },
     openScene: (key, data) => goToScene(key, data),
     closeModal: () => {
