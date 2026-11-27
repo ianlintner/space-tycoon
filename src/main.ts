@@ -204,17 +204,17 @@ function renderWikiLinks(): string {
   return [
     {
       title: "Wiki Hub",
-      href: "/wiki/index.html",
+      href: `${import.meta.env.BASE_URL}wiki/index.html`,
       caption: "Overview and navigation for all reference sections.",
     },
     {
       title: `CEO Directory (${CEO_PORTRAITS.length})`,
-      href: "/wiki/ceos.html",
+      href: `${import.meta.env.BASE_URL}wiki/ceos.html`,
       caption: "Full company roster with portrait cards and metadata.",
     },
     {
       title: `Leader Directory (${EMPIRE_LEADER_PORTRAITS.length})`,
-      href: "/wiki/leaders.html",
+      href: `${import.meta.env.BASE_URL}wiki/leaders.html`,
       caption: "Empire leadership roster with archetype and species labels.",
     },
   ]
@@ -233,22 +233,22 @@ function renderQaLinks(): string {
   return [
     {
       title: "Compact CEO Portrait Gallery",
-      href: "/qa/spacebiz-ceo-gallery-compact.html",
+      href: `${import.meta.env.BASE_URL}qa/spacebiz-ceo-gallery-compact.html`,
       caption: "100 CEO portraits in a scan-friendly grid for visual QA.",
     },
     {
       title: "Compact Leader Portrait Gallery",
-      href: "/qa/spacebiz-leader-gallery-compact.html",
+      href: `${import.meta.env.BASE_URL}qa/spacebiz-leader-gallery-compact.html`,
       caption: "20 empire leader portraits in compact card format.",
     },
     {
       title: "Compact Planet Portrait Gallery",
-      href: "/qa/spacebiz-planet-gallery-compact.html",
+      href: `${import.meta.env.BASE_URL}qa/spacebiz-planet-gallery-compact.html`,
       caption: "Planet portrait set by biome type for art consistency checks.",
     },
     {
       title: "Ship Reference Sheet",
-      href: "/qa/spacebiz-ship-reference.html",
+      href: `${import.meta.env.BASE_URL}qa/spacebiz-ship-reference.html`,
       caption:
         "Ship class and stat reference for balancing and regression review.",
     },

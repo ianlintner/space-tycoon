@@ -45,10 +45,10 @@ const commitUrl =
     : githubBaseUrl;
 
 export default defineConfig({
-  // "/" = absolute paths; required for Azure Static Web Apps custom domain.
-  // Local dev and GitHub Pages previously used "./" (relative) but SWA at
-  // the domain root needs absolute so asset paths resolve correctly.
-  base: "/",
+  // Configurable via VITE_BASE_PATH (or `vite build --base=...`). The game is
+  // hosted at https://games.cat-herding.net/space-tycoon/ so CI builds with
+  // "/space-tycoon/"; default "/" keeps local dev unchanged.
+  base: process.env.VITE_BASE_PATH ?? "/",
   resolve: {
     alias: {
       "@spacebiz/ui": path.resolve(
@@ -90,6 +90,7 @@ export default defineConfig({
       "node_modules",
       "dist",
       "e2e",
+      "e2e-subpath",
       "playwright-report",
       "test-results",
       ".claude/worktrees/**",

@@ -261,13 +261,13 @@ const AUDIO_BASE_URL: string = (() => {
   // Set it to the Azure Blob / CDN origin in production, e.g.:
   //   https://catherding.blob.core.windows.net/audio
   //   https://cdn.cat-herding.net/audio
-  // Leave unset for local dev — falls back to same-origin /concepts/audio.
+  // Leave unset for local dev — falls back to same-origin BASE_URL + concepts/audio.
   const envUrl = import.meta.env.VITE_AUDIO_BASE_URL as string | undefined;
   if (envUrl && envUrl.trim() !== "") {
     return envUrl.replace(/\/$/, ""); // strip trailing slash
   }
   // Local dev / same-origin fallback
-  return `${location.origin}/concepts/audio`;
+  return `${import.meta.env.BASE_URL}concepts/audio`;
 })();
 
 /** Build a full URL for an audio filename. */
